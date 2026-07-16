@@ -61,6 +61,14 @@ export default defineConfig(async () => {
     server: isCodexSeatbeltSandbox
       ? { watch: { useFsEvents: false, usePolling: true } }
       : undefined,
+    ssr: {
+      external: [
+        "@prisma/client",
+        "@prisma/engines",
+        "@prisma/debug",
+        "@prisma/get-platform",
+      ],
+    },
     plugins,
   };
 });
