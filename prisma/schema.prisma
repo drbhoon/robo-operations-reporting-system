@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Plant {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dailyRecords DailyPlantRecord[]
+  snapshots     ReportSnapshot[]
+}
+
+model DailyPlantRecord {
+  id               String   @id
+  plantId          String
+  plantCode        String
+  recordDate       DateTime
+  status           String
+  reviewStatus     String
+  validationStatus String
+  payload          Json
+  submittedAt      DateTime?
+  submittedBy      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  plant     Plant      @relation(fields: [plantId], references: [id])
+  auditLogs AuditLog[]
+
+  @@unique([plantCode, recordDate])
+  @@index([plantId, recordDate])
+  @@index([status, validationStatus])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  recordId  String
+  action    String
+  actor     String?
+  summary   String
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+
+  record DailyPlantRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  @@index([recordId, createdAt])
+}
+
+model ReportSnapshot {
+  id               String   @id
+  plantId          String
+  version          String   @unique
+  periodStart      DateTime
+  periodEnd        DateTime
+  sourceFileName   String
+  sourceChecksum   String
+  validationStatus String
+  payload          Json
+  lockedAt         DateTime
+  createdAt        DateTime @default(now())
+
+  plant            Plant             @relation(fields: [plantId], references: [id])
+  validationIssues ValidationIssue[]
+  generatedReports GeneratedReport[]
+
+  @@index([plantId, periodStart, periodEnd])
+  @@index([sourceChecksum])
+}
+
+model ValidationIssue {
+  id         String   @id @default(cuid())
+  snapshotId String
+  severity   String
+  code       String
+  message    String
+  date       DateTime?
+  field      String?
+  createdAt  DateTime @default(now())
+
+  snapshot ReportSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@index([snapshotId, severity])
+}
+
+model GeneratedReport {
+  id           String   @id @default(cuid())
+  snapshotId   String
+  format       String
+  storageKey   String
+  checksum     String
+  locked       Boolean  @default(true)
+  generatedBy  String?
+  generatedAt  DateTime @default(now())
+
+  snapshot ReportSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
+
+  @@index([snapshotId, format])
+}

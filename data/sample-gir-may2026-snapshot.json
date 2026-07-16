@@ -1,0 +1,5554 @@
+{
+  "id": "ac03ae2cc27a5ea2f823ed89",
+  "plantCode": "GIR-1",
+  "plantName": "GIR 1",
+  "version": "GIR-1-2026-05-01-2026-05-31-b9885e55",
+  "status": "LOCKED",
+  "period": {
+    "start": "2026-05-01",
+    "end": "2026-05-31"
+  },
+  "source": {
+    "fileName": "Gir plant May daily reports 2026.xlsx",
+    "checksum": "b9885e550b160484bc4cbe125a030a1468e8dbf65ce0f2ab121d0372a69ccdb5",
+    "importedAt": "2026-07-16T04:34:58.127Z"
+  },
+  "daily": [
+    {
+      "date": "2026-05-01",
+      "label": "01",
+      "targetMt": 1500,
+      "production": {
+        "mt": 1314.78,
+        "rawMaterialMt": 1314.77,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 512.76
+          },
+          {
+            "name": "20 MM",
+            "mt": 354.99
+          },
+          {
+            "name": "10 MM",
+            "mt": 249.81
+          },
+          {
+            "name": "P Sand",
+            "mt": 197.22
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 424,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 178
+          },
+          {
+            "name": "20 MM",
+            "mt": 190
+          },
+          {
+            "name": "10 MM",
+            "mt": 56
+          },
+          {
+            "name": "P Sand",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1896.77
+          },
+          {
+            "name": "20 MM",
+            "mt": 2058
+          },
+          {
+            "name": "10 MM",
+            "mt": 2514.72
+          },
+          {
+            "name": "P Sand",
+            "mt": 760.67
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 400.4
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 2231.53
+          },
+          {
+            "name": "20 MM",
+            "mt": 2222.99
+          },
+          {
+            "name": "10 MM",
+            "mt": 2708.53
+          },
+          {
+            "name": "P Sand",
+            "mt": 957.89
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 12.2,
+        "coneHours": 12.8,
+        "vsiHours": 13.1,
+        "jawTph": 107.78,
+        "coneTph": 102.73,
+        "vsiTph": 100.38
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 2.5,
+        "productionHours": 12,
+        "lossHours": 9.5,
+        "idleHours": 9.5,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 2.5,
+          "scheduled": 0,
+          "shiftChange": 0,
+          "lunchDinner": 0,
+          "idle": 9.5,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 6536,
+        "kvah": 6628,
+        "powerFactor": 0.9861,
+        "maxDemand": 430.32,
+        "unitsPerMt": 4.627,
+        "lightingUnits": 240
+      },
+      "loader": {
+        "dispatchMt": 424,
+        "stockToCustomerMt": 384.48,
+        "hours": 12.8,
+        "tph": 137.31,
+        "dieselLitres": 110,
+        "litresPerHour": 8.59,
+        "litresPerMt": 0.286
+      },
+      "sourceRows": {
+        "bookStock": 6,
+        "target": 2,
+        "hoursMeter": 3,
+        "plantReport": 6,
+        "electricalReadings": 3,
+        "loader": 2
+      }
+    },
+    {
+      "date": "2026-05-02",
+      "label": "02",
+      "targetMt": 1500,
+      "production": {
+        "mt": 1318.27,
+        "rawMaterialMt": 1318.27,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 514.13
+          },
+          {
+            "name": "20 MM",
+            "mt": 355.93
+          },
+          {
+            "name": "10 MM",
+            "mt": 250.47
+          },
+          {
+            "name": "P Sand",
+            "mt": 197.74
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 770,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 272
+          },
+          {
+            "name": "20 MM",
+            "mt": 271
+          },
+          {
+            "name": "10 MM",
+            "mt": 111
+          },
+          {
+            "name": "P Sand",
+            "mt": 58
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 58
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 2231.53
+          },
+          {
+            "name": "20 MM",
+            "mt": 2222.99
+          },
+          {
+            "name": "10 MM",
+            "mt": 2708.53
+          },
+          {
+            "name": "P Sand",
+            "mt": 957.89
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 2473.66
+          },
+          {
+            "name": "20 MM",
+            "mt": 2307.92
+          },
+          {
+            "name": "10 MM",
+            "mt": 2848
+          },
+          {
+            "name": "P Sand",
+            "mt": 1097.63
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 13,
+        "coneHours": 14.1,
+        "vsiHours": 14.6,
+        "jawTph": 101.41,
+        "coneTph": 93.49,
+        "vsiTph": 90.29
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 2.5,
+        "productionHours": 13.5,
+        "lossHours": 8,
+        "idleHours": 8,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 2.5,
+          "shiftChange": 0,
+          "lunchDinner": 0,
+          "idle": 8,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 5568,
+        "kvah": 5676,
+        "powerFactor": 0.981,
+        "maxDemand": 449.72,
+        "unitsPerMt": 4.159,
+        "lightingUnits": 145
+      },
+      "loader": {
+        "dispatchMt": 770,
+        "stockToCustomerMt": 770,
+        "hours": 13.1,
+        "tph": 93.9,
+        "dieselLitres": 120,
+        "litresPerHour": 9.16,
+        "litresPerMt": 0.156
+      },
+      "sourceRows": {
+        "bookStock": 7,
+        "target": 3,
+        "hoursMeter": 4,
+        "plantReport": 7,
+        "electricalReadings": 4,
+        "loader": 3
+      }
+    },
+    {
+      "date": "2026-05-03",
+      "label": "03",
+      "targetMt": 1000,
+      "production": {
+        "mt": 855,
+        "rawMaterialMt": 854.99,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 299.25
+          },
+          {
+            "name": "20 MM",
+            "mt": 230.85
+          },
+          {
+            "name": "10 MM",
+            "mt": 162.45
+          },
+          {
+            "name": "P Sand",
+            "mt": 162.45
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 244,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 162
+          },
+          {
+            "name": "20 MM",
+            "mt": 60
+          },
+          {
+            "name": "10 MM",
+            "mt": 22
+          },
+          {
+            "name": "P Sand",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 2473.66
+          },
+          {
+            "name": "20 MM",
+            "mt": 2307.92
+          },
+          {
+            "name": "10 MM",
+            "mt": 2848
+          },
+          {
+            "name": "P Sand",
+            "mt": 1097.63
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 2610.9
+          },
+          {
+            "name": "20 MM",
+            "mt": 2478.77
+          },
+          {
+            "name": "10 MM",
+            "mt": 2988.45
+          },
+          {
+            "name": "P Sand",
+            "mt": 1260.07
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 9,
+        "coneHours": 10.2,
+        "vsiHours": 10,
+        "jawTph": 95,
+        "coneTph": 83.82,
+        "vsiTph": 85.5
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 9,
+        "productionHours": 7.5,
+        "lossHours": 7.5,
+        "idleHours": 7.5,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 9,
+          "shiftChange": 0,
+          "lunchDinner": 0,
+          "idle": 7.5,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 4144,
+        "kvah": 4320,
+        "powerFactor": 0.9593,
+        "maxDemand": 449.72,
+        "unitsPerMt": 4.839,
+        "lightingUnits": 155
+      },
+      "loader": {
+        "dispatchMt": 244,
+        "stockToCustomerMt": 244,
+        "hours": 4.9,
+        "tph": 128.42,
+        "dieselLitres": 45,
+        "litresPerHour": 9.18,
+        "litresPerMt": 0.184
+      },
+      "sourceRows": {
+        "bookStock": 8,
+        "target": 4,
+        "hoursMeter": 5,
+        "plantReport": 8,
+        "electricalReadings": 5,
+        "loader": 4
+      }
+    },
+    {
+      "date": "2026-05-04",
+      "label": "04",
+      "targetMt": 1000,
+      "production": {
+        "mt": 845.2,
+        "rawMaterialMt": 845.2,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 329.63
+          },
+          {
+            "name": "20 MM",
+            "mt": 228.2
+          },
+          {
+            "name": "10 MM",
+            "mt": 160.59
+          },
+          {
+            "name": "P Sand",
+            "mt": 126.78
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 163.58,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 75
+          },
+          {
+            "name": "20 MM",
+            "mt": 56
+          },
+          {
+            "name": "10 MM",
+            "mt": 0
+          },
+          {
+            "name": "P Sand",
+            "mt": 17.58
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 15
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 2610.9
+          },
+          {
+            "name": "20 MM",
+            "mt": 2478.77
+          },
+          {
+            "name": "10 MM",
+            "mt": 2988.45
+          },
+          {
+            "name": "P Sand",
+            "mt": 1260.07
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 2865.53
+          },
+          {
+            "name": "20 MM",
+            "mt": 2650.97
+          },
+          {
+            "name": "10 MM",
+            "mt": 3149.03
+          },
+          {
+            "name": "P Sand",
+            "mt": 1369.27
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 8,
+        "coneHours": 0.1,
+        "vsiHours": 9.2,
+        "jawTph": 105.65,
+        "coneTph": 8452,
+        "vsiTph": 91.87
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 3,
+        "productionHours": 9,
+        "lossHours": 12,
+        "idleHours": 12,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 2,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 12,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 3508,
+        "kvah": 3632,
+        "powerFactor": 0.9659,
+        "maxDemand": 470.04,
+        "unitsPerMt": 4.118,
+        "lightingUnits": 140
+      },
+      "loader": {
+        "dispatchMt": 163.58,
+        "stockToCustomerMt": 143.76,
+        "hours": 4.5,
+        "tph": 143.76,
+        "dieselLitres": 20,
+        "litresPerHour": 4.44,
+        "litresPerMt": 0.139
+      },
+      "sourceRows": {
+        "bookStock": 9,
+        "target": 5,
+        "hoursMeter": 6,
+        "plantReport": 9,
+        "electricalReadings": 6,
+        "loader": 5
+      }
+    },
+    {
+      "date": "2026-05-05",
+      "label": "05",
+      "targetMt": 1500,
+      "production": {
+        "mt": 482.86,
+        "rawMaterialMt": 482.86,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 188.32
+          },
+          {
+            "name": "20 MM",
+            "mt": 130.37
+          },
+          {
+            "name": "10 MM",
+            "mt": 91.74
+          },
+          {
+            "name": "P Sand",
+            "mt": 72.43
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 655.18,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 391.18
+          },
+          {
+            "name": "20 MM",
+            "mt": 68
+          },
+          {
+            "name": "10 MM",
+            "mt": 39
+          },
+          {
+            "name": "P Sand",
+            "mt": 99
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 58
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 2865.53
+          },
+          {
+            "name": "20 MM",
+            "mt": 2650.97
+          },
+          {
+            "name": "10 MM",
+            "mt": 3149.03
+          },
+          {
+            "name": "P Sand",
+            "mt": 1369.27
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 2662.67
+          },
+          {
+            "name": "20 MM",
+            "mt": 2713.34
+          },
+          {
+            "name": "10 MM",
+            "mt": 3201.78
+          },
+          {
+            "name": "P Sand",
+            "mt": 1342.7
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 5.8,
+        "coneHours": 0,
+        "vsiHours": 5.9,
+        "jawTph": 83.25,
+        "coneTph": 0,
+        "vsiTph": 81.84
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 16,
+        "productionHours": 4,
+        "lossHours": 4,
+        "idleHours": 4,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 16,
+          "shiftChange": 0,
+          "lunchDinner": 0,
+          "idle": 4,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 2108,
+        "kvah": 2272,
+        "powerFactor": 0.9278,
+        "maxDemand": 470.04,
+        "unitsPerMt": 4.399,
+        "lightingUnits": 140
+      },
+      "loader": {
+        "dispatchMt": 655.18,
+        "stockToCustomerMt": 655.18,
+        "hours": 8.6,
+        "tph": 131.04,
+        "dieselLitres": 75,
+        "litresPerHour": 8.72,
+        "litresPerMt": 0.114
+      },
+      "sourceRows": {
+        "bookStock": 10,
+        "target": 6,
+        "hoursMeter": 7,
+        "plantReport": 10,
+        "electricalReadings": 7,
+        "loader": 6
+      }
+    },
+    {
+      "date": "2026-05-06",
+      "label": "06",
+      "targetMt": 1500,
+      "production": {
+        "mt": 689.74,
+        "rawMaterialMt": 689.74,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 255.2
+          },
+          {
+            "name": "20 MM",
+            "mt": 186.23
+          },
+          {
+            "name": "10 MM",
+            "mt": 131.05
+          },
+          {
+            "name": "P Sand",
+            "mt": 117.26
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 741,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 480
+          },
+          {
+            "name": "20 MM",
+            "mt": 136
+          },
+          {
+            "name": "10 MM",
+            "mt": 64
+          },
+          {
+            "name": "P Sand",
+            "mt": 38
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 23
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 2662.67
+          },
+          {
+            "name": "20 MM",
+            "mt": 2713.34
+          },
+          {
+            "name": "10 MM",
+            "mt": 3201.78
+          },
+          {
+            "name": "P Sand",
+            "mt": 1342.7
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 2437.87
+          },
+          {
+            "name": "20 MM",
+            "mt": 2763.57
+          },
+          {
+            "name": "10 MM",
+            "mt": 3268.83
+          },
+          {
+            "name": "P Sand",
+            "mt": 1421.96
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 6.9,
+        "coneHours": 0,
+        "vsiHours": 6,
+        "jawTph": 99.96,
+        "coneTph": 0,
+        "vsiTph": 114.96
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 9,
+        "productionHours": 7,
+        "lossHours": 8,
+        "idleHours": 8,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 8,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 8,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 3204,
+        "kvah": 3404,
+        "powerFactor": 0.9412,
+        "maxDemand": 470.76,
+        "unitsPerMt": 4.547,
+        "lightingUnits": 175
+      },
+      "loader": {
+        "dispatchMt": 741,
+        "stockToCustomerMt": 683.11,
+        "hours": 9.4,
+        "tph": 126.5,
+        "dieselLitres": 80,
+        "litresPerHour": 8.51,
+        "litresPerMt": 0.117
+      },
+      "sourceRows": {
+        "bookStock": 11,
+        "target": 7,
+        "hoursMeter": 8,
+        "plantReport": 11,
+        "electricalReadings": 8,
+        "loader": 7
+      }
+    },
+    {
+      "date": "2026-05-07",
+      "label": "07",
+      "targetMt": 1500,
+      "production": {
+        "mt": 1159.67,
+        "rawMaterialMt": 1159.67,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 545.04
+          },
+          {
+            "name": "20 MM",
+            "mt": 359.5
+          },
+          {
+            "name": "10 MM",
+            "mt": 255.13
+          },
+          {
+            "name": "P Sand",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 936,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 455
+          },
+          {
+            "name": "20 MM",
+            "mt": 196
+          },
+          {
+            "name": "10 MM",
+            "mt": 169
+          },
+          {
+            "name": "P Sand",
+            "mt": 19
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 97
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 2437.87
+          },
+          {
+            "name": "20 MM",
+            "mt": 2763.57
+          },
+          {
+            "name": "10 MM",
+            "mt": 3268.83
+          },
+          {
+            "name": "P Sand",
+            "mt": 1421.96
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 2527.91
+          },
+          {
+            "name": "20 MM",
+            "mt": 2927.07
+          },
+          {
+            "name": "10 MM",
+            "mt": 3354.96
+          },
+          {
+            "name": "P Sand",
+            "mt": 1402.96
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 11.1,
+        "coneHours": 0,
+        "vsiHours": 10.2,
+        "jawTph": 104.47,
+        "coneTph": 0,
+        "vsiTph": 113.69
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 6,
+        "productionHours": 9.75,
+        "lossHours": 8.25,
+        "idleHours": 8.25,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 5,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 8.25,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 5112,
+        "kvah": 5236,
+        "powerFactor": 0.9763,
+        "maxDemand": 470.76,
+        "unitsPerMt": 4.204,
+        "lightingUnits": 160
+      },
+      "loader": {
+        "dispatchMt": 936,
+        "stockToCustomerMt": 916.07,
+        "hours": 9.5,
+        "tph": 152.68,
+        "dieselLitres": 80,
+        "litresPerHour": 8.42,
+        "litresPerMt": 0.087
+      },
+      "sourceRows": {
+        "bookStock": 12,
+        "target": 8,
+        "hoursMeter": 9,
+        "plantReport": 12,
+        "electricalReadings": 9,
+        "loader": 8
+      }
+    },
+    {
+      "date": "2026-05-08",
+      "label": "08",
+      "targetMt": 1500,
+      "production": {
+        "mt": 1315.74,
+        "rawMaterialMt": 1315.74,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 592.08
+          },
+          {
+            "name": "20 MM",
+            "mt": 355.25
+          },
+          {
+            "name": "10 MM",
+            "mt": 0
+          },
+          {
+            "name": "P Sand",
+            "mt": 368.41
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1430,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 720
+          },
+          {
+            "name": "20 MM",
+            "mt": 356
+          },
+          {
+            "name": "10 MM",
+            "mt": 172
+          },
+          {
+            "name": "P Sand",
+            "mt": 145
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 37
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 2527.91
+          },
+          {
+            "name": "20 MM",
+            "mt": 2927.07
+          },
+          {
+            "name": "10 MM",
+            "mt": 3354.96
+          },
+          {
+            "name": "P Sand",
+            "mt": 1402.96
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 2400
+          },
+          {
+            "name": "20 MM",
+            "mt": 2926.32
+          },
+          {
+            "name": "10 MM",
+            "mt": 3182.96
+          },
+          {
+            "name": "P Sand",
+            "mt": 1626.37
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 10.5,
+        "coneHours": 11.2,
+        "vsiHours": 11.4,
+        "jawTph": 125.31,
+        "coneTph": 117.48,
+        "vsiTph": 115.42
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 6,
+        "productionHours": 10.17,
+        "lossHours": 7.83,
+        "idleHours": 7.83,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 5,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 7.83,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 5384,
+        "kvah": 5552,
+        "powerFactor": 0.9697,
+        "maxDemand": 470.76,
+        "unitsPerMt": 4.103,
+        "lightingUnits": 145
+      },
+      "loader": {
+        "dispatchMt": 1430,
+        "stockToCustomerMt": 1225.99,
+        "hours": 11.5,
+        "tph": 134.72,
+        "dieselLitres": 110,
+        "litresPerHour": 9.57,
+        "litresPerMt": 0.09
+      },
+      "sourceRows": {
+        "bookStock": 13,
+        "target": 9,
+        "hoursMeter": 10,
+        "plantReport": 13,
+        "electricalReadings": 10,
+        "loader": 9
+      }
+    },
+    {
+      "date": "2026-05-09",
+      "label": "09",
+      "targetMt": 1500,
+      "production": {
+        "mt": 1104.7,
+        "rawMaterialMt": 1104.7,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 430.83
+          },
+          {
+            "name": "20 MM",
+            "mt": 298.27
+          },
+          {
+            "name": "10 MM",
+            "mt": 209.89
+          },
+          {
+            "name": "P Sand",
+            "mt": 165.71
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1525.83,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 696
+          },
+          {
+            "name": "20 MM",
+            "mt": 333.83
+          },
+          {
+            "name": "10 MM",
+            "mt": 254
+          },
+          {
+            "name": "P Sand",
+            "mt": 88
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 154
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 2400
+          },
+          {
+            "name": "20 MM",
+            "mt": 2926.32
+          },
+          {
+            "name": "10 MM",
+            "mt": 3182.96
+          },
+          {
+            "name": "P Sand",
+            "mt": 1626.37
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 2134.83
+          },
+          {
+            "name": "20 MM",
+            "mt": 2890.76
+          },
+          {
+            "name": "10 MM",
+            "mt": 3138.85
+          },
+          {
+            "name": "P Sand",
+            "mt": 1704.07
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 9.6,
+        "coneHours": 0,
+        "vsiHours": 10.3,
+        "jawTph": 115,
+        "coneTph": 0,
+        "vsiTph": 107.25
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 5,
+        "productionHours": 10.5,
+        "lossHours": 8.5,
+        "idleHours": 8.5,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 4,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 8.5,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 4856,
+        "kvah": 5008,
+        "powerFactor": 0.9696,
+        "maxDemand": 470.76,
+        "unitsPerMt": 4.404,
+        "lightingUnits": 140
+      },
+      "loader": {
+        "dispatchMt": 1525.83,
+        "stockToCustomerMt": 1352.42,
+        "hours": 8.3,
+        "tph": 162.94,
+        "dieselLitres": 90,
+        "litresPerHour": 10.84,
+        "litresPerMt": 0.067
+      },
+      "sourceRows": {
+        "bookStock": 14,
+        "target": 10,
+        "hoursMeter": 11,
+        "plantReport": 14,
+        "electricalReadings": 11,
+        "loader": 10
+      }
+    },
+    {
+      "date": "2026-05-10",
+      "label": "10",
+      "targetMt": 2000,
+      "production": {
+        "mt": 853.29,
+        "rawMaterialMt": 853.29,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 332.78
+          },
+          {
+            "name": "20 MM",
+            "mt": 230.39
+          },
+          {
+            "name": "10 MM",
+            "mt": 162.13
+          },
+          {
+            "name": "P Sand",
+            "mt": 127.99
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1340.97,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 711.07
+          },
+          {
+            "name": "20 MM",
+            "mt": 343.59
+          },
+          {
+            "name": "10 MM",
+            "mt": 242.3
+          },
+          {
+            "name": "P Sand",
+            "mt": 44.01
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 2134.83
+          },
+          {
+            "name": "20 MM",
+            "mt": 2890.76
+          },
+          {
+            "name": "10 MM",
+            "mt": 3138.85
+          },
+          {
+            "name": "P Sand",
+            "mt": 1704.07
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1756.54
+          },
+          {
+            "name": "20 MM",
+            "mt": 2777.56
+          },
+          {
+            "name": "10 MM",
+            "mt": 3058.67
+          },
+          {
+            "name": "P Sand",
+            "mt": 1788.05
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 7.8,
+        "coneHours": 0,
+        "vsiHours": 9.4,
+        "jawTph": 109.4,
+        "coneTph": 0,
+        "vsiTph": 90.78
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 1,
+        "productionHours": 7.67,
+        "lossHours": 15.33,
+        "idleHours": 4.83,
+        "breakdownHours": 10.5,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 0,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 4.83,
+          "breakdown": 10.5
+        }
+      },
+      "electrical": {
+        "kwh": 3924,
+        "kvah": 4188,
+        "powerFactor": 0.937,
+        "maxDemand": 470.76,
+        "unitsPerMt": 4.535,
+        "lightingUnits": 170
+      },
+      "loader": {
+        "dispatchMt": 1340.97,
+        "stockToCustomerMt": 1208.7,
+        "hours": 13.2,
+        "tph": 268.6,
+        "dieselLitres": 100,
+        "litresPerHour": 7.58,
+        "litresPerMt": 0.083
+      },
+      "sourceRows": {
+        "bookStock": 15,
+        "target": 11,
+        "hoursMeter": 12,
+        "plantReport": 15,
+        "electricalReadings": 12,
+        "loader": 11
+      }
+    },
+    {
+      "date": "2026-05-11",
+      "label": "11",
+      "targetMt": 2000,
+      "production": {
+        "mt": 1180.86,
+        "rawMaterialMt": 1180.86,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 460.54
+          },
+          {
+            "name": "20 MM",
+            "mt": 318.83
+          },
+          {
+            "name": "10 MM",
+            "mt": 224.36
+          },
+          {
+            "name": "P Sand",
+            "mt": 177.13
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 655.24,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 291.94
+          },
+          {
+            "name": "20 MM",
+            "mt": 121.55
+          },
+          {
+            "name": "10 MM",
+            "mt": 110.04
+          },
+          {
+            "name": "P Sand",
+            "mt": 75.15
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 56.56
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1756.54
+          },
+          {
+            "name": "20 MM",
+            "mt": 2777.56
+          },
+          {
+            "name": "10 MM",
+            "mt": 3058.67
+          },
+          {
+            "name": "P Sand",
+            "mt": 1788.05
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1925.14
+          },
+          {
+            "name": "20 MM",
+            "mt": 2974.84
+          },
+          {
+            "name": "10 MM",
+            "mt": 3173
+          },
+          {
+            "name": "P Sand",
+            "mt": 1890.03
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 10.1,
+        "coneHours": 0,
+        "vsiHours": 13.7,
+        "jawTph": 116.92,
+        "coneTph": 0,
+        "vsiTph": 86.19
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 4,
+        "productionHours": 10.5,
+        "lossHours": 9.5,
+        "idleHours": 9.5,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 3,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 9.5,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 4424,
+        "kvah": 4636,
+        "powerFactor": 0.9543,
+        "maxDemand": 470.76,
+        "unitsPerMt": 3.646,
+        "lightingUnits": 145
+      },
+      "loader": {
+        "dispatchMt": 655.24,
+        "stockToCustomerMt": 507.72,
+        "hours": 7.7,
+        "tph": 153.85,
+        "dieselLitres": 60,
+        "litresPerHour": 7.79,
+        "litresPerMt": 0.118
+      },
+      "sourceRows": {
+        "bookStock": 16,
+        "target": 12,
+        "hoursMeter": 13,
+        "plantReport": 16,
+        "electricalReadings": 13,
+        "loader": 12
+      }
+    },
+    {
+      "date": "2026-05-12",
+      "label": "12",
+      "targetMt": 2000,
+      "production": {
+        "mt": 1446.91,
+        "rawMaterialMt": 1446.91,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 564.29
+          },
+          {
+            "name": "20 MM",
+            "mt": 390.67
+          },
+          {
+            "name": "10 MM",
+            "mt": 274.91
+          },
+          {
+            "name": "P Sand",
+            "mt": 217.04
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1381,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 535
+          },
+          {
+            "name": "20 MM",
+            "mt": 452
+          },
+          {
+            "name": "10 MM",
+            "mt": 298
+          },
+          {
+            "name": "P Sand",
+            "mt": 78
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 18
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1925.14
+          },
+          {
+            "name": "20 MM",
+            "mt": 2974.84
+          },
+          {
+            "name": "10 MM",
+            "mt": 3173
+          },
+          {
+            "name": "P Sand",
+            "mt": 1890.03
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1954.43
+          },
+          {
+            "name": "20 MM",
+            "mt": 2913.51
+          },
+          {
+            "name": "10 MM",
+            "mt": 3149.91
+          },
+          {
+            "name": "P Sand",
+            "mt": 2029.07
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 14.1,
+        "coneHours": 0,
+        "vsiHours": 16,
+        "jawTph": 102.62,
+        "coneTph": 0,
+        "vsiTph": 90.43
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 5.17,
+        "productionHours": 14.08,
+        "lossHours": 4.75,
+        "idleHours": 4.75,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 4.17,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 4.75,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 5900,
+        "kvah": 6012,
+        "powerFactor": 0.9814,
+        "maxDemand": 470.76,
+        "unitsPerMt": 3.948,
+        "lightingUnits": 200
+      },
+      "loader": {
+        "dispatchMt": 1381,
+        "stockToCustomerMt": 1085.6,
+        "hours": 11,
+        "tph": 472,
+        "dieselLitres": 90,
+        "litresPerHour": 8.18,
+        "litresPerMt": 0.083
+      },
+      "sourceRows": {
+        "bookStock": 17,
+        "target": 13,
+        "hoursMeter": 14,
+        "plantReport": 17,
+        "electricalReadings": 14,
+        "loader": 13
+      }
+    },
+    {
+      "date": "2026-05-13",
+      "label": "13",
+      "targetMt": 1000,
+      "production": {
+        "mt": 1619.95,
+        "rawMaterialMt": 1619.95,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 631.78
+          },
+          {
+            "name": "20 MM",
+            "mt": 437.39
+          },
+          {
+            "name": "10 MM",
+            "mt": 307.79
+          },
+          {
+            "name": "P Sand",
+            "mt": 242.99
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1211,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 601
+          },
+          {
+            "name": "20 MM",
+            "mt": 350
+          },
+          {
+            "name": "10 MM",
+            "mt": 165
+          },
+          {
+            "name": "P Sand",
+            "mt": 77
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 18
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1954.43
+          },
+          {
+            "name": "20 MM",
+            "mt": 2913.51
+          },
+          {
+            "name": "10 MM",
+            "mt": 3149.91
+          },
+          {
+            "name": "P Sand",
+            "mt": 2029.07
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1985.21
+          },
+          {
+            "name": "20 MM",
+            "mt": 3000.89
+          },
+          {
+            "name": "10 MM",
+            "mt": 3292.7
+          },
+          {
+            "name": "P Sand",
+            "mt": 2195.06
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 13.1,
+        "coneHours": 0,
+        "vsiHours": 15.6,
+        "jawTph": 123.66,
+        "coneTph": 0,
+        "vsiTph": 103.84
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 1.67,
+        "productionHours": 11.5,
+        "lossHours": 10.83,
+        "idleHours": 10.83,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 0.67,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 10.83,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 6604,
+        "kvah": 6716,
+        "powerFactor": 0.9833,
+        "maxDemand": 470.76,
+        "unitsPerMt": 4.042,
+        "lightingUnits": 140
+      },
+      "loader": {
+        "dispatchMt": 1211,
+        "stockToCustomerMt": 1028.56,
+        "hours": 9.3,
+        "tph": 514.28,
+        "dieselLitres": 80,
+        "litresPerHour": 8.6,
+        "litresPerMt": 0.078
+      },
+      "sourceRows": {
+        "bookStock": 18,
+        "target": 14,
+        "hoursMeter": 15,
+        "plantReport": 18,
+        "electricalReadings": 15,
+        "loader": 14
+      }
+    },
+    {
+      "date": "2026-05-14",
+      "label": "14",
+      "targetMt": 2000,
+      "production": {
+        "mt": 1691.09,
+        "rawMaterialMt": 1691.09,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 659.53
+          },
+          {
+            "name": "20 MM",
+            "mt": 456.59
+          },
+          {
+            "name": "10 MM",
+            "mt": 321.31
+          },
+          {
+            "name": "P Sand",
+            "mt": 253.66
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1121,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 511
+          },
+          {
+            "name": "20 MM",
+            "mt": 315
+          },
+          {
+            "name": "10 MM",
+            "mt": 218
+          },
+          {
+            "name": "P Sand",
+            "mt": 39
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 38
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1985.21
+          },
+          {
+            "name": "20 MM",
+            "mt": 3000.89
+          },
+          {
+            "name": "10 MM",
+            "mt": 3292.7
+          },
+          {
+            "name": "P Sand",
+            "mt": 2195.06
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 2133.74
+          },
+          {
+            "name": "20 MM",
+            "mt": 3142.49
+          },
+          {
+            "name": "10 MM",
+            "mt": 3396.01
+          },
+          {
+            "name": "P Sand",
+            "mt": 2409.73
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 13.1,
+        "coneHours": 0,
+        "vsiHours": 14.6,
+        "jawTph": 129.09,
+        "coneTph": 0,
+        "vsiTph": 115.83
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 1,
+        "productionHours": 12.92,
+        "lossHours": 10.08,
+        "idleHours": 10.08,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 0,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 10.08,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 6928,
+        "kvah": 7032,
+        "powerFactor": 0.9852,
+        "maxDemand": 470.76,
+        "unitsPerMt": 3.968,
+        "lightingUnits": 205
+      },
+      "loader": {
+        "dispatchMt": 1121,
+        "stockToCustomerMt": 972.1,
+        "hours": 10.6,
+        "tph": 294.58,
+        "dieselLitres": 95,
+        "litresPerHour": 8.96,
+        "litresPerMt": 0.098
+      },
+      "sourceRows": {
+        "bookStock": 19,
+        "target": 15,
+        "hoursMeter": 16,
+        "plantReport": 19,
+        "electricalReadings": 16,
+        "loader": 15
+      }
+    },
+    {
+      "date": "2026-05-15",
+      "label": "15",
+      "targetMt": 2000,
+      "production": {
+        "mt": 1841.18,
+        "rawMaterialMt": 1841.17,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 718.06
+          },
+          {
+            "name": "20 MM",
+            "mt": 497.12
+          },
+          {
+            "name": "10 MM",
+            "mt": 349.82
+          },
+          {
+            "name": "P Sand",
+            "mt": 276.18
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 2059,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 790
+          },
+          {
+            "name": "20 MM",
+            "mt": 693
+          },
+          {
+            "name": "10 MM",
+            "mt": 414
+          },
+          {
+            "name": "P Sand",
+            "mt": 96
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 66
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 2133.74
+          },
+          {
+            "name": "20 MM",
+            "mt": 3142.49
+          },
+          {
+            "name": "10 MM",
+            "mt": 3396.01
+          },
+          {
+            "name": "P Sand",
+            "mt": 2409.73
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 2061.8
+          },
+          {
+            "name": "20 MM",
+            "mt": 2946.6
+          },
+          {
+            "name": "10 MM",
+            "mt": 3331.83
+          },
+          {
+            "name": "P Sand",
+            "mt": 2589.9
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 15.6,
+        "coneHours": 0,
+        "vsiHours": 18,
+        "jawTph": 118.02,
+        "coneTph": 0,
+        "vsiTph": 102.29
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 2,
+        "productionHours": 15.83,
+        "lossHours": 6.17,
+        "idleHours": 6.17,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 1,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 6.17,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 7088,
+        "kvah": 7156,
+        "powerFactor": 0.9905,
+        "maxDemand": 470.76,
+        "unitsPerMt": 3.676,
+        "lightingUnits": 190
+      },
+      "loader": {
+        "dispatchMt": 2059,
+        "stockToCustomerMt": 1636.28,
+        "hours": 14,
+        "tph": 606.03,
+        "dieselLitres": 130,
+        "litresPerHour": 9.29,
+        "litresPerMt": 0.079
+      },
+      "sourceRows": {
+        "bookStock": 20,
+        "target": 16,
+        "hoursMeter": 17,
+        "plantReport": 20,
+        "electricalReadings": 17,
+        "loader": 16
+      }
+    },
+    {
+      "date": "2026-05-16",
+      "label": "16",
+      "targetMt": 2000,
+      "production": {
+        "mt": 1271.78,
+        "rawMaterialMt": 1271.77,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 495.99
+          },
+          {
+            "name": "20 MM",
+            "mt": 343.38
+          },
+          {
+            "name": "10 MM",
+            "mt": 241.64
+          },
+          {
+            "name": "P Sand",
+            "mt": 190.77
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 2510,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 986
+          },
+          {
+            "name": "20 MM",
+            "mt": 774
+          },
+          {
+            "name": "10 MM",
+            "mt": 656
+          },
+          {
+            "name": "P Sand",
+            "mt": 76
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 18
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 2061.8
+          },
+          {
+            "name": "20 MM",
+            "mt": 2946.6
+          },
+          {
+            "name": "10 MM",
+            "mt": 3331.83
+          },
+          {
+            "name": "P Sand",
+            "mt": 2589.9
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1571.79
+          },
+          {
+            "name": "20 MM",
+            "mt": 2515.98
+          },
+          {
+            "name": "10 MM",
+            "mt": 2917.47
+          },
+          {
+            "name": "P Sand",
+            "mt": 2704.67
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 10.35,
+        "coneHours": 0,
+        "vsiHours": 12.2,
+        "jawTph": 122.88,
+        "coneTph": 0,
+        "vsiTph": 104.24
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 2.83,
+        "productionHours": 10.58,
+        "lossHours": 10.58,
+        "idleHours": 10.58,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 1.83,
+          "scheduled": 0,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 10.58,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 5640,
+        "kvah": 5768,
+        "powerFactor": 0.9778,
+        "maxDemand": 470.76,
+        "unitsPerMt": 4.175,
+        "lightingUnits": 190
+      },
+      "loader": {
+        "dispatchMt": 2510,
+        "stockToCustomerMt": 2241.21,
+        "hours": 15.7,
+        "tph": 640.35,
+        "dieselLitres": 145,
+        "litresPerHour": 9.24,
+        "litresPerMt": 0.065
+      },
+      "sourceRows": {
+        "bookStock": 21,
+        "target": 17,
+        "hoursMeter": 18,
+        "plantReport": 21,
+        "electricalReadings": 18,
+        "loader": 17
+      }
+    },
+    {
+      "date": "2026-05-17",
+      "label": "17",
+      "targetMt": 1000,
+      "production": {
+        "mt": 981,
+        "rawMaterialMt": 981.01,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 382.59
+          },
+          {
+            "name": "20 MM",
+            "mt": 264.87
+          },
+          {
+            "name": "10 MM",
+            "mt": 186.39
+          },
+          {
+            "name": "P Sand",
+            "mt": 147.15
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 958,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 231
+          },
+          {
+            "name": "20 MM",
+            "mt": 366
+          },
+          {
+            "name": "10 MM",
+            "mt": 306
+          },
+          {
+            "name": "P Sand",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 55
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1571.79
+          },
+          {
+            "name": "20 MM",
+            "mt": 2515.98
+          },
+          {
+            "name": "10 MM",
+            "mt": 2917.47
+          },
+          {
+            "name": "P Sand",
+            "mt": 2704.67
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1723.38
+          },
+          {
+            "name": "20 MM",
+            "mt": 2414.85
+          },
+          {
+            "name": "10 MM",
+            "mt": 2797.86
+          },
+          {
+            "name": "P Sand",
+            "mt": 2851.82
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 7.45,
+        "coneHours": 16.6,
+        "vsiHours": 9,
+        "jawTph": 131.68,
+        "coneTph": 59.1,
+        "vsiTph": 109
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 5,
+        "productionHours": 7.75,
+        "lossHours": 11.25,
+        "idleHours": 7.67,
+        "breakdownHours": 3.58,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 4,
+          "scheduled": 0,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 7.67,
+          "breakdown": 3.58
+        }
+      },
+      "electrical": {
+        "kwh": 4212,
+        "kvah": 4416,
+        "powerFactor": 0.9538,
+        "maxDemand": 470.76,
+        "unitsPerMt": 4.277,
+        "lightingUnits": 150
+      },
+      "loader": {
+        "dispatchMt": 958,
+        "stockToCustomerMt": 757.7,
+        "hours": 9.8,
+        "tph": 142.96,
+        "dieselLitres": 95,
+        "litresPerHour": 9.69,
+        "litresPerMt": 0.125
+      },
+      "sourceRows": {
+        "bookStock": 22,
+        "target": 18,
+        "hoursMeter": 19,
+        "plantReport": 22,
+        "electricalReadings": 19,
+        "loader": 18
+      }
+    },
+    {
+      "date": "2026-05-18",
+      "label": "18",
+      "targetMt": 1500,
+      "production": {
+        "mt": 1119,
+        "rawMaterialMt": 1119,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 436.41
+          },
+          {
+            "name": "20 MM",
+            "mt": 302.13
+          },
+          {
+            "name": "10 MM",
+            "mt": 212.61
+          },
+          {
+            "name": "P Sand",
+            "mt": 167.85
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1099,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 435
+          },
+          {
+            "name": "20 MM",
+            "mt": 134
+          },
+          {
+            "name": "10 MM",
+            "mt": 251
+          },
+          {
+            "name": "P Sand",
+            "mt": 155
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 124
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1723.38
+          },
+          {
+            "name": "20 MM",
+            "mt": 2414.85
+          },
+          {
+            "name": "10 MM",
+            "mt": 2797.86
+          },
+          {
+            "name": "P Sand",
+            "mt": 2851.82
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1724.79
+          },
+          {
+            "name": "20 MM",
+            "mt": 2582.98
+          },
+          {
+            "name": "10 MM",
+            "mt": 2759.47
+          },
+          {
+            "name": "P Sand",
+            "mt": 2864.67
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 8.8,
+        "coneHours": 0,
+        "vsiHours": 10.1,
+        "jawTph": 127.16,
+        "coneTph": 0,
+        "vsiTph": 110.79
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 7.75,
+        "productionHours": 8.67,
+        "lossHours": 7.58,
+        "idleHours": 7.58,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 6.75,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 7.58,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 4460,
+        "kvah": 4660,
+        "powerFactor": 0.9571,
+        "maxDemand": 470.76,
+        "unitsPerMt": 3.976,
+        "lightingUnits": 175
+      },
+      "loader": {
+        "dispatchMt": 1099,
+        "stockToCustomerMt": 979.73,
+        "hours": 11.2,
+        "tph": 144.08,
+        "dieselLitres": 95,
+        "litresPerHour": 8.48,
+        "litresPerMt": 0.097
+      },
+      "sourceRows": {
+        "bookStock": 23,
+        "target": 19,
+        "hoursMeter": 20,
+        "plantReport": 23,
+        "electricalReadings": 20,
+        "loader": 19
+      }
+    },
+    {
+      "date": "2026-05-19",
+      "label": "19",
+      "targetMt": 1000,
+      "production": {
+        "mt": 728.61,
+        "rawMaterialMt": 728.61,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 284.16
+          },
+          {
+            "name": "20 MM",
+            "mt": 196.72
+          },
+          {
+            "name": "10 MM",
+            "mt": 138.44
+          },
+          {
+            "name": "P Sand",
+            "mt": 109.29
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1153,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 297
+          },
+          {
+            "name": "20 MM",
+            "mt": 328
+          },
+          {
+            "name": "10 MM",
+            "mt": 317
+          },
+          {
+            "name": "P Sand",
+            "mt": 170
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 41
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1724.79
+          },
+          {
+            "name": "20 MM",
+            "mt": 2582.98
+          },
+          {
+            "name": "10 MM",
+            "mt": 2759.47
+          },
+          {
+            "name": "P Sand",
+            "mt": 2864.67
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1711.95
+          },
+          {
+            "name": "20 MM",
+            "mt": 2451.71
+          },
+          {
+            "name": "10 MM",
+            "mt": 2580.9
+          },
+          {
+            "name": "P Sand",
+            "mt": 2803.96
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 7.3,
+        "coneHours": 0,
+        "vsiHours": 8.5,
+        "jawTph": 99.81,
+        "coneTph": 0,
+        "vsiTph": 85.72
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 5.25,
+        "productionHours": 7.25,
+        "lossHours": 11.5,
+        "idleHours": 11.5,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 4.25,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 11.5,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 3400,
+        "kvah": 3676,
+        "powerFactor": 0.9249,
+        "maxDemand": 470.76,
+        "unitsPerMt": 4.81,
+        "lightingUnits": 165
+      },
+      "loader": {
+        "dispatchMt": 1153,
+        "stockToCustomerMt": 987.22,
+        "hours": 10.2,
+        "tph": 173.2,
+        "dieselLitres": 80,
+        "litresPerHour": 7.84,
+        "litresPerMt": 0.081
+      },
+      "sourceRows": {
+        "bookStock": 24,
+        "target": 20,
+        "hoursMeter": 21,
+        "plantReport": 24,
+        "electricalReadings": 21,
+        "loader": 20
+      }
+    },
+    {
+      "date": "2026-05-20",
+      "label": "20",
+      "targetMt": 1700,
+      "production": {
+        "mt": 947.68,
+        "rawMaterialMt": 947.68,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 445.41
+          },
+          {
+            "name": "20 MM",
+            "mt": 255.87
+          },
+          {
+            "name": "10 MM",
+            "mt": 180.06
+          },
+          {
+            "name": "P Sand",
+            "mt": 66.34
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1563,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 597
+          },
+          {
+            "name": "20 MM",
+            "mt": 371
+          },
+          {
+            "name": "10 MM",
+            "mt": 321
+          },
+          {
+            "name": "P Sand",
+            "mt": 236
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 38
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1711.95
+          },
+          {
+            "name": "20 MM",
+            "mt": 2451.71
+          },
+          {
+            "name": "10 MM",
+            "mt": 2580.9
+          },
+          {
+            "name": "P Sand",
+            "mt": 2803.96
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1560.36
+          },
+          {
+            "name": "20 MM",
+            "mt": 2336.58
+          },
+          {
+            "name": "10 MM",
+            "mt": 2439.96
+          },
+          {
+            "name": "P Sand",
+            "mt": 2634.3
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 9.6,
+        "coneHours": 0,
+        "vsiHours": 11.1,
+        "jawTph": 98.72,
+        "coneTph": 0,
+        "vsiTph": 85.38
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 2.83,
+        "productionHours": 9.58,
+        "lossHours": 11.58,
+        "idleHours": 7.5,
+        "breakdownHours": 4.08,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 1.5,
+          "scheduled": 0,
+          "shiftChange": 0,
+          "lunchDinner": 1.33,
+          "idle": 7.5,
+          "breakdown": 4.08
+        }
+      },
+      "electrical": {
+        "kwh": 4632,
+        "kvah": 4864,
+        "powerFactor": 0.9523,
+        "maxDemand": 470.76,
+        "unitsPerMt": 4.759,
+        "lightingUnits": 180
+      },
+      "loader": {
+        "dispatchMt": 1563,
+        "stockToCustomerMt": 1419.11,
+        "hours": 11.7,
+        "tph": 181.94,
+        "dieselLitres": 95,
+        "litresPerHour": 8.12,
+        "litresPerMt": 0.067
+      },
+      "sourceRows": {
+        "bookStock": 25,
+        "target": 21,
+        "hoursMeter": 22,
+        "plantReport": 25,
+        "electricalReadings": 22,
+        "loader": 21
+      }
+    },
+    {
+      "date": "2026-05-21",
+      "label": "21",
+      "targetMt": 1700,
+      "production": {
+        "mt": 1243.87,
+        "rawMaterialMt": 1151.73,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 541.31
+          },
+          {
+            "name": "20 MM",
+            "mt": 310.97
+          },
+          {
+            "name": "10 MM",
+            "mt": 218.83
+          },
+          {
+            "name": "P Sand",
+            "mt": 172.76
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 849,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 382
+          },
+          {
+            "name": "20 MM",
+            "mt": 261
+          },
+          {
+            "name": "10 MM",
+            "mt": 182
+          },
+          {
+            "name": "P Sand",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 24
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1560.36
+          },
+          {
+            "name": "20 MM",
+            "mt": 2336.58
+          },
+          {
+            "name": "10 MM",
+            "mt": 2439.96
+          },
+          {
+            "name": "P Sand",
+            "mt": 2634.3
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1719.67
+          },
+          {
+            "name": "20 MM",
+            "mt": 2386.55
+          },
+          {
+            "name": "10 MM",
+            "mt": 2476.79
+          },
+          {
+            "name": "P Sand",
+            "mt": 2807.06
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 10.9,
+        "coneHours": 0,
+        "vsiHours": 11.2,
+        "jawTph": 105.66,
+        "coneTph": 0,
+        "vsiTph": 102.83
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 2.75,
+        "productionHours": 10.92,
+        "lossHours": 10.33,
+        "idleHours": 10.33,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 1.75,
+          "scheduled": 0,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 10.33,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 4644,
+        "kvah": 4872,
+        "powerFactor": 0.9532,
+        "maxDemand": 470.76,
+        "unitsPerMt": 4.021,
+        "lightingUnits": 195
+      },
+      "loader": {
+        "dispatchMt": 849,
+        "stockToCustomerMt": 590.55,
+        "hours": 4.8,
+        "tph": 155.41,
+        "dieselLitres": 30,
+        "litresPerHour": 6.25,
+        "litresPerMt": 0.051
+      },
+      "sourceRows": {
+        "bookStock": 26,
+        "target": 22,
+        "hoursMeter": 23,
+        "plantReport": 26,
+        "electricalReadings": 23,
+        "loader": 22
+      }
+    },
+    {
+      "date": "2026-05-22",
+      "label": "22",
+      "targetMt": 1700,
+      "production": {
+        "mt": 1172.88,
+        "rawMaterialMt": 1086,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 510.42
+          },
+          {
+            "name": "20 MM",
+            "mt": 293.22
+          },
+          {
+            "name": "10 MM",
+            "mt": 206.34
+          },
+          {
+            "name": "P Sand",
+            "mt": 162.9
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1150,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 722
+          },
+          {
+            "name": "20 MM",
+            "mt": 157
+          },
+          {
+            "name": "10 MM",
+            "mt": 128
+          },
+          {
+            "name": "P Sand",
+            "mt": 143
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1719.67
+          },
+          {
+            "name": "20 MM",
+            "mt": 2386.55
+          },
+          {
+            "name": "10 MM",
+            "mt": 2476.79
+          },
+          {
+            "name": "P Sand",
+            "mt": 2807.06
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1508.09
+          },
+          {
+            "name": "20 MM",
+            "mt": 2522.77
+          },
+          {
+            "name": "10 MM",
+            "mt": 2555.13
+          },
+          {
+            "name": "P Sand",
+            "mt": 2826.96
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 8.9,
+        "coneHours": 0,
+        "vsiHours": 10.1,
+        "jawTph": 122.02,
+        "coneTph": 0,
+        "vsiTph": 107.52
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 6,
+        "productionHours": 8.83,
+        "lossHours": 9.17,
+        "idleHours": 9.17,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 5,
+          "scheduled": 0,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 9.17,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 4492,
+        "kvah": 4592,
+        "powerFactor": 0.9782,
+        "maxDemand": 470.76,
+        "unitsPerMt": 4.058,
+        "lightingUnits": 180
+      },
+      "loader": {
+        "dispatchMt": 1150,
+        "stockToCustomerMt": 1085.76,
+        "hours": 13,
+        "tph": 102.43,
+        "dieselLitres": 115,
+        "litresPerHour": 8.85,
+        "litresPerMt": 0.106
+      },
+      "sourceRows": {
+        "bookStock": 27,
+        "target": 23,
+        "hoursMeter": 24,
+        "plantReport": 27,
+        "electricalReadings": 24,
+        "loader": 23
+      }
+    },
+    {
+      "date": "2026-05-23",
+      "label": "23",
+      "targetMt": 1700,
+      "production": {
+        "mt": 1658.86,
+        "rawMaterialMt": 1535.98,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 721.91
+          },
+          {
+            "name": "20 MM",
+            "mt": 414.71
+          },
+          {
+            "name": "10 MM",
+            "mt": 291.84
+          },
+          {
+            "name": "P Sand",
+            "mt": 230.4
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1518,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 483
+          },
+          {
+            "name": "20 MM",
+            "mt": 335
+          },
+          {
+            "name": "10 MM",
+            "mt": 420
+          },
+          {
+            "name": "P Sand",
+            "mt": 199
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 81
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1508.09
+          },
+          {
+            "name": "20 MM",
+            "mt": 2522.77
+          },
+          {
+            "name": "10 MM",
+            "mt": 2555.13
+          },
+          {
+            "name": "P Sand",
+            "mt": 2826.96
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1747
+          },
+          {
+            "name": "20 MM",
+            "mt": 2602.48
+          },
+          {
+            "name": "10 MM",
+            "mt": 2426.97
+          },
+          {
+            "name": "P Sand",
+            "mt": 2858.35
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 9.25,
+        "coneHours": 0,
+        "vsiHours": 11.2,
+        "jawTph": 166.05,
+        "coneTph": 0,
+        "vsiTph": 137.14
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 2.83,
+        "productionHours": 9.42,
+        "lossHours": 11.75,
+        "idleHours": 11.75,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 1.67,
+          "scheduled": 0,
+          "shiftChange": 0,
+          "lunchDinner": 1.17,
+          "idle": 11.75,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 5580,
+        "kvah": 5676,
+        "powerFactor": 0.9831,
+        "maxDemand": 470.76,
+        "unitsPerMt": 3.51,
+        "lightingUnits": 215
+      },
+      "loader": {
+        "dispatchMt": 1518,
+        "stockToCustomerMt": 1110.94,
+        "hours": 10,
+        "tph": 163.37,
+        "dieselLitres": 110,
+        "litresPerHour": 11,
+        "litresPerMt": 0.099
+      },
+      "sourceRows": {
+        "bookStock": 28,
+        "target": 24,
+        "hoursMeter": 25,
+        "plantReport": 28,
+        "electricalReadings": 25,
+        "loader": 24
+      }
+    },
+    {
+      "date": "2026-05-24",
+      "label": "24",
+      "targetMt": 1700,
+      "production": {
+        "mt": 1612.65,
+        "rawMaterialMt": 1493.19,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 701.8
+          },
+          {
+            "name": "20 MM",
+            "mt": 403.16
+          },
+          {
+            "name": "10 MM",
+            "mt": 283.71
+          },
+          {
+            "name": "P Sand",
+            "mt": 223.98
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1134,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 454
+          },
+          {
+            "name": "20 MM",
+            "mt": 256
+          },
+          {
+            "name": "10 MM",
+            "mt": 382
+          },
+          {
+            "name": "P Sand",
+            "mt": 42
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1747
+          },
+          {
+            "name": "20 MM",
+            "mt": 2602.48
+          },
+          {
+            "name": "10 MM",
+            "mt": 2426.97
+          },
+          {
+            "name": "P Sand",
+            "mt": 2858.35
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1994.8
+          },
+          {
+            "name": "20 MM",
+            "mt": 2749.65
+          },
+          {
+            "name": "10 MM",
+            "mt": 2328.67
+          },
+          {
+            "name": "P Sand",
+            "mt": 3040.33
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 13.85,
+        "coneHours": 0,
+        "vsiHours": 14.7,
+        "jawTph": 107.81,
+        "coneTph": 0,
+        "vsiTph": 101.58
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 2.5,
+        "productionHours": 13,
+        "lossHours": 8.5,
+        "idleHours": 8.5,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 1.5,
+          "scheduled": 0,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 8.5,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 6828,
+        "kvah": 6888,
+        "powerFactor": 0.9913,
+        "maxDemand": 470.76,
+        "unitsPerMt": 4.266,
+        "lightingUnits": 205
+      },
+      "loader": {
+        "dispatchMt": 1134,
+        "stockToCustomerMt": 959.21,
+        "hours": 12,
+        "tph": 118.42,
+        "dieselLitres": 105,
+        "litresPerHour": 8.75,
+        "litresPerMt": 0.109
+      },
+      "sourceRows": {
+        "bookStock": 29,
+        "target": 25,
+        "hoursMeter": 26,
+        "plantReport": 29,
+        "electricalReadings": 26,
+        "loader": 25
+      }
+    },
+    {
+      "date": "2026-05-25",
+      "label": "25",
+      "targetMt": 1700,
+      "production": {
+        "mt": 1311.61,
+        "rawMaterialMt": 1214.45,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 570.79
+          },
+          {
+            "name": "20 MM",
+            "mt": 327.9
+          },
+          {
+            "name": "10 MM",
+            "mt": 230.75
+          },
+          {
+            "name": "P Sand",
+            "mt": 182.17
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1399,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 483
+          },
+          {
+            "name": "20 MM",
+            "mt": 213
+          },
+          {
+            "name": "10 MM",
+            "mt": 200
+          },
+          {
+            "name": "P Sand",
+            "mt": 457
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 46
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1994.8
+          },
+          {
+            "name": "20 MM",
+            "mt": 2749.65
+          },
+          {
+            "name": "10 MM",
+            "mt": 2328.67
+          },
+          {
+            "name": "P Sand",
+            "mt": 3040.33
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 2082.59
+          },
+          {
+            "name": "20 MM",
+            "mt": 2864.55
+          },
+          {
+            "name": "10 MM",
+            "mt": 2359.42
+          },
+          {
+            "name": "P Sand",
+            "mt": 2765.5
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 11.6,
+        "coneHours": 0,
+        "vsiHours": 12.1,
+        "jawTph": 104.69,
+        "coneTph": 0,
+        "vsiTph": 100.37
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 1,
+        "productionHours": 12.33,
+        "lossHours": 10.67,
+        "idleHours": 10.67,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 2,
+          "scheduled": 0,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 10.67,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 5260,
+        "kvah": 5448,
+        "powerFactor": 0.9655,
+        "maxDemand": 470.76,
+        "unitsPerMt": 4.231,
+        "lightingUnits": 200
+      },
+      "loader": {
+        "dispatchMt": 1399,
+        "stockToCustomerMt": 1239.34,
+        "hours": 13.5,
+        "tph": 120.32,
+        "dieselLitres": 110,
+        "litresPerHour": 8.15,
+        "litresPerMt": 0.089
+      },
+      "sourceRows": {
+        "bookStock": 30,
+        "target": 26,
+        "hoursMeter": 27,
+        "plantReport": 30,
+        "electricalReadings": 27,
+        "loader": 26
+      }
+    },
+    {
+      "date": "2026-05-26",
+      "label": "26",
+      "targetMt": 1700,
+      "production": {
+        "mt": 1129.19,
+        "rawMaterialMt": 1522.18,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 517.54
+          },
+          {
+            "name": "20 MM",
+            "mt": 18
+          },
+          {
+            "name": "10 MM",
+            "mt": 289.21
+          },
+          {
+            "name": "P Sand",
+            "mt": 304.44
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1603,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 601
+          },
+          {
+            "name": "20 MM",
+            "mt": 368
+          },
+          {
+            "name": "10 MM",
+            "mt": 310
+          },
+          {
+            "name": "P Sand",
+            "mt": 181
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 143
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 2082.59
+          },
+          {
+            "name": "20 MM",
+            "mt": 2864.55
+          },
+          {
+            "name": "10 MM",
+            "mt": 2359.42
+          },
+          {
+            "name": "P Sand",
+            "mt": 2765.5
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1999.13
+          },
+          {
+            "name": "20 MM",
+            "mt": 2514.55
+          },
+          {
+            "name": "10 MM",
+            "mt": 2338.63
+          },
+          {
+            "name": "P Sand",
+            "mt": 2888.94
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 13,
+        "coneHours": 0,
+        "vsiHours": 16,
+        "jawTph": 117.09,
+        "coneTph": 0,
+        "vsiTph": 95.14
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 3.5,
+        "productionHours": 13,
+        "lossHours": 7.5,
+        "idleHours": 7.5,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 2.5,
+          "scheduled": 0,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 7.5,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 6060,
+        "kvah": 6184,
+        "powerFactor": 0.9799,
+        "maxDemand": 470.76,
+        "unitsPerMt": 3.785,
+        "lightingUnits": 260
+      },
+      "loader": {
+        "dispatchMt": 1603,
+        "stockToCustomerMt": 1351.08,
+        "hours": 11.6,
+        "tph": 158.95,
+        "dieselLitres": 95,
+        "litresPerHour": 8.19,
+        "litresPerMt": 0.07
+      },
+      "sourceRows": {
+        "bookStock": 31,
+        "target": 27,
+        "hoursMeter": 28,
+        "plantReport": 31,
+        "electricalReadings": 28,
+        "loader": 27
+      }
+    },
+    {
+      "date": "2026-05-27",
+      "label": "27",
+      "targetMt": 1000,
+      "production": {
+        "mt": 905,
+        "rawMaterialMt": 905,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 307.7
+          },
+          {
+            "name": "20 MM",
+            "mt": 244.35
+          },
+          {
+            "name": "10 MM",
+            "mt": 171.95
+          },
+          {
+            "name": "P Sand",
+            "mt": 181
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1304,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 516
+          },
+          {
+            "name": "20 MM",
+            "mt": 298
+          },
+          {
+            "name": "10 MM",
+            "mt": 413
+          },
+          {
+            "name": "P Sand",
+            "mt": 77
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1999.13
+          },
+          {
+            "name": "20 MM",
+            "mt": 2514.55
+          },
+          {
+            "name": "10 MM",
+            "mt": 2338.63
+          },
+          {
+            "name": "P Sand",
+            "mt": 2888.94
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1790.83
+          },
+          {
+            "name": "20 MM",
+            "mt": 2460.9
+          },
+          {
+            "name": "10 MM",
+            "mt": 2097.58
+          },
+          {
+            "name": "P Sand",
+            "mt": 2992.94
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 7.3,
+        "coneHours": 0,
+        "vsiHours": 9.9,
+        "jawTph": 123.97,
+        "coneTph": 0,
+        "vsiTph": 91.41
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 1,
+        "productionHours": 7.75,
+        "lossHours": 15.25,
+        "idleHours": 15.25,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 0,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 15.25,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 3456,
+        "kvah": 3544,
+        "powerFactor": 0.9752,
+        "maxDemand": 470.76,
+        "unitsPerMt": 3.775,
+        "lightingUnits": 115
+      },
+      "loader": {
+        "dispatchMt": 1304,
+        "stockToCustomerMt": 1112.9,
+        "hours": 7.3,
+        "tph": 173.89,
+        "dieselLitres": 60,
+        "litresPerHour": 8.22,
+        "litresPerMt": 0.054
+      },
+      "sourceRows": {
+        "bookStock": 32,
+        "target": 28,
+        "hoursMeter": 29,
+        "plantReport": 32,
+        "electricalReadings": 29,
+        "loader": 28
+      }
+    },
+    {
+      "date": "2026-05-28",
+      "label": "28",
+      "targetMt": 1700,
+      "production": {
+        "mt": 1785.11,
+        "rawMaterialMt": 1785.11,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 606.94
+          },
+          {
+            "name": "20 MM",
+            "mt": 481.98
+          },
+          {
+            "name": "10 MM",
+            "mt": 339.17
+          },
+          {
+            "name": "P Sand",
+            "mt": 357.02
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1345,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 477
+          },
+          {
+            "name": "20 MM",
+            "mt": 222
+          },
+          {
+            "name": "10 MM",
+            "mt": 361
+          },
+          {
+            "name": "P Sand",
+            "mt": 181
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 104
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1790.83
+          },
+          {
+            "name": "20 MM",
+            "mt": 2460.9
+          },
+          {
+            "name": "10 MM",
+            "mt": 2097.58
+          },
+          {
+            "name": "P Sand",
+            "mt": 2992.94
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1920.77
+          },
+          {
+            "name": "20 MM",
+            "mt": 2720.88
+          },
+          {
+            "name": "10 MM",
+            "mt": 2075.75
+          },
+          {
+            "name": "P Sand",
+            "mt": 3168.96
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 16.7,
+        "coneHours": 0,
+        "vsiHours": 18.7,
+        "jawTph": 106.89,
+        "coneTph": 0,
+        "vsiTph": 95.46
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 4.17,
+        "productionHours": 16,
+        "lossHours": 3.83,
+        "idleHours": 3.83,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 3.17,
+          "scheduled": 0,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 3.83,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 7080,
+        "kvah": 7276,
+        "powerFactor": 0.9731,
+        "maxDemand": 470.76,
+        "unitsPerMt": 3.964,
+        "lightingUnits": 180
+      },
+      "loader": {
+        "dispatchMt": 1345,
+        "stockToCustomerMt": 1225.2,
+        "hours": 12.7,
+        "tph": 133.17,
+        "dieselLitres": 105,
+        "litresPerHour": 8.27,
+        "litresPerMt": 0.086
+      },
+      "sourceRows": {
+        "bookStock": 33,
+        "target": 29,
+        "hoursMeter": 30,
+        "plantReport": 33,
+        "electricalReadings": 30,
+        "loader": 29
+      }
+    },
+    {
+      "date": "2026-05-29",
+      "label": "29",
+      "targetMt": 1700,
+      "production": {
+        "mt": 1447.3,
+        "rawMaterialMt": 1447.29,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 492.08
+          },
+          {
+            "name": "20 MM",
+            "mt": 390.77
+          },
+          {
+            "name": "10 MM",
+            "mt": 274.99
+          },
+          {
+            "name": "P Sand",
+            "mt": 289.46
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1476,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 567
+          },
+          {
+            "name": "20 MM",
+            "mt": 443
+          },
+          {
+            "name": "10 MM",
+            "mt": 267
+          },
+          {
+            "name": "P Sand",
+            "mt": 43
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 156
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1920.77
+          },
+          {
+            "name": "20 MM",
+            "mt": 2720.88
+          },
+          {
+            "name": "10 MM",
+            "mt": 2075.75
+          },
+          {
+            "name": "P Sand",
+            "mt": 3168.96
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1845.85
+          },
+          {
+            "name": "20 MM",
+            "mt": 2668.64
+          },
+          {
+            "name": "10 MM",
+            "mt": 2083.74
+          },
+          {
+            "name": "P Sand",
+            "mt": 3415.42
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 14.3,
+        "coneHours": 0,
+        "vsiHours": 16.3,
+        "jawTph": 101.21,
+        "coneTph": 0,
+        "vsiTph": 88.79
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 1,
+        "productionHours": 14.5,
+        "lossHours": 8.5,
+        "idleHours": 8.5,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 0,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 8.5,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 5872,
+        "kvah": 5968,
+        "powerFactor": 0.9839,
+        "maxDemand": 470.76,
+        "unitsPerMt": 3.885,
+        "lightingUnits": 230
+      },
+      "loader": {
+        "dispatchMt": 1476,
+        "stockToCustomerMt": 1192.87,
+        "hours": 12.4,
+        "tph": 172.88,
+        "dieselLitres": 115,
+        "litresPerHour": 9.27,
+        "litresPerMt": 0.096
+      },
+      "sourceRows": {
+        "bookStock": 34,
+        "target": 30,
+        "hoursMeter": 31,
+        "plantReport": 34,
+        "electricalReadings": 31,
+        "loader": 30
+      }
+    },
+    {
+      "date": "2026-05-30",
+      "label": "30",
+      "targetMt": 1700,
+      "production": {
+        "mt": 1219.62,
+        "rawMaterialMt": 1129.28,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 530.76
+          },
+          {
+            "name": "20 MM",
+            "mt": 304.91
+          },
+          {
+            "name": "10 MM",
+            "mt": 214.56
+          },
+          {
+            "name": "P Sand",
+            "mt": 169.39
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 1652,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 580
+          },
+          {
+            "name": "20 MM",
+            "mt": 502
+          },
+          {
+            "name": "10 MM",
+            "mt": 406
+          },
+          {
+            "name": "P Sand",
+            "mt": 38
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 126
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1845.85
+          },
+          {
+            "name": "20 MM",
+            "mt": 2668.64
+          },
+          {
+            "name": "10 MM",
+            "mt": 2083.74
+          },
+          {
+            "name": "P Sand",
+            "mt": 3415.42
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1796.61
+          },
+          {
+            "name": "20 MM",
+            "mt": 2471.55
+          },
+          {
+            "name": "10 MM",
+            "mt": 1892.3
+          },
+          {
+            "name": "P Sand",
+            "mt": 3546.81
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": 9.7,
+        "coneHours": 9.6,
+        "vsiHours": 9.7,
+        "jawTph": 116.42,
+        "coneTph": 117.63,
+        "vsiTph": 116.42
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 8.5,
+        "productionHours": 7.42,
+        "lossHours": 8.08,
+        "idleHours": 7.08,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 8.5,
+          "shiftChange": 0,
+          "lunchDinner": 1,
+          "idle": 7.08,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": 4732,
+        "kvah": 4844,
+        "powerFactor": 0.9769,
+        "maxDemand": 470.76,
+        "unitsPerMt": 4.152,
+        "lightingUnits": 155
+      },
+      "loader": {
+        "dispatchMt": 1652,
+        "stockToCustomerMt": 1416.21,
+        "hours": 14.7,
+        "tph": 174.84,
+        "dieselLitres": 140,
+        "litresPerHour": 9.52,
+        "litresPerMt": 0.099
+      },
+      "sourceRows": {
+        "bookStock": 35,
+        "target": 31,
+        "hoursMeter": 32,
+        "plantReport": 35,
+        "electricalReadings": 32,
+        "loader": 31
+      }
+    },
+    {
+      "date": "2026-05-31",
+      "label": "31",
+      "targetMt": 1700,
+      "production": {
+        "mt": 0,
+        "rawMaterialMt": 0,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 0
+          },
+          {
+            "name": "20 MM",
+            "mt": 0
+          },
+          {
+            "name": "10 MM",
+            "mt": 0
+          },
+          {
+            "name": "P Sand",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          }
+        ]
+      },
+      "dispatch": {
+        "totalMt": 0,
+        "products": [
+          {
+            "name": "R Sand",
+            "mt": 0
+          },
+          {
+            "name": "20 MM",
+            "mt": 0
+          },
+          {
+            "name": "10 MM",
+            "mt": 0
+          },
+          {
+            "name": "P Sand",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          }
+        ]
+      },
+      "stock": {
+        "opening": [
+          {
+            "name": "R Sand",
+            "mt": 1796.61
+          },
+          {
+            "name": "20 MM",
+            "mt": 2471.55
+          },
+          {
+            "name": "10 MM",
+            "mt": 1892.3
+          },
+          {
+            "name": "P Sand",
+            "mt": 3546.81
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ],
+        "closing": [
+          {
+            "name": "R Sand",
+            "mt": 1796.61
+          },
+          {
+            "name": "20 MM",
+            "mt": 2471.55
+          },
+          {
+            "name": "10 MM",
+            "mt": 1892.3
+          },
+          {
+            "name": "P Sand",
+            "mt": 3546.81
+          },
+          {
+            "name": "Plaster Pro",
+            "mt": 0
+          },
+          {
+            "name": "WMM",
+            "mt": 0
+          },
+          {
+            "name": "Natural Fines",
+            "mt": 12785.14
+          }
+        ]
+      },
+      "machine": {
+        "jawHours": -14434.2,
+        "coneHours": -2006.2,
+        "vsiHours": -16257.2,
+        "jawTph": 0,
+        "coneTph": 0,
+        "vsiTph": 0
+      },
+      "plantHours": {
+        "scheduledHours": 0,
+        "nonProductiveHours": 0,
+        "productionHours": 0,
+        "lossHours": 0,
+        "idleHours": 0,
+        "breakdownHours": 0,
+        "lossBreakdown": {
+          "local": 0,
+          "preventive": 0,
+          "scheduled": 0,
+          "shiftChange": 0,
+          "lunchDinner": 0,
+          "idle": 0,
+          "breakdown": 0
+        }
+      },
+      "electrical": {
+        "kwh": -11744744,
+        "kvah": -11900972,
+        "powerFactor": 0.9869,
+        "maxDemand": 0,
+        "unitsPerMt": 0,
+        "lightingUnits": -331755
+      },
+      "loader": {
+        "dispatchMt": 0,
+        "stockToCustomerMt": 0,
+        "hours": -4861.2,
+        "tph": 0,
+        "dieselLitres": 0,
+        "litresPerHour": 0,
+        "litresPerMt": 0
+      },
+      "sourceRows": {
+        "bookStock": 36,
+        "target": 32,
+        "hoursMeter": 33,
+        "plantReport": 36,
+        "electricalReadings": 33,
+        "loader": 32
+      }
+    }
+  ],
+  "totals": {
+    "targetMt": 48700,
+    "productionMt": 36253.4,
+    "dispatchMt": 35370.8,
+    "achievementPct": 74.44,
+    "dispatchToProductionPct": 97.57,
+    "avgJawTph": 112.99,
+    "avgConeTph": 1289.46,
+    "avgVsiTph": 100.74,
+    "avgUnitsPerMt": 4.16,
+    "dieselLitres": 2780,
+    "loaderLitresPerMt": 0.091,
+    "plantRunningHours": 312.92,
+    "stoppageHours": 276.31
+  },
+  "validation": {
+    "valid": false,
+    "issues": [
+      {
+        "severity": "ERROR",
+        "code": "NEGATIVE_OPERATIONAL_READING",
+        "date": "2026-05-31",
+        "field": "machine.jawHours",
+        "message": "machine.jawHours is -14434.2 and must be non-negative before report generation."
+      },
+      {
+        "severity": "ERROR",
+        "code": "NEGATIVE_OPERATIONAL_READING",
+        "date": "2026-05-31",
+        "field": "machine.coneHours",
+        "message": "machine.coneHours is -2006.2 and must be non-negative before report generation."
+      },
+      {
+        "severity": "ERROR",
+        "code": "NEGATIVE_OPERATIONAL_READING",
+        "date": "2026-05-31",
+        "field": "machine.vsiHours",
+        "message": "machine.vsiHours is -16257.2 and must be non-negative before report generation."
+      },
+      {
+        "severity": "ERROR",
+        "code": "NEGATIVE_OPERATIONAL_READING",
+        "date": "2026-05-31",
+        "field": "electrical.kwh",
+        "message": "electrical.kwh is -11744744 and must be non-negative before report generation."
+      },
+      {
+        "severity": "ERROR",
+        "code": "NEGATIVE_OPERATIONAL_READING",
+        "date": "2026-05-31",
+        "field": "electrical.kvah",
+        "message": "electrical.kvah is -11900972 and must be non-negative before report generation."
+      },
+      {
+        "severity": "ERROR",
+        "code": "NEGATIVE_OPERATIONAL_READING",
+        "date": "2026-05-31",
+        "field": "electrical.lightingUnits",
+        "message": "electrical.lightingUnits is -331755 and must be non-negative before report generation."
+      },
+      {
+        "severity": "ERROR",
+        "code": "NEGATIVE_OPERATIONAL_READING",
+        "date": "2026-05-31",
+        "field": "loader.hours",
+        "message": "loader.hours is -4861.2 and must be non-negative before report generation."
+      }
+    ]
+  },
+  "createdAt": "2026-07-16T04:34:58.127Z",
+  "commentary": {
+    "summary": "Production closed at 36,253.4 MT against 48,700 MT target, with 74.44% achievement. Dispatch was 35,370.8 MT, equal to 97.57% of production for the selected period. Average Jaw/VSI TPH was 112.99/100.74; review days below the weekly average before locking the next plan. Electrical consumption averaged 4.16 units/MT; prioritise checks on days above this level. Loader diesel consumption was 2,780 litres; monitor litres/MT alongside dispatch mix.",
+    "actionPoints": [
+      "Production closed at 36,253.4 MT against 48,700 MT target, with 74.44% achievement.",
+      "Dispatch was 35,370.8 MT, equal to 97.57% of production for the selected period.",
+      "Average Jaw/VSI TPH was 112.99/100.74; review days below the weekly average before locking the next plan.",
+      "Electrical consumption averaged 4.16 units/MT; prioritise checks on days above this level.",
+      "Loader diesel consumption was 2,780 litres; monitor litres/MT alongside dispatch mix."
+    ]
+  }
+}
