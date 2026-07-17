@@ -37,6 +37,17 @@ export type PhotoCategory = (typeof PHOTO_CATEGORIES)[number];
 
 export type MetricByProduct = Record<CaptureProductName, number>;
 export type LossByCategory = Record<LossCategory, number>;
+export type EquipmentKey = "jaw" | "cone" | "vsi";
+
+export type EquipmentMetrics = Record<EquipmentKey, number>;
+
+export type EquipmentHourMeters = Record<
+  EquipmentKey,
+  {
+    opening: number;
+    closing: number;
+  }
+>;
 
 export type EvidencePhoto = {
   id: string;
@@ -59,16 +70,14 @@ export type DailyPlantRecord = {
   dispatch: MetricByProduct;
   openingStock: MetricByProduct;
   closingStock: MetricByProduct;
-  machineHours: {
-    jaw: number;
-    cone: number;
-    vsi: number;
+  stockAdjustments: MetricByProduct;
+  bookStock: {
+    monthlyOpening: MetricByProduct;
+    calculatedClosing: MetricByProduct;
   };
-  tph: {
-    jaw: number;
-    cone: number;
-    vsi: number;
-  };
+  machineHours: EquipmentMetrics;
+  equipmentHourMeters: EquipmentHourMeters;
+  tph: EquipmentMetrics;
   plantHours: {
     available: number;
     production: number;
@@ -79,8 +88,16 @@ export type DailyPlantRecord = {
   electrical: {
     openingKwh: number;
     closingKwh: number;
+    kwhMultiplyingFactor: number;
+    openingKvah: number;
+    closingKvah: number;
+    kvahMultiplyingFactor: number;
     unitsConsumed: number;
+    kvahUnitsConsumed: number;
+    domesticUnits: number;
+    excludeDomesticFromUnitsPerMt: boolean;
     powerFactor: number;
+    cmd: number;
   };
   loader: {
     hours: number;
@@ -98,6 +115,13 @@ export type DailyPlantRecord = {
   calculations: {
     productMixTotal: number;
     dispatchTotal: number;
+    calculatedClosingStock: MetricByProduct;
+    calculatedBookStock: MetricByProduct;
+    equipmentRunningHours: EquipmentMetrics;
+    equipmentTph: EquipmentMetrics;
+    electricalUnitsConsumed: number;
+    kvahUnitsConsumed: number;
+    productionPowerUnits: number;
     unitsPerMt: number;
     loaderLitresPerMt: number;
     copPerMt: number;

@@ -38,6 +38,7 @@ export type DailySnapshot = {
   stock: {
     opening: Array<{ name: ProductName; mt: number }>;
     closing: Array<{ name: ProductName; mt: number }>;
+    bookClosing?: Array<{ name: ProductName; mt: number }>;
   };
   machine: {
     jawHours: number;
@@ -46,6 +47,11 @@ export type DailySnapshot = {
     jawTph: number;
     coneTph: number;
     vsiTph: number;
+    hourMeters?: {
+      jaw: { opening: number; closing: number };
+      cone: { opening: number; closing: number };
+      vsi: { opening: number; closing: number };
+    };
   };
   plantHours: {
     scheduledHours: number;
@@ -63,6 +69,11 @@ export type DailySnapshot = {
     maxDemand: number;
     unitsPerMt: number;
     lightingUnits: number;
+    productionUnits?: number;
+    domesticUnits?: number;
+    cmd?: number;
+    kwhMultiplyingFactor?: number;
+    kvahMultiplyingFactor?: number;
   };
   loader: {
     dispatchMt: number;

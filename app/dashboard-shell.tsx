@@ -29,7 +29,7 @@ import {
   Send,
 } from "lucide-react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import { calculateDailyRecord } from "@/src/lib/capture/calculations";
+import { calculateDailyRecord, materializeCalculatedFields } from "@/src/lib/capture/calculations";
 import {
   CAPTURE_PRODUCTS,
   LOSS_CATEGORIES,
@@ -126,10 +126,11 @@ export function DashboardShell({ initialSnapshot, initialRecords }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const previewRecord = useMemo(() => {
-    const calculations = calculateDailyRecord(form);
+    const materializedForm = materializeCalculatedFields(form);
+    const calculations = calculateDailyRecord(materializedForm);
     const draft: DailyPlantRecord = {
-      ...form,
-      id: form.id || "preview",
+      ...materializedForm,
+      id: materializedForm.id || "preview",
       status: "DRAFT",
       reviewStatus: "OPEN",
       calculations,
@@ -397,6 +398,21 @@ function CaptureWorkspace({
             <TextField label="Plant name" value={form.plantName} onChange={(value) => setField(setForm, "plantName", value)} />
             <TextField label="Date" type="date" value={form.date} onChange={(value) => setField(setForm, "date", value)} />
             <NumberField label="Target MT" value={form.targetMt} onChange={(value) => setField(setForm, "targetMt", value)} />
+            <NumberField label="Plant CMD" value={form.electrical.cmd} onChange={(value) => setNested(setForm, "electrical", "cmd", value)} />
+          </div>
+        </Section>
+
+        <Section title="Opening parameters" meta="Enter before day closing">
+          <h3 className="section-subtitle">Opening stock</h3>
+          <ProductGrid values={form.openingStock} onChange={(product, value) => setProduct(setForm, "openingStock", product, value)} />
+          <h3 className="section-subtitle">Monthly opening book stock</h3>
+          <ProductGrid values={form.bookStock.monthlyOpening} onChange={(product, value) => setBookStock(setForm, "monthlyOpening", product, value)} />
+          <div className="form-grid four">
+            <NumberField label="Opening kWh" value={form.electrical.openingKwh} onChange={(value) => setNested(setForm, "electrical", "openingKwh", value)} />
+            <NumberField label="Opening KVAH" value={form.electrical.openingKvah} onChange={(value) => setNested(setForm, "electrical", "openingKvah", value)} />
+            <NumberField label="Jaw opening HM" value={form.equipmentHourMeters.jaw.opening} onChange={(value) => setEquipmentMeter(setForm, "jaw", "opening", value)} />
+            <NumberField label="Cone opening HM" value={form.equipmentHourMeters.cone.opening} onChange={(value) => setEquipmentMeter(setForm, "cone", "opening", value)} />
+            <NumberField label="VSI opening HM" value={form.equipmentHourMeters.vsi.opening} onChange={(value) => setEquipmentMeter(setForm, "vsi", "opening", value)} />
           </div>
         </Section>
 
@@ -408,23 +424,28 @@ function CaptureWorkspace({
           <ProductGrid values={form.productMix} onChange={(product, value) => setProduct(setForm, "productMix", product, value)} />
         </Section>
 
-        <Section title="Dispatch, opening and closing stock" meta="Closing = opening + production - dispatch">
+        <Section title="Dispatch and calculated stock" meta="Closing = opening + production - dispatch + adjustment">
           <h3 className="section-subtitle">Dispatch</h3>
           <ProductGrid values={form.dispatch} onChange={(product, value) => setProduct(setForm, "dispatch", product, value)} />
-          <h3 className="section-subtitle">Opening stock</h3>
-          <ProductGrid values={form.openingStock} onChange={(product, value) => setProduct(setForm, "openingStock", product, value)} />
-          <h3 className="section-subtitle">Closing stock</h3>
-          <ProductGrid values={form.closingStock} onChange={(product, value) => setProduct(setForm, "closingStock", product, value)} />
+          <h3 className="section-subtitle">Stock adjustments / other transactions</h3>
+          <ProductGrid values={form.stockAdjustments} onChange={(product, value) => setProduct(setForm, "stockAdjustments", product, value)} />
+          <h3 className="section-subtitle">Calculated closing physical stock</h3>
+          <ProductReadOnlyGrid values={previewRecord.calculations.calculatedClosingStock} />
+          <h3 className="section-subtitle">Calculated book stock</h3>
+          <ProductReadOnlyGrid values={previewRecord.calculations.calculatedBookStock} />
         </Section>
 
-        <Section title="Machine running hours and TPH" meta="Machine hours cannot exceed available hours">
+        <Section title="Equipment hour meter readings and TPH" meta="Running hours and TPH auto-calculated">
           <div className="form-grid three">
-            <NumberField label="Jaw hours" value={form.machineHours.jaw} onChange={(value) => setNested(setForm, "machineHours", "jaw", value)} />
-            <NumberField label="Cone hours" value={form.machineHours.cone} onChange={(value) => setNested(setForm, "machineHours", "cone", value)} />
-            <NumberField label="VSI hours" value={form.machineHours.vsi} onChange={(value) => setNested(setForm, "machineHours", "vsi", value)} />
-            <NumberField label="Jaw TPH" value={form.tph.jaw} onChange={(value) => setNested(setForm, "tph", "jaw", value)} />
-            <NumberField label="Cone TPH" value={form.tph.cone} onChange={(value) => setNested(setForm, "tph", "cone", value)} />
-            <NumberField label="VSI TPH" value={form.tph.vsi} onChange={(value) => setNested(setForm, "tph", "vsi", value)} />
+            <NumberField label="Jaw closing HM" value={form.equipmentHourMeters.jaw.closing} onChange={(value) => setEquipmentMeter(setForm, "jaw", "closing", value)} />
+            <NumberField label="Cone closing HM" value={form.equipmentHourMeters.cone.closing} onChange={(value) => setEquipmentMeter(setForm, "cone", "closing", value)} />
+            <NumberField label="VSI closing HM" value={form.equipmentHourMeters.vsi.closing} onChange={(value) => setEquipmentMeter(setForm, "vsi", "closing", value)} />
+            <ReadOnlyMetric label="Jaw hours" value={previewRecord.calculations.equipmentRunningHours.jaw} />
+            <ReadOnlyMetric label="Cone hours" value={previewRecord.calculations.equipmentRunningHours.cone} />
+            <ReadOnlyMetric label="VSI hours" value={previewRecord.calculations.equipmentRunningHours.vsi} />
+            <ReadOnlyMetric label="Jaw TPH" value={previewRecord.calculations.equipmentTph.jaw} />
+            <ReadOnlyMetric label="Cone TPH" value={previewRecord.calculations.equipmentTph.cone} />
+            <ReadOnlyMetric label="VSI TPH" value={previewRecord.calculations.equipmentTph.vsi} />
           </div>
         </Section>
 
@@ -449,10 +470,16 @@ function CaptureWorkspace({
 
         <Section title="Electrical readings and units" meta="Units/MT auto-calculated">
           <div className="form-grid four">
-            <NumberField label="Opening kWh" value={form.electrical.openingKwh} onChange={(value) => setNested(setForm, "electrical", "openingKwh", value)} />
             <NumberField label="Closing kWh" value={form.electrical.closingKwh} onChange={(value) => setNested(setForm, "electrical", "closingKwh", value)} />
-            <NumberField label="Units consumed" value={form.electrical.unitsConsumed} onChange={(value) => setNested(setForm, "electrical", "unitsConsumed", value)} />
+            <NumberField label="kWh MF" value={form.electrical.kwhMultiplyingFactor} onChange={(value) => setNested(setForm, "electrical", "kwhMultiplyingFactor", value)} />
+            <ReadOnlyMetric label="Actual kWh units" value={previewRecord.calculations.electricalUnitsConsumed} />
+            <NumberField label="Closing KVAH" value={form.electrical.closingKvah} onChange={(value) => setNested(setForm, "electrical", "closingKvah", value)} />
+            <NumberField label="KVAH MF" value={form.electrical.kvahMultiplyingFactor} onChange={(value) => setNested(setForm, "electrical", "kvahMultiplyingFactor", value)} />
+            <ReadOnlyMetric label="KVAH units" value={previewRecord.calculations.kvahUnitsConsumed} />
             <NumberField label="Power factor" value={form.electrical.powerFactor} step="0.001" onChange={(value) => setNested(setForm, "electrical", "powerFactor", value)} />
+            <NumberField label="Domestic units" value={form.electrical.domesticUnits} onChange={(value) => setNested(setForm, "electrical", "domesticUnits", value)} />
+            <CheckboxField checked={form.electrical.excludeDomesticFromUnitsPerMt} label="Exclude domestic from Units/MT" onChange={(value) => setElectricalFlag(setForm, "excludeDomesticFromUnitsPerMt", value)} />
+            <ReadOnlyMetric label="Production power units" value={previewRecord.calculations.productionPowerUnits} />
             <ReadOnlyMetric label="Units / MT" value={previewRecord.calculations.unitsPerMt} />
           </div>
         </Section>
@@ -931,11 +958,13 @@ function TextField({
 }
 
 function NumberField({
+  disabled = false,
   label,
   onChange,
   step = "0.01",
   value,
 }: {
+  disabled?: boolean;
   label: string;
   onChange: (value: number) => void;
   step?: string;
@@ -944,7 +973,24 @@ function NumberField({
   return (
     <label className="field">
       <span>{label}</span>
-      <input type="number" step={step} value={String(value)} onChange={(event) => onChange(Number(event.target.value))} />
+      <input disabled={disabled} type="number" step={step} value={String(value)} onChange={(event) => onChange(Number(event.target.value))} />
+    </label>
+  );
+}
+
+function CheckboxField({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className="field checkbox-field">
+      <span>{label}</span>
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
     </label>
   );
 }
@@ -969,6 +1015,22 @@ function ProductGrid({
     <div className="form-grid product-grid">
       {CAPTURE_PRODUCTS.map((product) => (
         <NumberField key={product} label={product} value={values[product]} onChange={(value) => onChange(product, value)} />
+      ))}
+    </div>
+  );
+}
+
+function ProductReadOnlyGrid({
+  suffix = "MT",
+  values,
+}: {
+  suffix?: string;
+  values: CapturePayload["productMix"];
+}) {
+  return (
+    <div className="form-grid product-grid">
+      {CAPTURE_PRODUCTS.map((product) => (
+        <ReadOnlyMetric key={product} label={product} value={values[product]} suffix={suffix} />
       ))}
     </div>
   );
@@ -1146,11 +1208,31 @@ function defaultPayload(): CapturePayload {
     dispatch: emptyProducts(),
     openingStock: emptyProducts(),
     closingStock: emptyProducts(),
+    stockAdjustments: emptyProducts(),
+    bookStock: { monthlyOpening: emptyProducts(), calculatedClosing: emptyProducts() },
     machineHours: { jaw: 0, cone: 0, vsi: 0 },
+    equipmentHourMeters: {
+      jaw: { opening: 0, closing: 0 },
+      cone: { opening: 0, closing: 0 },
+      vsi: { opening: 0, closing: 0 },
+    },
     tph: { jaw: 0, cone: 0, vsi: 0 },
     plantHours: { available: 24, production: 0, scheduledStoppage: 0, loss: 0 },
     lossHours: emptyLosses(),
-    electrical: { openingKwh: 0, closingKwh: 0, unitsConsumed: 0, powerFactor: 0.98 },
+    electrical: {
+      openingKwh: 0,
+      closingKwh: 0,
+      kwhMultiplyingFactor: 1,
+      openingKvah: 0,
+      closingKvah: 0,
+      kvahMultiplyingFactor: 1,
+      unitsConsumed: 0,
+      kvahUnitsConsumed: 0,
+      domesticUnits: 0,
+      excludeDomesticFromUnitsPerMt: true,
+      powerFactor: 0.98,
+      cmd: 0,
+    },
     loader: { hours: 0, dieselLitres: 0, dispatchMt: 0 },
     cop: { powerCost: 0, dieselCost: 0, consumablesCost: 0, maintenanceCost: 0 },
     remarks: "",
@@ -1168,8 +1250,33 @@ function emptyLosses() {
 }
 
 function recordToPayload(record: DailyPlantRecord): CapturePayload {
+  const fallback = defaultPayload();
   const { id, plantCode, plantName, date, targetMt, productionMt, productMix, dispatch, openingStock, closingStock, machineHours, tph, plantHours, lossHours, electrical, loader, cop, remarks, evidencePhotos, submittedBy } = record;
-  return { id, plantCode, plantName, date, targetMt, productionMt, productMix, dispatch, openingStock, closingStock, machineHours, tph, plantHours, lossHours, electrical, loader, cop, remarks, evidencePhotos, submittedBy };
+  return {
+    id,
+    plantCode,
+    plantName,
+    date,
+    targetMt,
+    productionMt,
+    productMix,
+    dispatch,
+    openingStock,
+    closingStock,
+    stockAdjustments: record.stockAdjustments ?? fallback.stockAdjustments,
+    bookStock: record.bookStock ?? fallback.bookStock,
+    machineHours,
+    equipmentHourMeters: record.equipmentHourMeters ?? fallback.equipmentHourMeters,
+    tph,
+    plantHours,
+    lossHours,
+    electrical: { ...fallback.electrical, ...electrical },
+    loader,
+    cop,
+    remarks,
+    evidencePhotos,
+    submittedBy,
+  };
 }
 
 function upsertRecord(records: DailyPlantRecord[], record: DailyPlantRecord) {
@@ -1199,11 +1306,61 @@ function setNested<
 
 function setProduct(
   setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
-  section: "productMix" | "dispatch" | "openingStock" | "closingStock",
+  section: "productMix" | "dispatch" | "openingStock" | "closingStock" | "stockAdjustments",
   product: (typeof CAPTURE_PRODUCTS)[number],
   value: number,
 ) {
   setForm((current) => ({ ...current, [section]: { ...current[section], [product]: value } }));
+}
+
+function setBookStock(
+  setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
+  field: keyof CapturePayload["bookStock"],
+  product: (typeof CAPTURE_PRODUCTS)[number],
+  value: number,
+) {
+  setForm((current) => ({
+    ...current,
+    bookStock: {
+      ...current.bookStock,
+      [field]: {
+        ...current.bookStock[field],
+        [product]: value,
+      },
+    },
+  }));
+}
+
+function setEquipmentMeter(
+  setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
+  equipment: keyof CapturePayload["equipmentHourMeters"],
+  field: keyof CapturePayload["equipmentHourMeters"]["jaw"],
+  value: number,
+) {
+  setForm((current) => ({
+    ...current,
+    equipmentHourMeters: {
+      ...current.equipmentHourMeters,
+      [equipment]: {
+        ...current.equipmentHourMeters[equipment],
+        [field]: value,
+      },
+    },
+  }));
+}
+
+function setElectricalFlag(
+  setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
+  field: "excludeDomesticFromUnitsPerMt",
+  value: boolean,
+) {
+  setForm((current) => ({
+    ...current,
+    electrical: {
+      ...current.electrical,
+      [field]: value,
+    },
+  }));
 }
 
 function setLoss(

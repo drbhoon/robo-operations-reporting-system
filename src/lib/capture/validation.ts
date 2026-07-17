@@ -13,7 +13,8 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
   const productMixTotal = record.calculations.productMixTotal;
   const dispatchTotal = record.calculations.dispatchTotal;
   const lossCategoryTotal = sum(LOSS_CATEGORIES.map((category) => record.lossHours[category]));
-  const expectedUnits = Math.max(0, record.electrical.closingKwh - record.electrical.openingKwh);
+  const expectedUnits = record.calculations.electricalUnitsConsumed;
+  const expectedKvahUnits = record.calculations.kvahUnitsConsumed;
 
   requireText(issues, record.date, "plantCode", record.plantCode, "Plant is mandatory.");
   requireText(issues, record.date, "date", record.date, "Date is mandatory.");
@@ -29,21 +30,45 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
     requireNonNegative(issues, record.date, `dispatch.${product}`, record.dispatch[product]);
     requireNonNegative(issues, record.date, `openingStock.${product}`, record.openingStock[product]);
     requireNonNegative(issues, record.date, `closingStock.${product}`, record.closingStock[product]);
+    requireNonNegative(issues, record.date, `stockAdjustments.${product}`, record.stockAdjustments[product]);
+    requireNonNegative(issues, record.date, `bookStock.monthlyOpening.${product}`, record.bookStock.monthlyOpening[product]);
+    requireNonNegative(issues, record.date, `bookStock.calculatedClosing.${product}`, record.bookStock.calculatedClosing[product]);
 
-    const expectedClosing = record.openingStock[product] + record.productMix[product] - record.dispatch[product];
+    const expectedClosing = record.calculations.calculatedClosingStock[product];
     if (Math.abs(record.closingStock[product] - expectedClosing) > 1) {
       issues.push({
         severity: "ERROR",
         code: "STOCK_RECONCILIATION",
         date: record.date,
         field: `closingStock.${product}`,
-        message: `${product} closing stock should be ${round(expectedClosing)} MT based on opening + production - dispatch.`,
+        message: `${product} closing stock should be ${round(expectedClosing)} MT based on opening + production - dispatch + stock adjustment.`,
+      });
+    }
+
+    const expectedBookClosing = record.calculations.calculatedBookStock[product];
+    if (Math.abs(record.bookStock.calculatedClosing[product] - expectedBookClosing) > 1) {
+      issues.push({
+        severity: "ERROR",
+        code: "BOOK_STOCK_RECONCILIATION",
+        date: record.date,
+        field: `bookStock.calculatedClosing.${product}`,
+        message: `${product} book stock should be ${round(expectedBookClosing)} MT based on monthly opening book stock, production, dispatch and stock movements.`,
       });
     }
   }
 
   for (const [field, value] of Object.entries(record.machineHours)) {
     requireNonNegative(issues, record.date, `machineHours.${field}`, value);
+    const expectedHours = record.calculations.equipmentRunningHours[field as keyof typeof record.machineHours];
+    if (Math.abs(value - expectedHours) > 0.25) {
+      issues.push({
+        severity: "ERROR",
+        code: "EQUIPMENT_HOURS_RECONCILIATION",
+        date: record.date,
+        field: `machineHours.${field}`,
+        message: `${field.toUpperCase()} running hours should be ${round(expectedHours, 2)} based on closing - opening hour meter reading.`,
+      });
+    }
     if (record.plantHours.available > 0 && value > record.plantHours.available + 0.25) {
       issues.push({
         severity: "ERROR",
@@ -57,6 +82,30 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
 
   for (const [field, value] of Object.entries(record.tph)) {
     requireNonNegative(issues, record.date, `tph.${field}`, value);
+    const expectedTph = record.calculations.equipmentTph[field as keyof typeof record.tph];
+    if (Math.abs(value - expectedTph) > 0.25) {
+      issues.push({
+        severity: "ERROR",
+        code: "EQUIPMENT_TPH_RECONCILIATION",
+        date: record.date,
+        field: `tph.${field}`,
+        message: `${field.toUpperCase()} TPH should be ${round(expectedTph, 2)} based on product mix and running hours.`,
+      });
+    }
+  }
+
+  for (const [equipment, readings] of Object.entries(record.equipmentHourMeters)) {
+    requireNonNegative(issues, record.date, `equipmentHourMeters.${equipment}.opening`, readings.opening);
+    requireNonNegative(issues, record.date, `equipmentHourMeters.${equipment}.closing`, readings.closing);
+    if (readings.closing < readings.opening) {
+      issues.push({
+        severity: "ERROR",
+        code: "EQUIPMENT_CLOSING_BELOW_OPENING",
+        date: record.date,
+        field: `equipmentHourMeters.${equipment}.closing`,
+        message: `${equipment.toUpperCase()} closing hour meter cannot be below opening hour meter.`,
+      });
+    }
   }
 
   for (const category of LOSS_CATEGORIES) {
@@ -103,9 +152,24 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
       code: "ELECTRICAL_UNITS_RECONCILIATION",
       date: record.date,
       field: "electrical.unitsConsumed",
-      message: `Units consumed should be ${round(expectedUnits)} based on closing - opening meter readings.`,
+      message: `Units consumed should be ${round(expectedUnits)} based on opening/closing KWH readings and multiplying factor.`,
     });
   }
+
+  if (Math.abs(record.electrical.kvahUnitsConsumed - expectedKvahUnits) > 1) {
+    issues.push({
+      severity: "ERROR",
+      code: "KVAH_UNITS_RECONCILIATION",
+      date: record.date,
+      field: "electrical.kvahUnitsConsumed",
+      message: `KVAH units consumed should be ${round(expectedKvahUnits)} based on opening/closing KVAH readings and multiplying factor.`,
+    });
+  }
+
+  requireNonNegative(issues, record.date, "electrical.kwhMultiplyingFactor", record.electrical.kwhMultiplyingFactor);
+  requireNonNegative(issues, record.date, "electrical.kvahMultiplyingFactor", record.electrical.kvahMultiplyingFactor);
+  requireNonNegative(issues, record.date, "electrical.domesticUnits", record.electrical.domesticUnits);
+  requireNonNegative(issues, record.date, "electrical.cmd", record.electrical.cmd);
 
   if (record.electrical.powerFactor <= 0 || record.electrical.powerFactor > 1.05) {
     issues.push({

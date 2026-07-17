@@ -2,7 +2,8 @@ import crypto from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Prisma } from "@prisma/client";
-import { calculateDailyRecord } from "./calculations";
+import { calculateDailyRecord, materializeCalculatedFields } from "./calculations";
+import { CAPTURE_PRODUCTS } from "./types";
 import type { AuditEntry, CapturePayload, DailyPlantRecord, DailyRecordStatus } from "./types";
 import { validateCaptureRecord } from "./validation";
 import { getPrisma } from "../reporting/prisma";
@@ -72,7 +73,9 @@ export async function saveDailyRecord(input: {
   allowFinalEdit?: boolean;
 }) {
   const now = new Date().toISOString();
-  const id = input.payload.id || recordId(input.payload.plantCode, input.payload.date);
+  const payloadWithBookOpening = await applyMonthlyBookOpening(input.payload);
+  const materializedPayload = materializeCalculatedFields(payloadWithBookOpening);
+  const id = materializedPayload.id || recordId(materializedPayload.plantCode, materializedPayload.date);
   const before = await getDailyRecord(id);
 
   if (before?.status === "FINAL" && !input.allowFinalEdit) {
@@ -80,7 +83,7 @@ export async function saveDailyRecord(input: {
   }
 
   const base: DailyPlantRecord = {
-    ...input.payload,
+    ...materializedPayload,
     id,
     status: input.action === "SUBMIT" ? "FINAL" : "DRAFT",
     reviewStatus: "OPEN",
@@ -132,6 +135,33 @@ export async function saveDailyRecord(input: {
     accepted: true,
     validation,
   };
+}
+
+async function applyMonthlyBookOpening(payload: CapturePayload): Promise<CapturePayload> {
+  if (hasAnyProductValue(payload.bookStock.monthlyOpening)) return payload;
+
+  const monthStart = `${payload.date.slice(0, 7)}-01`;
+  const monthEnd = `${payload.date.slice(0, 7)}-31`;
+  const monthRecords = await listDailyRecords({
+    plantCode: payload.plantCode,
+    startDate: monthStart,
+    endDate: monthEnd,
+  });
+  const source = monthRecords.find((record) => hasAnyProductValue(record.bookStock?.monthlyOpening));
+
+  if (!source?.bookStock?.monthlyOpening) return payload;
+
+  return {
+    ...payload,
+    bookStock: {
+      ...payload.bookStock,
+      monthlyOpening: source.bookStock.monthlyOpening,
+    },
+  };
+}
+
+function hasAnyProductValue(values: Partial<Record<(typeof CAPTURE_PRODUCTS)[number], number>> | undefined) {
+  return CAPTURE_PRODUCTS.some((product) => (values?.[product] ?? 0) > 0);
 }
 
 async function persistRecord(record: DailyPlantRecord, audit: AuditEntry) {
