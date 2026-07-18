@@ -61,6 +61,8 @@ export type DailySnapshot = {
     idleHours: number;
     breakdownHours: number;
     lossBreakdown: Record<string, number>;
+    lossReason?: string;
+    lossComments?: string;
   };
   electrical: {
     kwh: number;
@@ -71,21 +73,39 @@ export type DailySnapshot = {
     lightingUnits: number;
     productionUnits?: number;
     domesticUnits?: number;
+    domesticUnitsPerMt?: number;
+    combinedUnits?: number;
+    combinedUnitsPerMt?: number;
     cmd?: number;
     kwhMultiplyingFactor?: number;
     kvahMultiplyingFactor?: number;
+    domesticMultiplyingFactor?: number;
+    electricityCost?: number;
   };
   loader: {
     dispatchMt: number;
     stockToCustomerMt: number;
     hours: number;
+    productionHours?: number;
+    otherWorksHours?: number;
     tph: number;
     dieselLitres: number;
+    dieselRate?: number;
+    dieselCost?: number;
     litresPerHour: number;
     litresPerMt: number;
   };
   cop?: {
     costPerMt?: number;
+    totalCost?: number;
+    fixedCostMonthly?: number;
+    fixedCostDaily?: number;
+    quarryObCost?: number;
+    quarryBlastingCost?: number;
+    quarryLtCost?: number;
+    plantCost?: number;
+    electricalCost?: number;
+    loaderCost?: number;
     powerCostPerMt?: number;
     dieselCostPerMt?: number;
   };

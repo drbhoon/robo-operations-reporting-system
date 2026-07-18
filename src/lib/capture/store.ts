@@ -73,8 +73,8 @@ export async function saveDailyRecord(input: {
   allowFinalEdit?: boolean;
 }) {
   const now = new Date().toISOString();
-  const payloadWithBookOpening = await applyMonthlyBookOpening(input.payload);
-  const materializedPayload = materializeCalculatedFields(payloadWithBookOpening);
+  const payloadWithMonthlyParameters = await applyMonthlyParameters(input.payload);
+  const materializedPayload = materializeCalculatedFields(payloadWithMonthlyParameters);
   const id = materializedPayload.id || recordId(materializedPayload.plantCode, materializedPayload.date);
   const before = await getDailyRecord(id);
 
@@ -87,7 +87,7 @@ export async function saveDailyRecord(input: {
     id,
     status: input.action === "SUBMIT" ? "FINAL" : "DRAFT",
     reviewStatus: "OPEN",
-    calculations: calculateDailyRecord(input.payload),
+    calculations: calculateDailyRecord(materializedPayload),
     validation: { valid: false, issues: [] },
     createdAt: before?.createdAt ?? now,
     updatedAt: now,
@@ -137,9 +137,7 @@ export async function saveDailyRecord(input: {
   };
 }
 
-async function applyMonthlyBookOpening(payload: CapturePayload): Promise<CapturePayload> {
-  if (hasAnyProductValue(payload.bookStock.monthlyOpening)) return payload;
-
+async function applyMonthlyParameters(payload: CapturePayload): Promise<CapturePayload> {
   const monthStart = `${payload.date.slice(0, 7)}-01`;
   const monthEnd = `${payload.date.slice(0, 7)}-31`;
   const monthRecords = await listDailyRecords({
@@ -147,15 +145,25 @@ async function applyMonthlyBookOpening(payload: CapturePayload): Promise<Capture
     startDate: monthStart,
     endDate: monthEnd,
   });
-  const source = monthRecords.find((record) => hasAnyProductValue(record.bookStock?.monthlyOpening));
-
-  if (!source?.bookStock?.monthlyOpening) return payload;
+  const sourceWithBookStock = monthRecords.find((record) => hasAnyProductValue(record.bookStock?.monthlyOpening));
+  const sourceWithDieselRate = monthRecords.find((record) => (record.loader?.dieselRate ?? 0) > 0);
+  const sourceWithFixedCost = monthRecords.find((record) => (record.cop?.fixedCostMonthly ?? 0) > 0);
 
   return {
     ...payload,
     bookStock: {
       ...payload.bookStock,
-      monthlyOpening: source.bookStock.monthlyOpening,
+      monthlyOpening: hasAnyProductValue(payload.bookStock.monthlyOpening)
+        ? payload.bookStock.monthlyOpening
+        : sourceWithBookStock?.bookStock?.monthlyOpening ?? payload.bookStock.monthlyOpening,
+    },
+    loader: {
+      ...payload.loader,
+      dieselRate: payload.loader.dieselRate || sourceWithDieselRate?.loader?.dieselRate || 0,
+    },
+    cop: {
+      ...payload.cop,
+      fixedCostMonthly: payload.cop.fixedCostMonthly || sourceWithFixedCost?.cop?.fixedCostMonthly || 0,
     },
   };
 }

@@ -33,11 +33,15 @@ import { calculateDailyRecord, materializeCalculatedFields } from "@/src/lib/cap
 import {
   CAPTURE_PRODUCTS,
   LOSS_CATEGORIES,
+  PLANT_CONFIGS,
+  PLANT_LOSS_REASONS,
   PHOTO_CATEGORIES,
+  QUARRY_LOSS_REASONS,
   type CapturePayload,
   type DailyPlantRecord,
   type EvidencePhoto,
   type LossCategory,
+  type LossReason,
   type PhotoCategory,
 } from "@/src/lib/capture/types";
 import { validateCaptureRecord } from "@/src/lib/capture/validation";
@@ -394,11 +398,15 @@ function CaptureWorkspace({
       <div className="capture-form">
         <Section title="Plant and date" meta="Mandatory">
           <div className="form-grid four">
-            <TextField label="Plant code" value={form.plantCode} onChange={(value) => setField(setForm, "plantCode", value)} />
-            <TextField label="Plant name" value={form.plantName} onChange={(value) => setField(setForm, "plantName", value)} />
+            <SelectField
+              label="Plant"
+              value={form.plantCode}
+              options={PLANT_CONFIGS.map((plant) => ({ label: plant.name, value: plant.code }))}
+              onChange={(value) => setPlant(setForm, value)}
+            />
+            <TextField disabled label="Plant name" value={form.plantName} onChange={(value) => setField(setForm, "plantName", value)} />
             <TextField label="Date" type="date" value={form.date} onChange={(value) => setField(setForm, "date", value)} />
             <NumberField label="Target MT" value={form.targetMt} onChange={(value) => setField(setForm, "targetMt", value)} />
-            <NumberField label="Plant CMD" value={form.electrical.cmd} onChange={(value) => setNested(setForm, "electrical", "cmd", value)} />
           </div>
         </Section>
 
@@ -410,9 +418,11 @@ function CaptureWorkspace({
           <div className="form-grid four">
             <NumberField label="Opening kWh" value={form.electrical.openingKwh} onChange={(value) => setNested(setForm, "electrical", "openingKwh", value)} />
             <NumberField label="Opening KVAH" value={form.electrical.openingKvah} onChange={(value) => setNested(setForm, "electrical", "openingKvah", value)} />
+            <NumberField label="Domestic opening kWh" value={form.electrical.domestic.openingKwh} onChange={(value) => setDomesticElectrical(setForm, "openingKwh", value)} />
             <NumberField label="Jaw opening HM" value={form.equipmentHourMeters.jaw.opening} onChange={(value) => setEquipmentMeter(setForm, "jaw", "opening", value)} />
             <NumberField label="Cone opening HM" value={form.equipmentHourMeters.cone.opening} onChange={(value) => setEquipmentMeter(setForm, "cone", "opening", value)} />
             <NumberField label="VSI opening HM" value={form.equipmentHourMeters.vsi.opening} onChange={(value) => setEquipmentMeter(setForm, "vsi", "opening", value)} />
+            <NumberField label="Loader opening HM" value={form.loader.hourMeter.opening} onChange={(value) => setLoaderHourMeter(setForm, "opening", value)} />
           </div>
         </Section>
 
@@ -440,9 +450,9 @@ function CaptureWorkspace({
             <NumberField label="Jaw closing HM" value={form.equipmentHourMeters.jaw.closing} onChange={(value) => setEquipmentMeter(setForm, "jaw", "closing", value)} />
             <NumberField label="Cone closing HM" value={form.equipmentHourMeters.cone.closing} onChange={(value) => setEquipmentMeter(setForm, "cone", "closing", value)} />
             <NumberField label="VSI closing HM" value={form.equipmentHourMeters.vsi.closing} onChange={(value) => setEquipmentMeter(setForm, "vsi", "closing", value)} />
-            <ReadOnlyMetric label="Jaw hours" value={previewRecord.calculations.equipmentRunningHours.jaw} />
-            <ReadOnlyMetric label="Cone hours" value={previewRecord.calculations.equipmentRunningHours.cone} />
-            <ReadOnlyMetric label="VSI hours" value={previewRecord.calculations.equipmentRunningHours.vsi} />
+            <ReadOnlyMetric format="hours" label="Jaw hours" value={previewRecord.calculations.equipmentRunningHours.jaw} />
+            <ReadOnlyMetric format="hours" label="Cone hours" value={previewRecord.calculations.equipmentRunningHours.cone} />
+            <ReadOnlyMetric format="hours" label="VSI hours" value={previewRecord.calculations.equipmentRunningHours.vsi} />
             <ReadOnlyMetric label="Jaw TPH" value={previewRecord.calculations.equipmentTph.jaw} />
             <ReadOnlyMetric label="Cone TPH" value={previewRecord.calculations.equipmentTph.cone} />
             <ReadOnlyMetric label="VSI TPH" value={previewRecord.calculations.equipmentTph.vsi} />
@@ -451,49 +461,86 @@ function CaptureWorkspace({
 
         <Section title="Plant available hours, stoppages and loss hours" meta="Hours must reconcile">
           <div className="form-grid four">
-            <NumberField label="Available hours" value={form.plantHours.available} onChange={(value) => setNested(setForm, "plantHours", "available", value)} />
-            <NumberField label="Production hours" value={form.plantHours.production} onChange={(value) => setNested(setForm, "plantHours", "production", value)} />
-            <NumberField label="Scheduled stoppage" value={form.plantHours.scheduledStoppage} onChange={(value) => setNested(setForm, "plantHours", "scheduledStoppage", value)} />
-            <NumberField label="Loss hours" value={form.plantHours.loss} onChange={(value) => setNested(setForm, "plantHours", "loss", value)} />
+            <HourField label="Available hours" value={form.plantHours.available} onChange={(value) => setNested(setForm, "plantHours", "available", value)} />
+            <HourField label="Production hours" value={form.plantHours.production} onChange={(value) => setNested(setForm, "plantHours", "production", value)} />
+            <HourField label="Scheduled stoppage" value={form.plantHours.scheduledStoppage} onChange={(value) => setNested(setForm, "plantHours", "scheduledStoppage", value)} />
+            <HourField label="Loss hours" value={form.lossEvent.hours} onChange={(value) => setLossEvent(setForm, "hours", value)} />
           </div>
-          <div className="form-grid loss-grid">
-            {LOSS_CATEGORIES.map((category) => (
-              <NumberField
-                key={category}
-                label={category}
-                value={form.lossHours[category]}
-                onChange={(value) => setLoss(setForm, category, value)}
-              />
-            ))}
+          <div className="form-grid two">
+            <SelectField
+              label="Quarry loss reason"
+              value={QUARRY_LOSS_REASONS.includes(form.lossEvent.reason as never) ? form.lossEvent.reason : ""}
+              options={QUARRY_LOSS_REASONS.map((reason) => ({ label: reason, value: reason }))}
+              placeholder="No quarry loss"
+              onChange={(value) => setLossEvent(setForm, "reason", value as LossReason | "")}
+            />
+            <SelectField
+              label="Plant loss reason"
+              value={PLANT_LOSS_REASONS.includes(form.lossEvent.reason as never) ? form.lossEvent.reason : ""}
+              options={PLANT_LOSS_REASONS.map((reason) => ({ label: reason, value: reason }))}
+              placeholder="No plant loss"
+              onChange={(value) => setLossEvent(setForm, "reason", value as LossReason | "")}
+            />
           </div>
+          <label className="text-area-field">
+            <span>Plant loss comments</span>
+            <textarea value={form.lossEvent.comments} onChange={(event) => setLossEvent(setForm, "comments", event.target.value)} />
+          </label>
         </Section>
 
         <Section title="Electrical readings and units" meta="Units/MT auto-calculated">
           <div className="form-grid four">
+            <NumberField label="CMD" value={form.electrical.cmd} onChange={(value) => setNested(setForm, "electrical", "cmd", value)} />
             <NumberField label="Closing kWh" value={form.electrical.closingKwh} onChange={(value) => setNested(setForm, "electrical", "closingKwh", value)} />
-            <NumberField label="kWh MF" value={form.electrical.kwhMultiplyingFactor} onChange={(value) => setNested(setForm, "electrical", "kwhMultiplyingFactor", value)} />
+            <NumberField disabled label="kWh MF" value={previewRecord.electrical.kwhMultiplyingFactor} onChange={(value) => setNested(setForm, "electrical", "kwhMultiplyingFactor", value)} />
             <ReadOnlyMetric label="Actual kWh units" value={previewRecord.calculations.electricalUnitsConsumed} />
             <NumberField label="Closing KVAH" value={form.electrical.closingKvah} onChange={(value) => setNested(setForm, "electrical", "closingKvah", value)} />
-            <NumberField label="KVAH MF" value={form.electrical.kvahMultiplyingFactor} onChange={(value) => setNested(setForm, "electrical", "kvahMultiplyingFactor", value)} />
+            <NumberField disabled label="KVAH MF" value={previewRecord.electrical.kvahMultiplyingFactor} onChange={(value) => setNested(setForm, "electrical", "kvahMultiplyingFactor", value)} />
             <ReadOnlyMetric label="KVAH units" value={previewRecord.calculations.kvahUnitsConsumed} />
-            <NumberField label="Power factor" value={form.electrical.powerFactor} step="0.001" onChange={(value) => setNested(setForm, "electrical", "powerFactor", value)} />
-            <NumberField label="Domestic units" value={form.electrical.domesticUnits} onChange={(value) => setNested(setForm, "electrical", "domesticUnits", value)} />
-            <CheckboxField checked={form.electrical.excludeDomesticFromUnitsPerMt} label="Exclude domestic from Units/MT" onChange={(value) => setElectricalFlag(setForm, "excludeDomesticFromUnitsPerMt", value)} />
-            <ReadOnlyMetric label="Production power units" value={previewRecord.calculations.productionPowerUnits} />
-            <ReadOnlyMetric label="Units / MT" value={previewRecord.calculations.unitsPerMt} />
+            <ReadOnlyMetric label="Power factor" value={previewRecord.calculations.powerFactor} />
+            <ReadOnlyMetric label="Electricity cost" value={previewRecord.calculations.electricalCost} prefix="Rs" />
+            <ReadOnlyMetric label="Production units" value={previewRecord.calculations.productionPowerUnits} />
+            <ReadOnlyMetric label="Production Units / MT" value={previewRecord.calculations.unitsPerMt} />
+          </div>
+          <h3 className="section-subtitle">Domestic power consumption</h3>
+          <div className="form-grid four">
+            <NumberField label="Domestic closing kWh" value={form.electrical.domestic.closingKwh} onChange={(value) => setDomesticElectrical(setForm, "closingKwh", value)} />
+            <NumberField disabled label="Domestic MF" value={previewRecord.electrical.domestic.multiplyingFactor} onChange={(value) => setDomesticElectrical(setForm, "multiplyingFactor", value)} />
+            <ReadOnlyMetric label="Domestic units" value={previewRecord.calculations.domesticPowerUnits} />
+            <ReadOnlyMetric label="Domestic Units / MT" value={previewRecord.calculations.domesticUnitsPerMt} />
+            <ReadOnlyMetric label="Combined units" value={previewRecord.calculations.combinedPowerUnits} />
+            <ReadOnlyMetric label="Combined Units / MT" value={previewRecord.calculations.combinedUnitsPerMt} />
           </div>
         </Section>
 
-        <Section title="Loader and COP inputs" meta="Litres/MT and COP/MT auto-calculated">
+        <Section title="Loader" meta="Hour meter, other works, diesel and TPH">
           <div className="form-grid four">
-            <NumberField label="Loader hours" value={form.loader.hours} onChange={(value) => setNested(setForm, "loader", "hours", value)} />
+            <NumberField label="Loader closing HM" value={form.loader.hourMeter.closing} onChange={(value) => setLoaderHourMeter(setForm, "closing", value)} />
+            <HourField label="Other works usage" value={form.loader.otherWorksHours} onChange={(value) => setNested(setForm, "loader", "otherWorksHours", value)} />
+            <ReadOnlyMetric format="hours" label="Loader running hours" value={previewRecord.calculations.loaderRunningHours} />
+            <ReadOnlyMetric format="hours" label="Production loader hours" value={previewRecord.calculations.loaderProductionHours} />
             <NumberField label="Loader diesel L" value={form.loader.dieselLitres} onChange={(value) => setNested(setForm, "loader", "dieselLitres", value)} />
+            <NumberField label="Monthly diesel rate" value={form.loader.dieselRate} onChange={(value) => setNested(setForm, "loader", "dieselRate", value)} />
             <NumberField label="Loader dispatch MT" value={form.loader.dispatchMt} onChange={(value) => setNested(setForm, "loader", "dispatchMt", value)} />
+            <ReadOnlyMetric label="Loader TPH" value={previewRecord.calculations.loaderTph} />
             <ReadOnlyMetric label="Loader L / MT" value={previewRecord.calculations.loaderLitresPerMt} />
-            <NumberField label="Power cost" value={form.cop.powerCost} onChange={(value) => setNested(setForm, "cop", "powerCost", value)} />
-            <NumberField label="Diesel cost" value={form.cop.dieselCost} onChange={(value) => setNested(setForm, "cop", "dieselCost", value)} />
+            <ReadOnlyMetric label="Diesel cost" value={previewRecord.calculations.loaderDieselCost} prefix="Rs" />
+          </div>
+        </Section>
+
+        <Section title="COP inputs" meta="Monthly fixed cost allocated daily; power and loader costs auto-calculated">
+          <div className="form-grid four">
+            <NumberField label="Monthly fixed cost" value={form.cop.fixedCostMonthly} onChange={(value) => setNested(setForm, "cop", "fixedCostMonthly", value)} />
+            <ReadOnlyMetric label="Daily fixed cost" value={previewRecord.calculations.fixedCostDaily} prefix="Rs" />
+            <NumberField label="OB cost" value={form.cop.quarryObCost} onChange={(value) => setNested(setForm, "cop", "quarryObCost", value)} />
+            <NumberField label="Blasting cost" value={form.cop.quarryBlastingCost} onChange={(value) => setNested(setForm, "cop", "quarryBlastingCost", value)} />
+            <NumberField label="L and T cost" value={form.cop.quarryLtCost} onChange={(value) => setNested(setForm, "cop", "quarryLtCost", value)} />
+            <NumberField label="Plant cost" value={form.cop.plantCost} onChange={(value) => setNested(setForm, "cop", "plantCost", value)} />
+            <ReadOnlyMetric label="Electrical cost" value={previewRecord.calculations.electricalCost} prefix="Rs" />
+            <ReadOnlyMetric label="Loader cost" value={previewRecord.calculations.loaderDieselCost} prefix="Rs" />
             <NumberField label="Consumables cost" value={form.cop.consumablesCost} onChange={(value) => setNested(setForm, "cop", "consumablesCost", value)} />
             <NumberField label="Maintenance cost" value={form.cop.maintenanceCost} onChange={(value) => setNested(setForm, "cop", "maintenanceCost", value)} />
+            <ReadOnlyMetric label="Total COP cost" value={previewRecord.calculations.totalCopCost} prefix="Rs" />
             <ReadOnlyMetric label="COP / MT" value={previewRecord.calculations.copPerMt} />
           </div>
         </Section>
@@ -939,11 +986,13 @@ function Section({ title, meta, children }: { title: string; meta: string; child
 }
 
 function TextField({
+  disabled = false,
   label,
   onChange,
   type = "text",
   value,
 }: {
+  disabled?: boolean;
   label: string;
   onChange: (value: string) => void;
   type?: string;
@@ -952,7 +1001,33 @@ function TextField({
   return (
     <label className="field">
       <span>{label}</span>
-      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+      <input disabled={disabled} type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  );
+}
+
+function SelectField({
+  label,
+  onChange,
+  options,
+  placeholder,
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  options: Array<{ label: string; value: string }>;
+  placeholder?: string;
+  value: string;
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        {placeholder ? <option value="">{placeholder}</option> : null}
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
     </label>
   );
 }
@@ -978,28 +1053,47 @@ function NumberField({
   );
 }
 
-function CheckboxField({
-  checked,
+function HourField({
   label,
   onChange,
+  value,
 }: {
-  checked: boolean;
   label: string;
-  onChange: (value: boolean) => void;
+  onChange: (value: number) => void;
+  value: number;
 }) {
   return (
-    <label className="field checkbox-field">
+    <label className="field">
       <span>{label}</span>
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <input
+        inputMode="numeric"
+        pattern="[0-9]{1,3}:[0-5][0-9]"
+        placeholder="HH:MM"
+        value={formatHours(value)}
+        onChange={(event) => onChange(parseHours(event.target.value))}
+      />
     </label>
   );
 }
 
-function ReadOnlyMetric({ label, suffix, value }: { label: string; suffix?: string; value: number }) {
+function ReadOnlyMetric({
+  format,
+  label,
+  prefix,
+  suffix,
+  value,
+}: {
+  format?: "hours";
+  label: string;
+  prefix?: string;
+  suffix?: string;
+  value: number;
+}) {
+  const renderedValue = format === "hours" ? formatHours(value) : fmt.format(value);
   return (
     <div className="readonly-metric">
       <span>{label}</span>
-      <strong>{fmt.format(value)}{suffix ? ` ${suffix}` : ""}</strong>
+      <strong>{prefix ? `${prefix} ` : ""}{renderedValue}{suffix ? ` ${suffix}` : ""}</strong>
     </div>
   );
 }
@@ -1100,8 +1194,8 @@ function DailyTable({ days }: { days: ReportSnapshot["daily"] }) {
               <td>{fmt.format(day.dispatch.totalMt)}</td>
               <td>{fmt.format(day.machine.jawTph)}</td>
               <td>{fmt.format(day.machine.vsiTph)}</td>
-              <td>{fmt.format(day.plantHours.productionHours)}</td>
-              <td>{fmt.format(day.plantHours.lossHours)}</td>
+              <td>{formatHours(day.plantHours.productionHours)}</td>
+              <td>{formatHours(day.plantHours.lossHours)}</td>
               <td>{fmt.format(day.electrical.unitsPerMt)}</td>
               <td>{fmt.format(day.loader.litresPerMt)}</td>
             </tr>
@@ -1185,7 +1279,7 @@ function LoaderTable({ rows }: { rows: LoaderBasisRow[] }) {
           {rows.map((row) => (
             <tr key={row.label}>
               <td>{row.label}</td>
-              <td>{fmt.format(row.runningHours)}</td>
+              <td>{formatHours(row.runningHours)}</td>
               <td>{fmt.format(row.litresPerMt)}</td>
               <td>{fmt.format(row.tph)}</td>
               <td>{fmt.format(row.dispatchMt)}</td>
@@ -1198,9 +1292,10 @@ function LoaderTable({ rows }: { rows: LoaderBasisRow[] }) {
 }
 
 function defaultPayload(): CapturePayload {
+  const defaultPlant = PLANT_CONFIGS[0];
   return {
-    plantCode: "GIR-1",
-    plantName: "GIR 1",
+    plantCode: defaultPlant.code,
+    plantName: defaultPlant.name,
     date: todayIso(),
     targetMt: 1700,
     productionMt: 0,
@@ -1219,22 +1314,52 @@ function defaultPayload(): CapturePayload {
     tph: { jaw: 0, cone: 0, vsi: 0 },
     plantHours: { available: 24, production: 0, scheduledStoppage: 0, loss: 0 },
     lossHours: emptyLosses(),
+    lossEvent: { reason: "", hours: 0, comments: "" },
     electrical: {
       openingKwh: 0,
       closingKwh: 0,
-      kwhMultiplyingFactor: 1,
+      kwhMultiplyingFactor: defaultPlant.electricalMf,
       openingKvah: 0,
       closingKvah: 0,
-      kvahMultiplyingFactor: 1,
+      kvahMultiplyingFactor: defaultPlant.electricalMf,
       unitsConsumed: 0,
       kvahUnitsConsumed: 0,
       domesticUnits: 0,
+      domestic: {
+        openingKwh: 0,
+        closingKwh: 0,
+        multiplyingFactor: defaultPlant.electricalMf,
+        unitsConsumed: 0,
+      },
       excludeDomesticFromUnitsPerMt: true,
       powerFactor: 0.98,
       cmd: 0,
     },
-    loader: { hours: 0, dieselLitres: 0, dispatchMt: 0 },
-    cop: { powerCost: 0, dieselCost: 0, consumablesCost: 0, maintenanceCost: 0 },
+    loader: {
+      hours: 0,
+      hourMeter: { opening: 0, closing: 0 },
+      productionHours: 0,
+      otherWorksHours: 0,
+      tph: 0,
+      dieselLitres: 0,
+      dieselRate: 0,
+      dieselCost: 0,
+      dispatchMt: 0,
+    },
+    cop: {
+      fixedCostMonthly: 0,
+      fixedCostDaily: 0,
+      quarryObCost: 0,
+      quarryBlastingCost: 0,
+      quarryLtCost: 0,
+      plantCost: 0,
+      electricalCost: 0,
+      loaderCost: 0,
+      powerCost: 0,
+      dieselCost: 0,
+      consumablesCost: 0,
+      maintenanceCost: 0,
+    },
     remarks: "",
     evidencePhotos: [],
     submittedBy: "operations-head",
@@ -1249,13 +1374,35 @@ function emptyLosses() {
   return Object.fromEntries(LOSS_CATEGORIES.map((category) => [category, 0])) as CapturePayload["lossHours"];
 }
 
+function lossEventFromLegacyLossHours(lossHours: CapturePayload["lossHours"], totalHours: number): CapturePayload["lossEvent"] {
+  const firstLoss = LOSS_CATEGORIES.find((category) => (lossHours[category] ?? 0) > 0);
+  const reasonByCategory: Record<LossCategory, LossReason> = {
+    quarryOversizeJams: "Oversize Jams",
+    quarryNoTippers: "No Feed due to Non-Availability of Tippers",
+    quarryNoMaterial: "No Material Available in Quarry",
+    plantBreakdown: "Breakdown Hours",
+    plantOther: "Other Reasons",
+    plantScheduledMaintenance: "Scheduled Maintenance",
+    plantIdle: "Idle Hours",
+  };
+  return {
+    reason: firstLoss ? reasonByCategory[firstLoss] : "",
+    hours: firstLoss ? lossHours[firstLoss] : totalHours,
+    comments: "",
+  };
+}
+
 function recordToPayload(record: DailyPlantRecord): CapturePayload {
   const fallback = defaultPayload();
   const { id, plantCode, plantName, date, targetMt, productionMt, productMix, dispatch, openingStock, closingStock, machineHours, tph, plantHours, lossHours, electrical, loader, cop, remarks, evidencePhotos, submittedBy } = record;
+  const plant = PLANT_CONFIGS.find((config) => config.code === plantCode) ?? PLANT_CONFIGS.find((config) => config.aliases.includes(plantCode as never));
+  const mergedElectrical = { ...fallback.electrical, ...electrical };
+  const mergedLoader = { ...fallback.loader, ...loader };
+  const mergedCop = { ...fallback.cop, ...cop };
   return {
     id,
-    plantCode,
-    plantName,
+    plantCode: plant?.code ?? plantCode,
+    plantName: plant?.name ?? plantName,
     date,
     targetMt,
     productionMt,
@@ -1269,10 +1416,28 @@ function recordToPayload(record: DailyPlantRecord): CapturePayload {
     equipmentHourMeters: record.equipmentHourMeters ?? fallback.equipmentHourMeters,
     tph,
     plantHours,
-    lossHours,
-    electrical: { ...fallback.electrical, ...electrical },
-    loader,
-    cop,
+    lossHours: { ...fallback.lossHours, ...lossHours },
+    lossEvent: record.lossEvent ?? lossEventFromLegacyLossHours({ ...fallback.lossHours, ...lossHours }, plantHours.loss),
+    electrical: {
+      ...mergedElectrical,
+      kwhMultiplyingFactor: plant?.electricalMf ?? mergedElectrical.kwhMultiplyingFactor,
+      kvahMultiplyingFactor: plant?.electricalMf ?? mergedElectrical.kvahMultiplyingFactor,
+      domestic: {
+        ...fallback.electrical.domestic,
+        ...electrical.domestic,
+        multiplyingFactor: plant?.electricalMf ?? electrical.domestic?.multiplyingFactor ?? fallback.electrical.domestic.multiplyingFactor,
+      },
+    },
+    loader: {
+      ...mergedLoader,
+      hourMeter: { ...fallback.loader.hourMeter, ...loader.hourMeter },
+      otherWorksHours: loader.otherWorksHours ?? 0,
+      productionHours: loader.productionHours ?? loader.hours ?? 0,
+      tph: loader.tph ?? 0,
+      dieselRate: loader.dieselRate ?? 0,
+      dieselCost: loader.dieselCost ?? cop.dieselCost ?? 0,
+    },
+    cop: mergedCop,
     remarks,
     evidencePhotos,
     submittedBy,
@@ -1291,6 +1456,27 @@ function setField<K extends keyof CapturePayload>(
   value: CapturePayload[K],
 ) {
   setForm((current) => ({ ...current, [field]: value }));
+}
+
+function setPlant(
+  setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
+  plantCode: string,
+) {
+  const plant = PLANT_CONFIGS.find((config) => config.code === plantCode) ?? PLANT_CONFIGS[0];
+  setForm((current) => ({
+    ...current,
+    plantCode: plant.code,
+    plantName: plant.name,
+    electrical: {
+      ...current.electrical,
+      kwhMultiplyingFactor: plant.electricalMf,
+      kvahMultiplyingFactor: plant.electricalMf,
+      domestic: {
+        ...current.electrical.domestic,
+        multiplyingFactor: plant.electricalMf,
+      },
+    },
+  }));
 }
 
 function setNested<
@@ -1349,26 +1535,46 @@ function setEquipmentMeter(
   }));
 }
 
-function setElectricalFlag(
+function setLoaderHourMeter(
   setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
-  field: "excludeDomesticFromUnitsPerMt",
-  value: boolean,
+  field: keyof CapturePayload["loader"]["hourMeter"],
+  value: number,
+) {
+  setForm((current) => ({
+    ...current,
+    loader: {
+      ...current.loader,
+      hourMeter: {
+        ...current.loader.hourMeter,
+        [field]: value,
+      },
+    },
+  }));
+}
+
+function setDomesticElectrical(
+  setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
+  field: keyof CapturePayload["electrical"]["domestic"],
+  value: number,
 ) {
   setForm((current) => ({
     ...current,
     electrical: {
       ...current.electrical,
-      [field]: value,
+      domestic: {
+        ...current.electrical.domestic,
+        [field]: value,
+      },
     },
   }));
 }
 
-function setLoss(
+function setLossEvent<K extends keyof CapturePayload["lossEvent"]>(
   setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
-  category: LossCategory,
-  value: number,
+  field: K,
+  value: CapturePayload["lossEvent"][K],
 ) {
-  setForm((current) => ({ ...current, lossHours: { ...current.lossHours, [category]: value } }));
+  setForm((current) => ({ ...current, lossEvent: { ...current.lossEvent, [field]: value } }));
 }
 
 function setEvidence(
@@ -1491,6 +1697,24 @@ function weightedAverage(values: Array<[number, number]>) {
   const weightedTotal = values.reduce((total, [value, weight]) => total + (Number.isFinite(value) ? value : 0) * weight, 0);
   const weightTotal = values.reduce((total, [, weight]) => total + (Number.isFinite(weight) ? weight : 0), 0);
   return weightTotal ? weightedTotal / weightTotal : 0;
+}
+
+function formatHours(value: number) {
+  const safe = Number.isFinite(value) && value > 0 ? value : 0;
+  const totalMinutes = Math.round(safe * 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function parseHours(value: string) {
+  const normalized = value.trim();
+  if (!normalized) return 0;
+  const [hoursRaw, minutesRaw = "0"] = normalized.split(":");
+  const hours = Number(hoursRaw);
+  const minutes = Number(minutesRaw);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return 0;
+  return Math.max(0, hours + Math.min(Math.max(minutes, 0), 59) / 60);
 }
 
 function dataset(label: string, data: number[], color: string) {

@@ -6,6 +6,7 @@ import type {
 import { CAPTURE_PRODUCTS, LOSS_CATEGORIES } from "./types";
 import { round, sum } from "../reporting/calculations";
 import type { ValidationIssue } from "../reporting/types";
+import { isPlantLossReason, plantElectricalMf } from "./calculations";
 
 export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidationResult {
   const issues: ValidationIssue[] = [];
@@ -15,6 +16,7 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
   const lossCategoryTotal = sum(LOSS_CATEGORIES.map((category) => record.lossHours[category]));
   const expectedUnits = record.calculations.electricalUnitsConsumed;
   const expectedKvahUnits = record.calculations.kvahUnitsConsumed;
+  const expectedPlantMf = plantElectricalMf(record.plantCode);
 
   requireText(issues, record.date, "plantCode", record.plantCode, "Plant is mandatory.");
   requireText(issues, record.date, "date", record.date, "Date is mandatory.");
@@ -112,6 +114,26 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
     requireNonNegative(issues, record.date, `lossHours.${category}`, record.lossHours[category]);
   }
 
+  requireNonNegative(issues, record.date, "lossEvent.hours", record.lossEvent.hours);
+  if (record.lossEvent.hours > 0 && !record.lossEvent.reason) {
+    issues.push({
+      severity: "ERROR",
+      code: "LOSS_REASON_REQUIRED",
+      date: record.date,
+      field: "lossEvent.reason",
+      message: "Select one quarry or plant loss reason when loss hours are entered.",
+    });
+  }
+  if (isPlantLossReason(record.lossEvent.reason) && record.lossEvent.hours > 0 && record.lossEvent.comments.trim().length < 8) {
+    issues.push({
+      severity: "ERROR",
+      code: "PLANT_LOSS_COMMENT_REQUIRED",
+      date: record.date,
+      field: "lossEvent.comments",
+      message: "Plant loss reasons require comments before final submission.",
+    });
+  }
+
   if (Math.abs(record.productionMt - productMixTotal) > 1) {
     issues.push({
       severity: "ERROR",
@@ -169,7 +191,51 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
   requireNonNegative(issues, record.date, "electrical.kwhMultiplyingFactor", record.electrical.kwhMultiplyingFactor);
   requireNonNegative(issues, record.date, "electrical.kvahMultiplyingFactor", record.electrical.kvahMultiplyingFactor);
   requireNonNegative(issues, record.date, "electrical.domesticUnits", record.electrical.domesticUnits);
+  requireNonNegative(issues, record.date, "electrical.domestic.openingKwh", record.electrical.domestic.openingKwh);
+  requireNonNegative(issues, record.date, "electrical.domestic.closingKwh", record.electrical.domestic.closingKwh);
+  requireNonNegative(issues, record.date, "electrical.domestic.multiplyingFactor", record.electrical.domestic.multiplyingFactor);
+  requireNonNegative(issues, record.date, "electrical.domestic.unitsConsumed", record.electrical.domestic.unitsConsumed);
   requireNonNegative(issues, record.date, "electrical.cmd", record.electrical.cmd);
+
+  if (expectedPlantMf && Math.abs(record.electrical.kwhMultiplyingFactor - expectedPlantMf) > 0.001) {
+    issues.push({
+      severity: "ERROR",
+      code: "PLANT_MF_LOCKED",
+      date: record.date,
+      field: "electrical.kwhMultiplyingFactor",
+      message: `KWH multiplying factor is locked at ${expectedPlantMf} for ${record.plantName}.`,
+    });
+  }
+
+  if (expectedPlantMf && Math.abs(record.electrical.kvahMultiplyingFactor - expectedPlantMf) > 0.001) {
+    issues.push({
+      severity: "ERROR",
+      code: "PLANT_MF_LOCKED",
+      date: record.date,
+      field: "electrical.kvahMultiplyingFactor",
+      message: `KVAH multiplying factor is locked at ${expectedPlantMf} for ${record.plantName}.`,
+    });
+  }
+
+  if (Math.abs(record.electrical.domestic.unitsConsumed - record.calculations.domesticPowerUnits) > 1) {
+    issues.push({
+      severity: "ERROR",
+      code: "DOMESTIC_UNITS_RECONCILIATION",
+      date: record.date,
+      field: "electrical.domestic.unitsConsumed",
+      message: `Domestic units should be ${round(record.calculations.domesticPowerUnits)} based on opening/closing domestic KWH readings and multiplying factor.`,
+    });
+  }
+
+  if (Math.abs(record.electrical.powerFactor - record.calculations.powerFactor) > 0.005) {
+    issues.push({
+      severity: "ERROR",
+      code: "POWER_FACTOR_RECONCILIATION",
+      date: record.date,
+      field: "electrical.powerFactor",
+      message: `Power factor should be ${round(record.calculations.powerFactor, 4)} based on actual KWH / actual KVAH.`,
+    });
+  }
 
   if (record.electrical.powerFactor <= 0 || record.electrical.powerFactor > 1.05) {
     issues.push({
@@ -178,6 +244,95 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
       date: record.date,
       field: "electrical.powerFactor",
       message: "Power factor is outside the expected operating range.",
+    });
+  }
+
+  requireNonNegative(issues, record.date, "loader.hourMeter.opening", record.loader.hourMeter.opening);
+  requireNonNegative(issues, record.date, "loader.hourMeter.closing", record.loader.hourMeter.closing);
+  requireNonNegative(issues, record.date, "loader.otherWorksHours", record.loader.otherWorksHours);
+  requireNonNegative(issues, record.date, "loader.productionHours", record.loader.productionHours);
+  requireNonNegative(issues, record.date, "loader.dieselLitres", record.loader.dieselLitres);
+  requireNonNegative(issues, record.date, "loader.dieselRate", record.loader.dieselRate);
+  requireNonNegative(issues, record.date, "loader.dieselCost", record.loader.dieselCost);
+  if (record.loader.hourMeter.closing < record.loader.hourMeter.opening) {
+    issues.push({
+      severity: "ERROR",
+      code: "LOADER_CLOSING_BELOW_OPENING",
+      date: record.date,
+      field: "loader.hourMeter.closing",
+      message: "Loader closing hour meter cannot be below opening hour meter.",
+    });
+  }
+  if (record.loader.otherWorksHours > record.calculations.loaderRunningHours + 0.25) {
+    issues.push({
+      severity: "ERROR",
+      code: "LOADER_OTHER_WORKS_EXCEED_RUNNING",
+      date: record.date,
+      field: "loader.otherWorksHours",
+      message: "Loader other works hours cannot exceed total loader running hours.",
+    });
+  }
+  if (Math.abs(record.loader.hours - record.calculations.loaderRunningHours) > 0.25) {
+    issues.push({
+      severity: "ERROR",
+      code: "LOADER_HOURS_RECONCILIATION",
+      date: record.date,
+      field: "loader.hours",
+      message: `Loader running hours should be ${round(record.calculations.loaderRunningHours, 2)} based on closing - opening hour meter.`,
+    });
+  }
+  if (Math.abs(record.loader.productionHours - record.calculations.loaderProductionHours) > 0.25) {
+    issues.push({
+      severity: "ERROR",
+      code: "LOADER_PRODUCTION_HOURS_RECONCILIATION",
+      date: record.date,
+      field: "loader.productionHours",
+      message: `Loader production hours should be ${round(record.calculations.loaderProductionHours, 2)} after excluding other works.`,
+    });
+  }
+  if (Math.abs(record.loader.tph - record.calculations.loaderTph) > 0.25) {
+    issues.push({
+      severity: "ERROR",
+      code: "LOADER_TPH_RECONCILIATION",
+      date: record.date,
+      field: "loader.tph",
+      message: `Loader TPH should be ${round(record.calculations.loaderTph, 2)} based on dispatch and production loader hours.`,
+    });
+  }
+  if (Math.abs(record.loader.dieselCost - record.calculations.loaderDieselCost) > 1) {
+    issues.push({
+      severity: "ERROR",
+      code: "LOADER_DIESEL_COST_RECONCILIATION",
+      date: record.date,
+      field: "loader.dieselCost",
+      message: `Loader diesel cost should be Rs ${round(record.calculations.loaderDieselCost, 2)} based on diesel litres and monthly plant diesel rate.`,
+    });
+  }
+
+  requireNonNegative(issues, record.date, "cop.fixedCostMonthly", record.cop.fixedCostMonthly);
+  requireNonNegative(issues, record.date, "cop.fixedCostDaily", record.cop.fixedCostDaily);
+  requireNonNegative(issues, record.date, "cop.quarryObCost", record.cop.quarryObCost);
+  requireNonNegative(issues, record.date, "cop.quarryBlastingCost", record.cop.quarryBlastingCost);
+  requireNonNegative(issues, record.date, "cop.quarryLtCost", record.cop.quarryLtCost);
+  requireNonNegative(issues, record.date, "cop.plantCost", record.cop.plantCost);
+  requireNonNegative(issues, record.date, "cop.electricalCost", record.cop.electricalCost);
+  requireNonNegative(issues, record.date, "cop.loaderCost", record.cop.loaderCost);
+  if (Math.abs(record.cop.fixedCostDaily - record.calculations.fixedCostDaily) > 1) {
+    issues.push({
+      severity: "ERROR",
+      code: "FIXED_COST_ALLOCATION",
+      date: record.date,
+      field: "cop.fixedCostDaily",
+      message: `Daily fixed cost should be Rs ${round(record.calculations.fixedCostDaily, 2)} based on monthly fixed cost allocation.`,
+    });
+  }
+  if (Math.abs(record.cop.electricalCost - record.calculations.electricalCost) > 1) {
+    issues.push({
+      severity: "ERROR",
+      code: "ELECTRICAL_COST_RECONCILIATION",
+      date: record.date,
+      field: "cop.electricalCost",
+      message: `Electrical cost should be Rs ${round(record.calculations.electricalCost, 2)} at Rs 7.71/unit.`,
     });
   }
 
@@ -256,7 +411,7 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
 function requiredPhotos(record: DailyPlantRecord): PhotoCategory[] {
   const categories = new Set<PhotoCategory>();
   if (record.calculations.achievementPct < 80) categories.add("equipment");
-  if (record.plantHours.loss >= 4 || record.lossHours.breakdown > 0) categories.add("breakdown");
+  if (record.plantHours.loss >= 4 || record.lossHours.plantBreakdown > 0) categories.add("breakdown");
   if (record.calculations.unitsPerMt > 5) categories.add("electricalMeter");
   if (record.calculations.loaderLitresPerMt > 0.12) categories.add("loaderDiesel");
   return [...categories];
