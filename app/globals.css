@@ -227,11 +227,39 @@ h1 {
 }
 
 .product-grid {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 .loss-grid {
   grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.loss-detail-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.loss-detail-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.loss-detail-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.1fr) minmax(110px, 0.7fr) minmax(180px, 1.3fr);
+  gap: 10px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-muted);
+  padding: 10px;
+}
+
+.loss-detail-row > strong {
+  align-self: center;
+  color: var(--navy);
+  font-size: 13px;
 }
 
 .readonly-metric {
@@ -587,6 +615,11 @@ td {
   font-size: 12px;
 }
 
+.summary-row td {
+  color: var(--navy);
+  font-weight: 850;
+}
+
 .empty-state {
   border: 1px dashed var(--line);
   border-radius: 8px;
@@ -631,6 +664,8 @@ td {
   .form-grid.four,
   .product-grid,
   .loss-grid,
+  .loss-detail-layout,
+  .loss-detail-row,
   .photo-grid {
     grid-template-columns: 1fr;
   }

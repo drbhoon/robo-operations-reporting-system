@@ -29,14 +29,12 @@ import {
   Send,
 } from "lucide-react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import { calculateDailyRecord, materializeCalculatedFields } from "@/src/lib/capture/calculations";
+import { calculateDailyRecord, domesticMeterMf, materializeCalculatedFields } from "@/src/lib/capture/calculations";
 import {
   CAPTURE_PRODUCTS,
   LOSS_CATEGORIES,
   PLANT_CONFIGS,
-  PLANT_LOSS_REASONS,
   PHOTO_CATEGORIES,
-  QUARRY_LOSS_REASONS,
   type CapturePayload,
   type DailyPlantRecord,
   type EvidencePhoto,
@@ -427,11 +425,13 @@ function CaptureWorkspace({
         </Section>
 
         <Section title="Production and product mix" meta="Production must equal mix total">
-          <div className="form-grid two">
+          <div className="form-grid three">
             <NumberField label="Production MT" value={form.productionMt} onChange={(value) => setField(setForm, "productionMt", value)} />
             <ReadOnlyMetric label="Product mix total" value={previewRecord.calculations.productMixTotal} suffix="MT" />
+            <ReadOnlyMetric label="Product mix total" value={productionRatio(previewRecord.calculations.productMixTotal, form.productionMt)} suffix="%" />
           </div>
           <ProductGrid values={form.productMix} onChange={(product, value) => setProduct(setForm, "productMix", product, value)} />
+          <ProductPercentageGrid production={form.productionMt} values={previewRecord.productMix} />
         </Section>
 
         <Section title="Dispatch and calculated stock" meta="Closing = opening + production - dispatch + adjustment">
@@ -450,9 +450,9 @@ function CaptureWorkspace({
             <NumberField label="Jaw closing HM" value={form.equipmentHourMeters.jaw.closing} onChange={(value) => setEquipmentMeter(setForm, "jaw", "closing", value)} />
             <NumberField label="Cone closing HM" value={form.equipmentHourMeters.cone.closing} onChange={(value) => setEquipmentMeter(setForm, "cone", "closing", value)} />
             <NumberField label="VSI closing HM" value={form.equipmentHourMeters.vsi.closing} onChange={(value) => setEquipmentMeter(setForm, "vsi", "closing", value)} />
-            <ReadOnlyMetric format="hours" label="Jaw hours" value={previewRecord.calculations.equipmentRunningHours.jaw} />
-            <ReadOnlyMetric format="hours" label="Cone hours" value={previewRecord.calculations.equipmentRunningHours.cone} />
-            <ReadOnlyMetric format="hours" label="VSI hours" value={previewRecord.calculations.equipmentRunningHours.vsi} />
+            <ReadOnlyMetric label="Jaw running hrs" value={previewRecord.calculations.equipmentRunningHours.jaw} />
+            <ReadOnlyMetric label="Cone running hrs" value={previewRecord.calculations.equipmentRunningHours.cone} />
+            <ReadOnlyMetric label="VSI running hrs" value={previewRecord.calculations.equipmentRunningHours.vsi} />
             <ReadOnlyMetric label="Jaw TPH" value={previewRecord.calculations.equipmentTph.jaw} />
             <ReadOnlyMetric label="Cone TPH" value={previewRecord.calculations.equipmentTph.cone} />
             <ReadOnlyMetric label="VSI TPH" value={previewRecord.calculations.equipmentTph.vsi} />
@@ -464,28 +464,9 @@ function CaptureWorkspace({
             <HourField label="Available hours" value={form.plantHours.available} onChange={(value) => setNested(setForm, "plantHours", "available", value)} />
             <HourField label="Production hours" value={form.plantHours.production} onChange={(value) => setNested(setForm, "plantHours", "production", value)} />
             <HourField label="Scheduled stoppage" value={form.plantHours.scheduledStoppage} onChange={(value) => setNested(setForm, "plantHours", "scheduledStoppage", value)} />
-            <HourField label="Loss hours" value={form.lossEvent.hours} onChange={(value) => setLossEvent(setForm, "hours", value)} />
+            <ReadOnlyMetric format="hours" label="Loss hours" value={previewRecord.plantHours.loss} />
           </div>
-          <div className="form-grid two">
-            <SelectField
-              label="Quarry loss reason"
-              value={QUARRY_LOSS_REASONS.includes(form.lossEvent.reason as never) ? form.lossEvent.reason : ""}
-              options={QUARRY_LOSS_REASONS.map((reason) => ({ label: reason, value: reason }))}
-              placeholder="No quarry loss"
-              onChange={(value) => setLossEvent(setForm, "reason", value as LossReason | "")}
-            />
-            <SelectField
-              label="Plant loss reason"
-              value={PLANT_LOSS_REASONS.includes(form.lossEvent.reason as never) ? form.lossEvent.reason : ""}
-              options={PLANT_LOSS_REASONS.map((reason) => ({ label: reason, value: reason }))}
-              placeholder="No plant loss"
-              onChange={(value) => setLossEvent(setForm, "reason", value as LossReason | "")}
-            />
-          </div>
-          <label className="text-area-field">
-            <span>Plant loss comments</span>
-            <textarea value={form.lossEvent.comments} onChange={(event) => setLossEvent(setForm, "comments", event.target.value)} />
-          </label>
+          <LossDetailGrid form={form} setForm={setForm} />
         </Section>
 
         <Section title="Electrical readings and units" meta="Units/MT auto-calculated">
@@ -505,7 +486,7 @@ function CaptureWorkspace({
           <h3 className="section-subtitle">Domestic power consumption</h3>
           <div className="form-grid four">
             <NumberField label="Domestic closing kWh" value={form.electrical.domestic.closingKwh} onChange={(value) => setDomesticElectrical(setForm, "closingKwh", value)} />
-            <NumberField disabled label="Domestic MF" value={previewRecord.electrical.domestic.multiplyingFactor} onChange={(value) => setDomesticElectrical(setForm, "multiplyingFactor", value)} />
+            <NumberField disabled label="Domestic MF" value={domesticMeterMf()} onChange={(value) => setDomesticElectrical(setForm, "multiplyingFactor", value)} />
             <ReadOnlyMetric label="Domestic units" value={previewRecord.calculations.domesticPowerUnits} />
             <ReadOnlyMetric label="Domestic Units / MT" value={previewRecord.calculations.domesticUnitsPerMt} />
             <ReadOnlyMetric label="Combined units" value={previewRecord.calculations.combinedPowerUnits} />
@@ -517,8 +498,8 @@ function CaptureWorkspace({
           <div className="form-grid four">
             <NumberField label="Loader closing HM" value={form.loader.hourMeter.closing} onChange={(value) => setLoaderHourMeter(setForm, "closing", value)} />
             <HourField label="Other works usage" value={form.loader.otherWorksHours} onChange={(value) => setNested(setForm, "loader", "otherWorksHours", value)} />
-            <ReadOnlyMetric format="hours" label="Loader running hours" value={previewRecord.calculations.loaderRunningHours} />
-            <ReadOnlyMetric format="hours" label="Production loader hours" value={previewRecord.calculations.loaderProductionHours} />
+            <ReadOnlyMetric label="Loader running hrs" value={previewRecord.calculations.loaderRunningHours} />
+            <ReadOnlyMetric label="Production loader hrs" value={previewRecord.calculations.loaderProductionHours} />
             <NumberField label="Loader diesel L" value={form.loader.dieselLitres} onChange={(value) => setNested(setForm, "loader", "dieselLitres", value)} />
             <NumberField label="Monthly diesel rate" value={form.loader.dieselRate} onChange={(value) => setNested(setForm, "loader", "dieselRate", value)} />
             <NumberField label="Loader dispatch MT" value={form.loader.dispatchMt} onChange={(value) => setNested(setForm, "loader", "dispatchMt", value)} />
@@ -528,18 +509,20 @@ function CaptureWorkspace({
           </div>
         </Section>
 
-        <Section title="COP inputs" meta="Monthly fixed cost allocated daily; power and loader costs auto-calculated">
+        <Section title="COP inputs" meta="Update weekly; Rs/MT calculated from production">
           <div className="form-grid four">
-            <NumberField label="Monthly fixed cost" value={form.cop.fixedCostMonthly} onChange={(value) => setNested(setForm, "cop", "fixedCostMonthly", value)} />
-            <ReadOnlyMetric label="Daily fixed cost" value={previewRecord.calculations.fixedCostDaily} prefix="Rs" />
-            <NumberField label="OB cost" value={form.cop.quarryObCost} onChange={(value) => setNested(setForm, "cop", "quarryObCost", value)} />
-            <NumberField label="Blasting cost" value={form.cop.quarryBlastingCost} onChange={(value) => setNested(setForm, "cop", "quarryBlastingCost", value)} />
-            <NumberField label="L and T cost" value={form.cop.quarryLtCost} onChange={(value) => setNested(setForm, "cop", "quarryLtCost", value)} />
-            <NumberField label="Plant cost" value={form.cop.plantCost} onChange={(value) => setNested(setForm, "cop", "plantCost", value)} />
+            <NumberField label="Drilling & blasting" value={form.cop.drillingBlastingCost} onChange={(value) => setNested(setForm, "cop", "drillingBlastingCost", value)} />
+            <NumberField label="Internal transportation" value={form.cop.internalTransportationCost} onChange={(value) => setNested(setForm, "cop", "internalTransportationCost", value)} />
+            <NumberField label="Overburden removal" value={form.cop.overburdenRemovalCost} onChange={(value) => setNested(setForm, "cop", "overburdenRemovalCost", value)} />
+            <NumberField label="Raw material cost" value={form.cop.rawMaterialCost} onChange={(value) => setNested(setForm, "cop", "rawMaterialCost", value)} />
+            <NumberField label="Rent - plant" value={form.cop.rentPlantCost} onChange={(value) => setNested(setForm, "cop", "rentPlantCost", value)} />
+            <NumberField label="Plant maintenance" value={form.cop.plantMaintenanceCost} onChange={(value) => setNested(setForm, "cop", "plantMaintenanceCost", value)} />
+            <NumberField label="Spares & consumables" value={form.cop.sparesConsumablesCost} onChange={(value) => setNested(setForm, "cop", "sparesConsumablesCost", value)} />
+            <NumberField label="Wear parts" value={form.cop.wearPartsCost} onChange={(value) => setNested(setForm, "cop", "wearPartsCost", value)} />
+            <NumberField label="Intercarting expenses" value={form.cop.intercartingExpenses} onChange={(value) => setNested(setForm, "cop", "intercartingExpenses", value)} />
+            <NumberField label="Weekly fixed cost" value={form.cop.fixedCost} onChange={(value) => setNested(setForm, "cop", "fixedCost", value)} />
             <ReadOnlyMetric label="Electrical cost" value={previewRecord.calculations.electricalCost} prefix="Rs" />
-            <ReadOnlyMetric label="Loader cost" value={previewRecord.calculations.loaderDieselCost} prefix="Rs" />
-            <NumberField label="Consumables cost" value={form.cop.consumablesCost} onChange={(value) => setNested(setForm, "cop", "consumablesCost", value)} />
-            <NumberField label="Maintenance cost" value={form.cop.maintenanceCost} onChange={(value) => setNested(setForm, "cop", "maintenanceCost", value)} />
+            <ReadOnlyMetric label="Diesel - loader" value={previewRecord.calculations.loaderDieselCost} prefix="Rs" />
             <ReadOnlyMetric label="Total COP cost" value={previewRecord.calculations.totalCopCost} prefix="Rs" />
             <ReadOnlyMetric label="COP / MT" value={previewRecord.calculations.copPerMt} />
           </div>
@@ -658,6 +641,7 @@ function DashboardWorkspace({
   const basisRows = buildBasisRows(visibleDays);
   const mtdRows = buildMtdRows(visibleDays);
   const loaderRows = buildLoaderRows(visibleDays);
+  const copRows = buildCopRows(visibleDays);
   const topProduct = productRatios[0];
 
   return (
@@ -754,7 +738,7 @@ function DashboardWorkspace({
                 <Doughnut
                   data={{
                     labels: productMix.map((p) => p.name),
-                    datasets: [{ data: productMix.map((p) => p.value), backgroundColor: ["#087f8c", "#f3a712", "#2f855a", "#d1495b", "#183153", "#7a5195"] }],
+                    datasets: [{ data: productMix.map((p) => p.value), backgroundColor: ["#087f8c", "#f3a712", "#2f855a", "#d1495b", "#183153", "#7a5195", "#5b8def"] }],
                   }}
                   options={{ maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }}
                 />
@@ -823,6 +807,9 @@ function DashboardWorkspace({
             </div>
             <Panel title="Loader Daily / Weekly / MTD trends" meta="Running hours, Ltr/MT, TPH and dispatch">
               <LoaderTable rows={loaderRows} />
+            </Panel>
+            <Panel title="COP structure" meta="Actuals and Rs./MT">
+              <CopTable rows={copRows} />
             </Panel>
           </div>
 
@@ -1130,6 +1117,68 @@ function ProductReadOnlyGrid({
   );
 }
 
+function ProductPercentageGrid({
+  production,
+  values,
+}: {
+  production: number;
+  values: CapturePayload["productMix"];
+}) {
+  return (
+    <div className="form-grid product-grid">
+      {CAPTURE_PRODUCTS.map((product) => (
+        <ReadOnlyMetric key={product} label={`${product} %`} value={productionRatio(values[product], production)} suffix="%" />
+      ))}
+    </div>
+  );
+}
+
+function LossDetailGrid({
+  form,
+  setForm,
+}: {
+  form: CapturePayload;
+  setForm: (updater: CapturePayload | ((current: CapturePayload) => CapturePayload)) => void;
+}) {
+  return (
+    <div className="loss-detail-layout">
+      <div>
+        <h3 className="section-subtitle">Quarry</h3>
+        <LossRows categories={["quarryOversizeJams", "quarryNoTippers", "quarryNoMaterial", "quarryBlasting"]} form={form} setForm={setForm} />
+      </div>
+      <div>
+        <h3 className="section-subtitle">Plant</h3>
+        <LossRows categories={["plantBreakdown", "plantScheduledMaintenance", "plantIdle", "plantOther"]} form={form} setForm={setForm} />
+      </div>
+    </div>
+  );
+}
+
+function LossRows({
+  categories,
+  form,
+  setForm,
+}: {
+  categories: LossCategory[];
+  form: CapturePayload;
+  setForm: (updater: CapturePayload | ((current: CapturePayload) => CapturePayload)) => void;
+}) {
+  return (
+    <div className="loss-detail-grid">
+      {categories.map((category) => (
+        <div className="loss-detail-row" key={category}>
+          <strong>{lossCategoryLabel(category)}</strong>
+          <HourField label="Hours" value={form.lossDetails[category].hours} onChange={(value) => setLossDetail(setForm, category, "hours", value)} />
+          <label className="text-area-field">
+            <span>Comments</span>
+            <textarea value={form.lossDetails[category].comments} onChange={(event) => setLossDetail(setForm, category, "comments", event.target.value)} />
+          </label>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function MetricList({ items }: { items: Array<[string, string]> }) {
   return (
     <div className="metric-list">
@@ -1291,6 +1340,31 @@ function LoaderTable({ rows }: { rows: LoaderBasisRow[] }) {
   );
 }
 
+function CopTable({ rows }: { rows: Array<{ label: string; actuals: number; perMt: number; strong?: boolean }> }) {
+  return (
+    <div className="table-shell mini-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Quantitative Information</th>
+            <th>Actuals</th>
+            <th>Rs./Mt</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.label} className={row.strong ? "summary-row" : undefined}>
+              <td>{row.label}</td>
+              <td>{row.actuals ? fmt.format(row.actuals) : "-"}</td>
+              <td>{row.perMt ? fmt.format(row.perMt) : "-"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function defaultPayload(): CapturePayload {
   const defaultPlant = PLANT_CONFIGS[0];
   return {
@@ -1314,6 +1388,7 @@ function defaultPayload(): CapturePayload {
     tph: { jaw: 0, cone: 0, vsi: 0 },
     plantHours: { available: 24, production: 0, scheduledStoppage: 0, loss: 0 },
     lossHours: emptyLosses(),
+    lossDetails: emptyLossDetails(),
     lossEvent: { reason: "", hours: 0, comments: "" },
     electrical: {
       openingKwh: 0,
@@ -1328,7 +1403,7 @@ function defaultPayload(): CapturePayload {
       domestic: {
         openingKwh: 0,
         closingKwh: 0,
-        multiplyingFactor: defaultPlant.electricalMf,
+        multiplyingFactor: domesticMeterMf(),
         unitsConsumed: 0,
       },
       excludeDomesticFromUnitsPerMt: true,
@@ -1349,12 +1424,22 @@ function defaultPayload(): CapturePayload {
     cop: {
       fixedCostMonthly: 0,
       fixedCostDaily: 0,
+      fixedCost: 0,
       quarryObCost: 0,
       quarryBlastingCost: 0,
       quarryLtCost: 0,
+      drillingBlastingCost: 0,
+      internalTransportationCost: 0,
+      overburdenRemovalCost: 0,
+      rawMaterialCost: 0,
+      rentPlantCost: 0,
       plantCost: 0,
+      plantMaintenanceCost: 0,
       electricalCost: 0,
       loaderCost: 0,
+      sparesConsumablesCost: 0,
+      wearPartsCost: 0,
+      intercartingExpenses: 0,
       powerCost: 0,
       dieselCost: 0,
       consumablesCost: 0,
@@ -1374,12 +1459,17 @@ function emptyLosses() {
   return Object.fromEntries(LOSS_CATEGORIES.map((category) => [category, 0])) as CapturePayload["lossHours"];
 }
 
+function emptyLossDetails() {
+  return Object.fromEntries(LOSS_CATEGORIES.map((category) => [category, { hours: 0, comments: "" }])) as CapturePayload["lossDetails"];
+}
+
 function lossEventFromLegacyLossHours(lossHours: CapturePayload["lossHours"], totalHours: number): CapturePayload["lossEvent"] {
   const firstLoss = LOSS_CATEGORIES.find((category) => (lossHours[category] ?? 0) > 0);
   const reasonByCategory: Record<LossCategory, LossReason> = {
     quarryOversizeJams: "Oversize Jams",
     quarryNoTippers: "No Feed due to Non-Availability of Tippers",
     quarryNoMaterial: "No Material Available in Quarry",
+    quarryBlasting: "Blasting",
     plantBreakdown: "Breakdown Hours",
     plantOther: "Other Reasons",
     plantScheduledMaintenance: "Scheduled Maintenance",
@@ -1390,6 +1480,22 @@ function lossEventFromLegacyLossHours(lossHours: CapturePayload["lossHours"], to
     hours: firstLoss ? lossHours[firstLoss] : totalHours,
     comments: "",
   };
+}
+
+function mergeLossDetails(
+  fallback: CapturePayload["lossDetails"],
+  current: DailyPlantRecord["lossDetails"] | undefined,
+  lossHours: CapturePayload["lossHours"],
+): CapturePayload["lossDetails"] {
+  return Object.fromEntries(
+    LOSS_CATEGORIES.map((category) => [
+      category,
+      {
+        hours: current?.[category]?.hours ?? lossHours[category] ?? fallback[category].hours,
+        comments: current?.[category]?.comments ?? fallback[category].comments,
+      },
+    ]),
+  ) as CapturePayload["lossDetails"];
 }
 
 function recordToPayload(record: DailyPlantRecord): CapturePayload {
@@ -1406,17 +1512,21 @@ function recordToPayload(record: DailyPlantRecord): CapturePayload {
     date,
     targetMt,
     productionMt,
-    productMix,
-    dispatch,
-    openingStock,
-    closingStock,
-    stockAdjustments: record.stockAdjustments ?? fallback.stockAdjustments,
-    bookStock: record.bookStock ?? fallback.bookStock,
+    productMix: { ...fallback.productMix, ...productMix },
+    dispatch: { ...fallback.dispatch, ...dispatch },
+    openingStock: { ...fallback.openingStock, ...openingStock },
+    closingStock: { ...fallback.closingStock, ...closingStock },
+    stockAdjustments: { ...fallback.stockAdjustments, ...record.stockAdjustments },
+    bookStock: {
+      monthlyOpening: { ...fallback.bookStock.monthlyOpening, ...record.bookStock?.monthlyOpening },
+      calculatedClosing: { ...fallback.bookStock.calculatedClosing, ...record.bookStock?.calculatedClosing },
+    },
     machineHours,
     equipmentHourMeters: record.equipmentHourMeters ?? fallback.equipmentHourMeters,
     tph,
     plantHours,
     lossHours: { ...fallback.lossHours, ...lossHours },
+    lossDetails: mergeLossDetails(fallback.lossDetails, record.lossDetails, { ...fallback.lossHours, ...lossHours }),
     lossEvent: record.lossEvent ?? lossEventFromLegacyLossHours({ ...fallback.lossHours, ...lossHours }, plantHours.loss),
     electrical: {
       ...mergedElectrical,
@@ -1425,7 +1535,7 @@ function recordToPayload(record: DailyPlantRecord): CapturePayload {
       domestic: {
         ...fallback.electrical.domestic,
         ...electrical.domestic,
-        multiplyingFactor: plant?.electricalMf ?? electrical.domestic?.multiplyingFactor ?? fallback.electrical.domestic.multiplyingFactor,
+        multiplyingFactor: domesticMeterMf(),
       },
     },
     loader: {
@@ -1473,7 +1583,7 @@ function setPlant(
       kvahMultiplyingFactor: plant.electricalMf,
       domestic: {
         ...current.electrical.domestic,
-        multiplyingFactor: plant.electricalMf,
+        multiplyingFactor: domesticMeterMf(),
       },
     },
   }));
@@ -1569,12 +1679,22 @@ function setDomesticElectrical(
   }));
 }
 
-function setLossEvent<K extends keyof CapturePayload["lossEvent"]>(
+function setLossDetail<K extends keyof CapturePayload["lossDetails"][LossCategory]>(
   setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
+  category: LossCategory,
   field: K,
-  value: CapturePayload["lossEvent"][K],
+  value: CapturePayload["lossDetails"][LossCategory][K],
 ) {
-  setForm((current) => ({ ...current, lossEvent: { ...current.lossEvent, [field]: value } }));
+  setForm((current) => ({
+    ...current,
+    lossDetails: {
+      ...current.lossDetails,
+      [category]: {
+        ...current.lossDetails[category],
+        [field]: value,
+      },
+    },
+  }));
 }
 
 function setEvidence(
@@ -1642,6 +1762,54 @@ function buildLoaderRows(days: SnapshotDay[]): LoaderBasisRow[] {
   ];
 }
 
+function buildCopRows(days: SnapshotDay[]) {
+  const production = sum(days.map((day) => day.production.mt));
+  const totals = {
+    drillingBlasting: sum(days.map((day) => day.cop?.drillingBlastingCost ?? day.cop?.quarryBlastingCost ?? 0)),
+    internalTransport: sum(days.map((day) => day.cop?.internalTransportationCost ?? day.cop?.quarryLtCost ?? 0)),
+    overburden: sum(days.map((day) => day.cop?.overburdenRemovalCost ?? day.cop?.quarryObCost ?? 0)),
+    rawMaterial: sum(days.map((day) => day.cop?.rawMaterialCost ?? 0)),
+    rentPlant: sum(days.map((day) => day.cop?.rentPlantCost ?? 0)),
+    electricity: sum(days.map((day) => day.cop?.electricalCost ?? 0)),
+    plantMaintenance: sum(days.map((day) => day.cop?.plantMaintenanceCost ?? day.cop?.plantCost ?? 0)),
+    spares: sum(days.map((day) => day.cop?.sparesConsumablesCost ?? 0)),
+    wearParts: sum(days.map((day) => day.cop?.wearPartsCost ?? 0)),
+    loaderDiesel: sum(days.map((day) => day.cop?.loaderCost ?? day.loader.dieselCost ?? 0)),
+    intercarting: sum(days.map((day) => day.cop?.intercartingExpenses ?? 0)),
+    fixed: sum(days.map((day) => day.cop?.fixedCost ?? day.cop?.fixedCostMonthly ?? 0)),
+  };
+  const variableExcavation = totals.drillingBlasting + totals.internalTransport + totals.overburden;
+  const rawMaterialSourcing = totals.rawMaterial + totals.rentPlant;
+  const crushing = totals.electricity + totals.plantMaintenance + totals.spares + totals.wearParts;
+  const loading = totals.loaderDiesel + totals.intercarting;
+  const totalVariable = variableExcavation + rawMaterialSourcing + crushing + loading;
+  const totalCop = totalVariable + totals.fixed;
+  const row = (label: string, actuals: number, strong = false) => ({ label, actuals: roundDisplay(actuals), perMt: roundDisplay(production ? actuals / production : 0), strong });
+
+  return [
+    row("Production", production),
+    row("Drilling & Blasting", totals.drillingBlasting),
+    row("Internal Transportation", totals.internalTransport),
+    row("Overburden Removal", totals.overburden),
+    row("Variable Excavation Cost", variableExcavation, true),
+    row("Raw materials", totals.rawMaterial),
+    row("Rent- Plant", totals.rentPlant),
+    row("Raw Material - Boulder Sourcing", rawMaterialSourcing, true),
+    row("Diesel - Plant", 0),
+    row("Electricity - Variable", totals.electricity),
+    row("Plant Maintenance", totals.plantMaintenance),
+    row("Spares & consumables", totals.spares),
+    row("Wear Parts", totals.wearParts),
+    row("Variable Crushing & Screening Costs", crushing, true),
+    row("Diesel - loader", totals.loaderDiesel),
+    row("Intercarting Expenses", totals.intercarting),
+    row("Variable Material loading & handling", loading, true),
+    row("Total Variable mfg costs", totalVariable, true),
+    row("Fixed cost", totals.fixed, true),
+    row("Total COP", totalCop, true),
+  ];
+}
+
 function buildMtdRows(days: SnapshotDay[]) {
   let production = 0;
   let dispatch = 0;
@@ -1697,6 +1865,24 @@ function weightedAverage(values: Array<[number, number]>) {
   const weightedTotal = values.reduce((total, [value, weight]) => total + (Number.isFinite(value) ? value : 0) * weight, 0);
   const weightTotal = values.reduce((total, [, weight]) => total + (Number.isFinite(weight) ? weight : 0), 0);
   return weightTotal ? weightedTotal / weightTotal : 0;
+}
+
+function productionRatio(value: number, production: number) {
+  return roundDisplay(production ? (value / production) * 100 : 0);
+}
+
+function lossCategoryLabel(category: LossCategory) {
+  const labels: Record<LossCategory, string> = {
+    quarryOversizeJams: "Over size Jam",
+    quarryNoTippers: "No feed due to tippers",
+    quarryNoMaterial: "No feed due to Material Not available",
+    quarryBlasting: "Blasting",
+    plantBreakdown: "Breakdown Hrs",
+    plantScheduledMaintenance: "Schedule maintenance",
+    plantIdle: "Idle Hours",
+    plantOther: "Other reasons",
+  };
+  return labels[category];
 }
 
 function formatHours(value: number) {

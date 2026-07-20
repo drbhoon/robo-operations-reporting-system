@@ -8,6 +8,7 @@ export const CAPTURE_PRODUCTS: CaptureProductName[] = [
   "10 MM",
   "P Sand",
   "Plaster Pro",
+  "Robo Sand Plus",
   "WMM",
 ];
 
@@ -15,6 +16,7 @@ export const LOSS_CATEGORIES = [
   "quarryOversizeJams",
   "quarryNoTippers",
   "quarryNoMaterial",
+  "quarryBlasting",
   "plantBreakdown",
   "plantOther",
   "plantScheduledMaintenance",
@@ -25,6 +27,7 @@ export const QUARRY_LOSS_REASONS = [
   "Oversize Jams",
   "No Feed due to Non-Availability of Tippers",
   "No Material Available in Quarry",
+  "Blasting",
 ] as const;
 
 export const PLANT_LOSS_REASONS = [
@@ -61,6 +64,7 @@ export type PhotoCategory = (typeof PHOTO_CATEGORIES)[number];
 
 export type MetricByProduct = Record<CaptureProductName, number>;
 export type LossByCategory = Record<LossCategory, number>;
+export type LossDetailByCategory = Record<LossCategory, { hours: number; comments: string }>;
 export type EquipmentKey = "jaw" | "cone" | "vsi";
 
 export type EquipmentMetrics = Record<EquipmentKey, number>;
@@ -111,6 +115,7 @@ export type DailyPlantRecord = {
     loss: number;
   };
   lossHours: LossByCategory;
+  lossDetails: LossDetailByCategory;
   lossEvent: {
     reason: LossReason | "";
     hours: number;
@@ -153,12 +158,22 @@ export type DailyPlantRecord = {
   cop: {
     fixedCostMonthly: number;
     fixedCostDaily: number;
+    fixedCost: number;
     quarryObCost: number;
     quarryBlastingCost: number;
     quarryLtCost: number;
+    drillingBlastingCost: number;
+    internalTransportationCost: number;
+    overburdenRemovalCost: number;
+    rawMaterialCost: number;
+    rentPlantCost: number;
     plantCost: number;
+    plantMaintenanceCost: number;
     electricalCost: number;
     loaderCost: number;
+    sparesConsumablesCost: number;
+    wearPartsCost: number;
+    intercartingExpenses: number;
     powerCost: number;
     dieselCost: number;
     consumablesCost: number;

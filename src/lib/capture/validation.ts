@@ -6,7 +6,7 @@ import type {
 import { CAPTURE_PRODUCTS, LOSS_CATEGORIES } from "./types";
 import { round, sum } from "../reporting/calculations";
 import type { ValidationIssue } from "../reporting/types";
-import { isPlantLossReason, plantElectricalMf } from "./calculations";
+import { domesticMeterMf, plantElectricalMf } from "./calculations";
 
 export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidationResult {
   const issues: ValidationIssue[] = [];
@@ -112,26 +112,28 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
 
   for (const category of LOSS_CATEGORIES) {
     requireNonNegative(issues, record.date, `lossHours.${category}`, record.lossHours[category]);
+    requireNonNegative(issues, record.date, `lossDetails.${category}.hours`, record.lossDetails[category].hours);
+    if (Math.abs(record.lossHours[category] - record.lossDetails[category].hours) > 0.01) {
+      issues.push({
+        severity: "ERROR",
+        code: "LOSS_DETAIL_RECONCILIATION",
+        date: record.date,
+        field: `lossDetails.${category}.hours`,
+        message: "Loss detail hours must reconcile with the loss summary used in the dashboard and PPT.",
+      });
+    }
   }
 
-  requireNonNegative(issues, record.date, "lossEvent.hours", record.lossEvent.hours);
-  if (record.lossEvent.hours > 0 && !record.lossEvent.reason) {
-    issues.push({
-      severity: "ERROR",
-      code: "LOSS_REASON_REQUIRED",
-      date: record.date,
-      field: "lossEvent.reason",
-      message: "Select one quarry or plant loss reason when loss hours are entered.",
-    });
-  }
-  if (isPlantLossReason(record.lossEvent.reason) && record.lossEvent.hours > 0 && record.lossEvent.comments.trim().length < 8) {
-    issues.push({
-      severity: "ERROR",
-      code: "PLANT_LOSS_COMMENT_REQUIRED",
-      date: record.date,
-      field: "lossEvent.comments",
-      message: "Plant loss reasons require comments before final submission.",
-    });
+  for (const category of ["plantBreakdown", "plantOther", "plantScheduledMaintenance", "plantIdle"] as const) {
+    if (record.lossDetails[category].hours > 0 && record.lossDetails[category].comments.trim().length < 4) {
+      issues.push({
+        severity: "ERROR",
+        code: "PLANT_LOSS_COMMENT_REQUIRED",
+        date: record.date,
+        field: `lossDetails.${category}.comments`,
+        message: "Plant loss rows require comments before final submission.",
+      });
+    }
   }
 
   if (Math.abs(record.productionMt - productMixTotal) > 1) {
@@ -214,6 +216,16 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
       date: record.date,
       field: "electrical.kvahMultiplyingFactor",
       message: `KVAH multiplying factor is locked at ${expectedPlantMf} for ${record.plantName}.`,
+    });
+  }
+
+  if (Math.abs(record.electrical.domestic.multiplyingFactor - domesticMeterMf()) > 0.001) {
+    issues.push({
+      severity: "ERROR",
+      code: "DOMESTIC_MF_LOCKED",
+      date: record.date,
+      field: "electrical.domestic.multiplyingFactor",
+      message: `Domestic meter multiplying factor is locked at ${domesticMeterMf()}.`,
     });
   }
 
@@ -311,21 +323,22 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
 
   requireNonNegative(issues, record.date, "cop.fixedCostMonthly", record.cop.fixedCostMonthly);
   requireNonNegative(issues, record.date, "cop.fixedCostDaily", record.cop.fixedCostDaily);
+  requireNonNegative(issues, record.date, "cop.fixedCost", record.cop.fixedCost);
   requireNonNegative(issues, record.date, "cop.quarryObCost", record.cop.quarryObCost);
   requireNonNegative(issues, record.date, "cop.quarryBlastingCost", record.cop.quarryBlastingCost);
   requireNonNegative(issues, record.date, "cop.quarryLtCost", record.cop.quarryLtCost);
+  requireNonNegative(issues, record.date, "cop.drillingBlastingCost", record.cop.drillingBlastingCost);
+  requireNonNegative(issues, record.date, "cop.internalTransportationCost", record.cop.internalTransportationCost);
+  requireNonNegative(issues, record.date, "cop.overburdenRemovalCost", record.cop.overburdenRemovalCost);
+  requireNonNegative(issues, record.date, "cop.rawMaterialCost", record.cop.rawMaterialCost);
+  requireNonNegative(issues, record.date, "cop.rentPlantCost", record.cop.rentPlantCost);
   requireNonNegative(issues, record.date, "cop.plantCost", record.cop.plantCost);
+  requireNonNegative(issues, record.date, "cop.plantMaintenanceCost", record.cop.plantMaintenanceCost);
   requireNonNegative(issues, record.date, "cop.electricalCost", record.cop.electricalCost);
   requireNonNegative(issues, record.date, "cop.loaderCost", record.cop.loaderCost);
-  if (Math.abs(record.cop.fixedCostDaily - record.calculations.fixedCostDaily) > 1) {
-    issues.push({
-      severity: "ERROR",
-      code: "FIXED_COST_ALLOCATION",
-      date: record.date,
-      field: "cop.fixedCostDaily",
-      message: `Daily fixed cost should be Rs ${round(record.calculations.fixedCostDaily, 2)} based on monthly fixed cost allocation.`,
-    });
-  }
+  requireNonNegative(issues, record.date, "cop.sparesConsumablesCost", record.cop.sparesConsumablesCost);
+  requireNonNegative(issues, record.date, "cop.wearPartsCost", record.cop.wearPartsCost);
+  requireNonNegative(issues, record.date, "cop.intercartingExpenses", record.cop.intercartingExpenses);
   if (Math.abs(record.cop.electricalCost - record.calculations.electricalCost) > 1) {
     issues.push({
       severity: "ERROR",

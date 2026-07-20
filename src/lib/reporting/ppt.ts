@@ -32,6 +32,7 @@ export async function generatePowerPoint(snapshot: ReportSnapshot) {
   addElectrical(pptx, snapshot);
   addLoader(pptx, snapshot);
   addLoaderMonitoring(pptx, snapshot);
+  addCopStructure(pptx, snapshot);
   addCommentary(pptx, snapshot);
   addNextWeek(pptx, snapshot);
   addThankYou(pptx, snapshot);
@@ -103,6 +104,7 @@ function addProductRatiosAndBasis(pptx: PptxGenJS, snapshot: ReportSnapshot) {
       `${inrNumber(value)} MT`,
       `${snapshot.totals.productionMt ? ((value / snapshot.totals.productionMt) * 100).toFixed(1) : "0.0"}%`,
     ]);
+  productRows.push(["Total", `${inrNumber(snapshot.totals.productionMt)} MT`, "100.0%"]);
 
   addTable(slide, ["Product", "Production", "Ratio"], productRows, 0.9, 5.55);
   addTable(
@@ -137,13 +139,7 @@ function addPlantHours(pptx: PptxGenJS, snapshot: ReportSnapshot) {
 
 function addLossHours(pptx: PptxGenJS, snapshot: ReportSnapshot) {
   const slide = contentSlide(pptx, snapshot, "Loss Hrs. Summary");
-  const totals = new Map<string, number>();
-  snapshot.daily.forEach((day) => {
-    Object.entries(day.plantHours.lossBreakdown).forEach(([bucket, value]) => {
-      totals.set(bucket, (totals.get(bucket) ?? 0) + value);
-    });
-  });
-  addTable(slide, ["Loss bucket", "Hours"], [...totals.entries()].filter((entry) => entry[1] > 0).map(([a, b]) => [label(a), inrNumber(b)]), 1.05);
+  addTable(slide, ["Area", "Reason", "Hours", "Comments"], lossRows(snapshot), 1.05);
 }
 
 function addTph(pptx: PptxGenJS, snapshot: ReportSnapshot, key: "jawTph" | "vsiTph", title: string) {
@@ -247,6 +243,13 @@ function addLoaderMonitoring(pptx: PptxGenJS, snapshot: ReportSnapshot) {
     2.8,
     3.65,
   );
+}
+
+function addCopStructure(pptx: PptxGenJS, snapshot: ReportSnapshot) {
+  const slide = contentSlide(pptx, snapshot, "COP Structure");
+  slide.addText(`Location: ${snapshot.plantName}`, { x: 0.75, y: 0.82, w: 3.5, h: 0.25, fontSize: 11, bold: true, color: "183153" });
+  slide.addText(`Month: ${snapshot.period.start.slice(0, 7)}`, { x: 4.3, y: 0.82, w: 2.4, h: 0.25, fontSize: 11, bold: true, color: "183153" });
+  addTable(slide, ["Quantitative Information", "Actuals", "Rs./Mt"], copRows(snapshot), 1.15);
 }
 
 function addCommentary(pptx: PptxGenJS, snapshot: ReportSnapshot) {
@@ -453,6 +456,73 @@ function loaderRows(snapshot: ReportSnapshot) {
   ];
 }
 
+function lossRows(snapshot: ReportSnapshot) {
+  const totals = new Map<string, { area: string; hours: number; comments: Set<string> }>();
+  snapshot.daily.forEach((day) => {
+    const details = day.plantHours.lossDetails;
+    Object.entries(day.plantHours.lossBreakdown).forEach(([bucket, value]) => {
+      if (!value) return;
+      const current = totals.get(bucket) ?? { area: bucket.startsWith("quarry") ? "Quarry" : "Plant", hours: 0, comments: new Set<string>() };
+      current.hours += value;
+      const comment = details?.[bucket]?.comments;
+      if (comment) current.comments.add(comment);
+      totals.set(bucket, current);
+    });
+  });
+  return [...totals.entries()].map(([bucket, item]) => [
+    item.area,
+    label(bucket),
+    formatHours(item.hours),
+    [...item.comments].slice(0, 2).join("; "),
+  ]);
+}
+
+function copRows(snapshot: ReportSnapshot) {
+  const production = snapshot.totals.productionMt;
+  const totals = {
+    drillingBlasting: sum(snapshot.daily.map((day) => day.cop?.drillingBlastingCost ?? day.cop?.quarryBlastingCost ?? 0)),
+    internalTransport: sum(snapshot.daily.map((day) => day.cop?.internalTransportationCost ?? day.cop?.quarryLtCost ?? 0)),
+    overburden: sum(snapshot.daily.map((day) => day.cop?.overburdenRemovalCost ?? day.cop?.quarryObCost ?? 0)),
+    rawMaterial: sum(snapshot.daily.map((day) => day.cop?.rawMaterialCost ?? 0)),
+    rentPlant: sum(snapshot.daily.map((day) => day.cop?.rentPlantCost ?? 0)),
+    electricity: sum(snapshot.daily.map((day) => day.cop?.electricalCost ?? 0)),
+    plantMaintenance: sum(snapshot.daily.map((day) => day.cop?.plantMaintenanceCost ?? day.cop?.plantCost ?? 0)),
+    spares: sum(snapshot.daily.map((day) => day.cop?.sparesConsumablesCost ?? 0)),
+    wearParts: sum(snapshot.daily.map((day) => day.cop?.wearPartsCost ?? 0)),
+    loaderDiesel: sum(snapshot.daily.map((day) => day.cop?.loaderCost ?? day.loader.dieselCost ?? 0)),
+    intercarting: sum(snapshot.daily.map((day) => day.cop?.intercartingExpenses ?? 0)),
+    fixed: sum(snapshot.daily.map((day) => day.cop?.fixedCost ?? day.cop?.fixedCostMonthly ?? 0)),
+  };
+  const variableExcavation = totals.drillingBlasting + totals.internalTransport + totals.overburden;
+  const rawMaterialSourcing = totals.rawMaterial + totals.rentPlant;
+  const crushing = totals.electricity + totals.plantMaintenance + totals.spares + totals.wearParts;
+  const loading = totals.loaderDiesel + totals.intercarting;
+  const totalVariable = variableExcavation + rawMaterialSourcing + crushing + loading;
+  const totalCop = totalVariable + totals.fixed;
+  return [
+    ["Production", inrNumber(production), ""],
+    ["Drilling & Blasting", currency(totals.drillingBlasting), perMt(totals.drillingBlasting, production)],
+    ["Internal Transportation", currency(totals.internalTransport), perMt(totals.internalTransport, production)],
+    ["Overburden Removal", currency(totals.overburden), perMt(totals.overburden, production)],
+    ["Variable Excavation Cost", currency(variableExcavation), perMt(variableExcavation, production)],
+    ["Raw materials", currency(totals.rawMaterial), perMt(totals.rawMaterial, production)],
+    ["Rent- Plant", currency(totals.rentPlant), perMt(totals.rentPlant, production)],
+    ["Raw Material - Boulder Sourcing", currency(rawMaterialSourcing), perMt(rawMaterialSourcing, production)],
+    ["Diesel - Plant", "-", "-"],
+    ["Electricity - Variable", currency(totals.electricity), perMt(totals.electricity, production)],
+    ["Plant Maintenance", currency(totals.plantMaintenance), perMt(totals.plantMaintenance, production)],
+    ["Spares & consumables", currency(totals.spares), perMt(totals.spares, production)],
+    ["Wear Parts", currency(totals.wearParts), perMt(totals.wearParts, production)],
+    ["Variable Crushing & Screening Costs", currency(crushing), perMt(crushing, production)],
+    ["Diesel - loader", currency(totals.loaderDiesel), perMt(totals.loaderDiesel, production)],
+    ["Intercarting Expenses", currency(totals.intercarting), perMt(totals.intercarting, production)],
+    ["Variable Material loading & handling", currency(loading), perMt(loading, production)],
+    ["Total Variable mfg costs", currency(totalVariable), perMt(totalVariable, production)],
+    ["Fixed cost", currency(totals.fixed), perMt(totals.fixed, production)],
+    ["Total COP", currency(totalCop), perMt(totalCop, production)],
+  ];
+}
+
 function mtdRows(snapshot: ReportSnapshot) {
   let production = 0;
   let dispatch = 0;
@@ -515,6 +585,21 @@ function compactNumber(value: number) {
   if (Math.abs(value) >= 10000) return `${Math.round(value / 1000)}k`;
   if (Math.abs(value) >= 1000) return `${Math.round(value / 100) / 10}k`;
   return inrNumber(value);
+}
+
+function currency(value: number) {
+  return value ? inrNumber(value) : "-";
+}
+
+function perMt(value: number, production: number) {
+  return value && production ? inrNumber(value / production) : "-";
+}
+
+function formatHours(value: number) {
+  const totalMinutes = Math.round(Math.max(value, 0) * 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}:${String(minutes).padStart(2, "0")}`;
 }
 
 function formatPeriod(snapshot: ReportSnapshot) {

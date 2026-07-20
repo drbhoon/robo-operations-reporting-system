@@ -4,6 +4,7 @@ export type ProductName =
   | "10 MM"
   | "P Sand"
   | "Plaster Pro"
+  | "Robo Sand Plus"
   | "WMM"
   | "Natural Fines";
 
@@ -61,6 +62,7 @@ export type DailySnapshot = {
     idleHours: number;
     breakdownHours: number;
     lossBreakdown: Record<string, number>;
+    lossDetails?: Record<string, { hours: number; comments: string }>;
     lossReason?: string;
     lossComments?: string;
   };
@@ -100,12 +102,22 @@ export type DailySnapshot = {
     totalCost?: number;
     fixedCostMonthly?: number;
     fixedCostDaily?: number;
+    fixedCost?: number;
     quarryObCost?: number;
     quarryBlastingCost?: number;
     quarryLtCost?: number;
+    drillingBlastingCost?: number;
+    internalTransportationCost?: number;
+    overburdenRemovalCost?: number;
+    rawMaterialCost?: number;
+    rentPlantCost?: number;
     plantCost?: number;
+    plantMaintenanceCost?: number;
     electricalCost?: number;
     loaderCost?: number;
+    sparesConsumablesCost?: number;
+    wearPartsCost?: number;
+    intercartingExpenses?: number;
     powerCostPerMt?: number;
     dieselCostPerMt?: number;
   };

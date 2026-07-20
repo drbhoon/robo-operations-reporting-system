@@ -59,6 +59,9 @@ export async function buildSnapshotFromDailyRecords(input: {
 
 function recordToDailySnapshot(record: DailyPlantRecord): DailySnapshot {
   const dispatchTotal = record.calculations.dispatchTotal;
+  const lossDetails = record.lossDetails ?? Object.fromEntries(
+    Object.entries(record.lossHours).map(([category, hours]) => [category, { hours, comments: "" }]),
+  );
 
   return {
     date: record.date,
@@ -95,8 +98,9 @@ function recordToDailySnapshot(record: DailyPlantRecord): DailySnapshot {
       idleHours: round(record.lossHours.plantIdle, 2),
       breakdownHours: round(record.lossHours.plantBreakdown, 2),
       lossBreakdown: record.lossHours,
-      lossReason: record.lossEvent.reason,
-      lossComments: record.lossEvent.comments,
+      lossDetails,
+      lossReason: record.lossEvent?.reason,
+      lossComments: record.lossEvent?.comments,
     },
     electrical: {
       kwh: round(record.calculations.electricalUnitsConsumed),
@@ -134,12 +138,22 @@ function recordToDailySnapshot(record: DailyPlantRecord): DailySnapshot {
       totalCost: record.calculations.totalCopCost,
       fixedCostMonthly: round(record.cop.fixedCostMonthly, 2),
       fixedCostDaily: round(record.calculations.fixedCostDaily, 2),
+      fixedCost: round(record.cop.fixedCost || record.cop.fixedCostMonthly, 2),
       quarryObCost: round(record.cop.quarryObCost, 2),
       quarryBlastingCost: round(record.cop.quarryBlastingCost, 2),
       quarryLtCost: round(record.cop.quarryLtCost, 2),
+      drillingBlastingCost: round(record.cop.drillingBlastingCost || record.cop.quarryBlastingCost, 2),
+      internalTransportationCost: round(record.cop.internalTransportationCost, 2),
+      overburdenRemovalCost: round(record.cop.overburdenRemovalCost || record.cop.quarryObCost, 2),
+      rawMaterialCost: round(record.cop.rawMaterialCost, 2),
+      rentPlantCost: round(record.cop.rentPlantCost, 2),
       plantCost: round(record.cop.plantCost, 2),
+      plantMaintenanceCost: round(record.cop.plantMaintenanceCost || record.cop.plantCost, 2),
       electricalCost: round(record.calculations.electricalCost, 2),
       loaderCost: round(record.calculations.loaderDieselCost, 2),
+      sparesConsumablesCost: round(record.cop.sparesConsumablesCost || record.cop.consumablesCost, 2),
+      wearPartsCost: round(record.cop.wearPartsCost, 2),
+      intercartingExpenses: round(record.cop.intercartingExpenses, 2),
       powerCostPerMt: round(record.calculations.electricalCost / (record.productionMt || 1), 2),
       dieselCostPerMt: round(record.calculations.loaderDieselCost / (record.productionMt || 1), 2),
     },

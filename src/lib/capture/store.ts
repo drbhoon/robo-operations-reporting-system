@@ -147,7 +147,9 @@ async function applyMonthlyParameters(payload: CapturePayload): Promise<CaptureP
   });
   const sourceWithBookStock = monthRecords.find((record) => hasAnyProductValue(record.bookStock?.monthlyOpening));
   const sourceWithDieselRate = monthRecords.find((record) => (record.loader?.dieselRate ?? 0) > 0);
-  const sourceWithFixedCost = monthRecords.find((record) => (record.cop?.fixedCostMonthly ?? 0) > 0);
+  const weekRange = weekBounds(payload.date);
+  const weekRecords = monthRecords.filter((record) => record.date >= weekRange.start && record.date <= weekRange.end);
+  const sourceWithWeeklyCop = weekRecords.find((record) => hasAnyCopValue(record.cop));
 
   return {
     ...payload,
@@ -163,13 +165,58 @@ async function applyMonthlyParameters(payload: CapturePayload): Promise<CaptureP
     },
     cop: {
       ...payload.cop,
-      fixedCostMonthly: payload.cop.fixedCostMonthly || sourceWithFixedCost?.cop?.fixedCostMonthly || 0,
+      ...carryWeeklyCop(payload.cop, sourceWithWeeklyCop?.cop),
     },
   };
 }
 
 function hasAnyProductValue(values: Partial<Record<(typeof CAPTURE_PRODUCTS)[number], number>> | undefined) {
   return CAPTURE_PRODUCTS.some((product) => (values?.[product] ?? 0) > 0);
+}
+
+function hasAnyCopValue(values: CapturePayload["cop"] | undefined) {
+  if (!values) return false;
+  return weeklyCopFields().some((field) => (values[field] ?? 0) > 0);
+}
+
+function carryWeeklyCop(current: CapturePayload["cop"], source: CapturePayload["cop"] | undefined) {
+  if (!source) return current;
+  return Object.fromEntries(
+    Object.entries(current).map(([field, value]) => [
+      field,
+      weeklyCopFields().includes(field as keyof CapturePayload["cop"]) && !value
+        ? source[field as keyof CapturePayload["cop"]] ?? value
+        : value,
+    ]),
+  ) as CapturePayload["cop"];
+}
+
+function weeklyCopFields(): Array<keyof CapturePayload["cop"]> {
+  return [
+    "fixedCost",
+    "drillingBlastingCost",
+    "internalTransportationCost",
+    "overburdenRemovalCost",
+    "rawMaterialCost",
+    "rentPlantCost",
+    "plantMaintenanceCost",
+    "sparesConsumablesCost",
+    "wearPartsCost",
+    "intercartingExpenses",
+  ];
+}
+
+function weekBounds(date: string) {
+  const day = new Date(`${date}T00:00:00.000Z`);
+  const dayOfWeek = day.getUTCDay() || 7;
+  const start = new Date(day);
+  start.setUTCDate(day.getUTCDate() - dayOfWeek + 1);
+  const end = new Date(start);
+  end.setUTCDate(start.getUTCDate() + 6);
+  return {
+    start: start.toISOString().slice(0, 10),
+    end: end.toISOString().slice(0, 10),
+  };
 }
 
 async function persistRecord(record: DailyPlantRecord, audit: AuditEntry) {
