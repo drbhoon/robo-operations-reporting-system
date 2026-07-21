@@ -6,17 +6,20 @@ import type {
 import { CAPTURE_PRODUCTS, LOSS_CATEGORIES } from "./types";
 import { round, sum } from "../reporting/calculations";
 import type { ValidationIssue } from "../reporting/types";
-import { domesticMeterMf, plantElectricalMf } from "./calculations";
+import { calculatedLossHours, domesticMeterMfFor, frozenCostRatesFor, plantElectricalMf } from "./calculations";
 
 export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidationResult {
   const issues: ValidationIssue[] = [];
   const requiredPhotoCategories = requiredPhotos(record);
   const productMixTotal = record.calculations.productMixTotal;
+  const productMixPercentageTotal = record.calculations.productMixPercentageTotal;
   const dispatchTotal = record.calculations.dispatchTotal;
   const lossCategoryTotal = sum(LOSS_CATEGORIES.map((category) => record.lossHours[category]));
+  const expectedLossHours = calculatedLossHours(record.plantHours);
   const expectedUnits = record.calculations.electricalUnitsConsumed;
   const expectedKvahUnits = record.calculations.kvahUnitsConsumed;
   const expectedPlantMf = plantElectricalMf(record.plantCode);
+  const expectedRates = frozenCostRatesFor(record.plantCode || record.plantName);
 
   requireText(issues, record.date, "plantCode", record.plantCode, "Plant is mandatory.");
   requireText(issues, record.date, "date", record.date, "Date is mandatory.");
@@ -26,8 +29,11 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
   requireNonNegative(issues, record.date, "plantHours.production", record.plantHours.production);
   requireNonNegative(issues, record.date, "plantHours.scheduledStoppage", record.plantHours.scheduledStoppage);
   requireNonNegative(issues, record.date, "plantHours.loss", record.plantHours.loss);
+  requireNonNegative(issues, record.date, "overburden.softRockMt", record.overburden.softRockMt);
+  requireNonNegative(issues, record.date, "overburden.hardRockMt", record.overburden.hardRockMt);
 
   for (const product of CAPTURE_PRODUCTS) {
+    requireNonNegative(issues, record.date, `productMixPercentages.${product}`, record.productMixPercentages[product]);
     requireNonNegative(issues, record.date, `productMix.${product}`, record.productMix[product]);
     requireNonNegative(issues, record.date, `dispatch.${product}`, record.dispatch[product]);
     requireNonNegative(issues, record.date, `openingStock.${product}`, record.openingStock[product]);
@@ -57,6 +63,16 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
         message: `${product} book stock should be ${round(expectedBookClosing)} MT based on monthly opening book stock, production, dispatch and stock movements.`,
       });
     }
+  }
+
+  if (Math.abs(productMixPercentageTotal - 100) > 0.25) {
+    issues.push({
+      severity: "ERROR",
+      code: "PRODUCT_MIX_PERCENT_TOTAL",
+      date: record.date,
+      field: "productMixPercentages",
+      message: `Product mix percentages must total 100%. Current total is ${round(productMixPercentageTotal, 2)}%.`,
+    });
   }
 
   for (const [field, value] of Object.entries(record.machineHours)) {
@@ -146,13 +162,23 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
     });
   }
 
-  if (Math.abs(record.plantHours.loss - lossCategoryTotal) > 0.25) {
+  if (Math.abs(record.plantHours.loss - expectedLossHours) > 0.25) {
+    issues.push({
+      severity: "ERROR",
+      code: "LOSS_HOURS_FORMULA",
+      date: record.date,
+      field: "plantHours.loss",
+      message: `Loss hours should be ${round(expectedLossHours, 2)} based on available - production - scheduled stoppage.`,
+    });
+  }
+
+  if (Math.abs(expectedLossHours - lossCategoryTotal) > 0.25) {
     issues.push({
       severity: "ERROR",
       code: "LOSS_HOURS_RECONCILIATION",
       date: record.date,
       field: "lossHours",
-      message: `Loss hours ${round(record.plantHours.loss)} must equal category total ${round(lossCategoryTotal)}.`,
+      message: `Loss detail total ${round(lossCategoryTotal)} must equal calculated loss hours ${round(expectedLossHours)}.`,
     });
   }
 
@@ -219,13 +245,13 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
     });
   }
 
-  if (Math.abs(record.electrical.domestic.multiplyingFactor - domesticMeterMf()) > 0.001) {
+  if (Math.abs(record.electrical.domestic.multiplyingFactor - domesticMeterMfFor(record.plantCode || record.plantName)) > 0.001) {
     issues.push({
       severity: "ERROR",
       code: "DOMESTIC_MF_LOCKED",
       date: record.date,
       field: "electrical.domestic.multiplyingFactor",
-      message: `Domestic meter multiplying factor is locked at ${domesticMeterMf()}.`,
+      message: `Domestic meter multiplying factor is locked at ${domesticMeterMfFor(record.plantCode || record.plantName)} for ${record.plantName}.`,
     });
   }
 
@@ -265,7 +291,9 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
   requireNonNegative(issues, record.date, "loader.productionHours", record.loader.productionHours);
   requireNonNegative(issues, record.date, "loader.dieselLitres", record.loader.dieselLitres);
   requireNonNegative(issues, record.date, "loader.dieselRate", record.loader.dieselRate);
+  requireNonNegative(issues, record.date, "loader.dieselVarianceRate", record.loader.dieselVarianceRate);
   requireNonNegative(issues, record.date, "loader.dieselCost", record.loader.dieselCost);
+  requireNonNegative(issues, record.date, "loader.dieselVarianceCost", record.loader.dieselVarianceCost);
   if (record.loader.hourMeter.closing < record.loader.hourMeter.opening) {
     issues.push({
       severity: "ERROR",
@@ -311,6 +339,15 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
       message: `Loader TPH should be ${round(record.calculations.loaderTph, 2)} based on dispatch and production loader hours.`,
     });
   }
+  if (Math.abs(record.loader.dieselRate - expectedRates.diesel) > 0.001) {
+    issues.push({
+      severity: "ERROR",
+      code: "DIESEL_RATE_LOCKED",
+      date: record.date,
+      field: "loader.dieselRate",
+      message: `Loader diesel rate is locked at Rs ${expectedRates.diesel}/L for ${record.plantName}.`,
+    });
+  }
   if (Math.abs(record.loader.dieselCost - record.calculations.loaderDieselCost) > 1) {
     issues.push({
       severity: "ERROR",
@@ -320,10 +357,25 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
       message: `Loader diesel cost should be Rs ${round(record.calculations.loaderDieselCost, 2)} based on diesel litres and monthly plant diesel rate.`,
     });
   }
+  if (Math.abs(record.loader.dieselVarianceCost - record.calculations.loaderDieselVarianceCost) > 1) {
+    issues.push({
+      severity: "ERROR",
+      code: "LOADER_DIESEL_VARIANCE_RECONCILIATION",
+      date: record.date,
+      field: "loader.dieselVarianceCost",
+      message: `Loader diesel variance should be Rs ${round(record.calculations.loaderDieselVarianceCost, 2)} based on diesel litres and variance rate.`,
+    });
+  }
 
   requireNonNegative(issues, record.date, "cop.fixedCostMonthly", record.cop.fixedCostMonthly);
   requireNonNegative(issues, record.date, "cop.fixedCostDaily", record.cop.fixedCostDaily);
   requireNonNegative(issues, record.date, "cop.fixedCost", record.cop.fixedCost);
+  requireNonNegative(issues, record.date, "cop.frozenDrillingBlastingRate", record.cop.frozenDrillingBlastingRate);
+  requireNonNegative(issues, record.date, "cop.frozenLoadingTransportRate", record.cop.frozenLoadingTransportRate);
+  requireNonNegative(issues, record.date, "cop.frozenObSoftRockRate", record.cop.frozenObSoftRockRate);
+  requireNonNegative(issues, record.date, "cop.frozenObHardRockRate", record.cop.frozenObHardRockRate);
+  requireNonNegative(issues, record.date, "cop.frozenDieselRate", record.cop.frozenDieselRate);
+  requireNonNegative(issues, record.date, "cop.frozenDieselVarianceRate", record.cop.frozenDieselVarianceRate);
   requireNonNegative(issues, record.date, "cop.quarryObCost", record.cop.quarryObCost);
   requireNonNegative(issues, record.date, "cop.quarryBlastingCost", record.cop.quarryBlastingCost);
   requireNonNegative(issues, record.date, "cop.quarryLtCost", record.cop.quarryLtCost);
@@ -339,6 +391,25 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
   requireNonNegative(issues, record.date, "cop.sparesConsumablesCost", record.cop.sparesConsumablesCost);
   requireNonNegative(issues, record.date, "cop.wearPartsCost", record.cop.wearPartsCost);
   requireNonNegative(issues, record.date, "cop.intercartingExpenses", record.cop.intercartingExpenses);
+  const frozenRateChecks: Array<[string, number, number]> = [
+    ["cop.frozenDrillingBlastingRate", record.cop.frozenDrillingBlastingRate, expectedRates.drillingBlasting],
+    ["cop.frozenLoadingTransportRate", record.cop.frozenLoadingTransportRate, expectedRates.loadingTransport],
+    ["cop.frozenObSoftRockRate", record.cop.frozenObSoftRockRate, expectedRates.obSoftRock],
+    ["cop.frozenObHardRockRate", record.cop.frozenObHardRockRate, expectedRates.obHardRock],
+    ["cop.frozenDieselRate", record.cop.frozenDieselRate, expectedRates.diesel],
+    ["cop.frozenDieselVarianceRate", record.cop.frozenDieselVarianceRate, expectedRates.dieselVariance],
+  ];
+  for (const [field, actual, expected] of frozenRateChecks) {
+    if (Math.abs(actual - expected) > 0.001) {
+      issues.push({
+        severity: "ERROR",
+        code: "FROZEN_RATE_LOCKED",
+        date: record.date,
+        field,
+        message: `${field} is locked at ${expected} for ${record.plantName}.`,
+      });
+    }
+  }
   if (Math.abs(record.cop.electricalCost - record.calculations.electricalCost) > 1) {
     issues.push({
       severity: "ERROR",
@@ -346,6 +417,42 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
       date: record.date,
       field: "cop.electricalCost",
       message: `Electrical cost should be Rs ${round(record.calculations.electricalCost, 2)} at Rs 7.71/unit.`,
+    });
+  }
+  if (Math.abs(record.cop.drillingBlastingCost - record.calculations.drillingBlastingCost) > 1) {
+    issues.push({
+      severity: "ERROR",
+      code: "DRILLING_BLASTING_COST_RECONCILIATION",
+      date: record.date,
+      field: "cop.drillingBlastingCost",
+      message: `Drilling & blasting cost should be Rs ${round(record.calculations.drillingBlastingCost, 2)} based on frozen Rs/MT rate.`,
+    });
+  }
+  if (Math.abs(record.cop.internalTransportationCost - record.calculations.loadingTransportCost) > 1) {
+    issues.push({
+      severity: "ERROR",
+      code: "LOADING_TRANSPORT_COST_RECONCILIATION",
+      date: record.date,
+      field: "cop.internalTransportationCost",
+      message: `Loading & transport cost should be Rs ${round(record.calculations.loadingTransportCost, 2)} based on frozen Rs/MT rate.`,
+    });
+  }
+  if (Math.abs(record.cop.overburdenRemovalCost - record.calculations.overburdenCost) > 1) {
+    issues.push({
+      severity: "ERROR",
+      code: "OVERBURDEN_COST_RECONCILIATION",
+      date: record.date,
+      field: "cop.overburdenRemovalCost",
+      message: `Overburden cost should be Rs ${round(record.calculations.overburdenCost, 2)} based on OB quantities and frozen rates.`,
+    });
+  }
+  if (Math.abs(record.cop.loaderCost - (record.calculations.loaderDieselCost + record.calculations.loaderDieselVarianceCost)) > 1) {
+    issues.push({
+      severity: "ERROR",
+      code: "LOADER_COP_COST_RECONCILIATION",
+      date: record.date,
+      field: "cop.loaderCost",
+      message: "Loader COP cost should equal base diesel cost plus selected diesel variance.",
     });
   }
 

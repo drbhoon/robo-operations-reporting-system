@@ -14,7 +14,10 @@ type CalculationInput = Pick<
   DailyPlantRecord,
   | "plantCode"
   | "date"
+  | "plantName"
+  | "productMixPercentages"
   | "productMix"
+  | "overburden"
   | "dispatch"
   | "openingStock"
   | "stockAdjustments"
@@ -29,8 +32,25 @@ type CalculationInput = Pick<
 
 const DOMESTIC_MF = 50;
 
+type FrozenCostRates = {
+  drillingBlasting: number;
+  loadingTransport: number;
+  diesel: number;
+  dieselVariance: number;
+  obSoftRock: number;
+  obHardRock: number;
+};
+
+const FROZEN_COST_RATES: Record<"Girmapur" | "Keesara" | "Lakadaram", FrozenCostRates> = {
+  Girmapur: { drillingBlasting: 53, loadingTransport: 70, diesel: 97, dieselVariance: 6.32, obSoftRock: 0, obHardRock: 117 },
+  Keesara: { drillingBlasting: 55, loadingTransport: 65, diesel: 97, dieselVariance: 6.32, obSoftRock: 35, obHardRock: 55 },
+  Lakadaram: { drillingBlasting: 125, loadingTransport: 0, diesel: 97, dieselVariance: 6.32, obSoftRock: 0, obHardRock: 133 },
+};
+
 export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord["calculations"] {
+  const rates = frozenCostRatesFor(input.plantCode || input.plantName);
   const productMixTotal = sum(CAPTURE_PRODUCTS.map((product) => input.productMix[product]));
+  const productMixPercentageTotal = sum(CAPTURE_PRODUCTS.map((product) => input.productMixPercentages[product]));
   const dispatchTotal = sum(CAPTURE_PRODUCTS.map((product) => input.dispatch[product]));
   const calculatedClosingStock = Object.fromEntries(
     CAPTURE_PRODUCTS.map((product) => [
@@ -58,7 +78,7 @@ export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord[
   const plantMf = plantElectricalMf(input.plantCode);
   const kwhMultiplyingFactor = plantMf || input.electrical.kwhMultiplyingFactor || 1;
   const kvahMultiplyingFactor = plantMf || input.electrical.kvahMultiplyingFactor || 1;
-  const domesticMultiplyingFactor = DOMESTIC_MF;
+  const domesticMultiplyingFactor = domesticMeterMfFor(input.plantCode || input.plantName);
   const electricalUnitsConsumed = round(
     Math.max(0, input.electrical.closingKwh - input.electrical.openingKwh) *
       kwhMultiplyingFactor,
@@ -77,17 +97,20 @@ export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord[
   const loaderRunningHours = round(Math.max(0, input.loader.hourMeter.closing - input.loader.hourMeter.opening), 2);
   const loaderProductionHours = round(Math.max(0, loaderRunningHours - input.loader.otherWorksHours), 2);
   const loaderTph = round(ratio(input.loader.dispatchMt, loaderProductionHours), 2);
-  const loaderDieselCost = round(input.loader.dieselLitres * input.loader.dieselRate, 2);
+  const loaderDieselCost = round(input.loader.dieselLitres * rates.diesel, 2);
+  const loaderDieselVarianceCost = round(input.loader.includeDieselVariance ? input.loader.dieselLitres * rates.dieselVariance : 0, 2);
+  const drillingBlastingCost = round(input.productionMt * rates.drillingBlasting, 2);
+  const loadingTransportCost = round(input.productionMt * rates.loadingTransport, 2);
+  const overburdenCost = round((input.overburden.softRockMt * rates.obSoftRock) + (input.overburden.hardRockMt * rates.obHardRock), 2);
   const electricalCost = round(electricalUnitsConsumed * 7.71, 2);
   const fixedCost = input.cop.fixedCost || input.cop.fixedCostMonthly;
-  const drillingBlastingCost = input.cop.drillingBlastingCost || input.cop.quarryBlastingCost;
-  const overburdenRemovalCost = input.cop.overburdenRemovalCost || input.cop.quarryObCost;
+  const overburdenRemovalCost = overburdenCost;
   const plantMaintenanceCost = input.cop.plantMaintenanceCost || input.cop.plantCost;
   const sparesConsumablesCost = input.cop.sparesConsumablesCost || input.cop.consumablesCost;
-  const loaderHandlingCost = loaderDieselCost + input.cop.intercartingExpenses;
+  const loaderHandlingCost = loaderDieselCost + loaderDieselVarianceCost + input.cop.intercartingExpenses;
   const totalCost =
     drillingBlastingCost +
-    input.cop.internalTransportationCost +
+    loadingTransportCost +
     overburdenRemovalCost +
     input.cop.rawMaterialCost +
     input.cop.rentPlantCost +
@@ -101,6 +124,7 @@ export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord[
 
   return {
     productMixTotal: round(productMixTotal),
+    productMixPercentageTotal: round(productMixPercentageTotal),
     dispatchTotal: round(dispatchTotal),
     calculatedClosingStock,
     calculatedBookStock,
@@ -119,6 +143,10 @@ export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord[
     loaderProductionHours,
     loaderTph,
     loaderDieselCost,
+    loaderDieselVarianceCost,
+    drillingBlastingCost,
+    loadingTransportCost,
+    overburdenCost,
     electricalCost,
     fixedCostDaily: 0,
     totalCopCost: round(totalCost, 2),
@@ -129,8 +157,10 @@ export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord[
 }
 
 export function materializeCalculatedFields(payload: CapturePayload): CapturePayload {
-  const payloadWithLossDetails = ensureLossDetails(payload);
-  const calculations = calculateDailyRecord(payloadWithLossDetails);
+  const payloadWithProductMix = materializeProductMix(payload);
+  const payloadWithLossDetails = ensureLossDetails(payloadWithProductMix);
+  const payloadWithFrozenRates = materializeFrozenRates(payloadWithLossDetails);
+  const calculations = calculateDailyRecord(payloadWithFrozenRates);
   const plantMf = plantElectricalMf(payload.plantCode) || payload.electrical.kwhMultiplyingFactor;
   const lossHours = Object.fromEntries(
     Object.entries(payloadWithLossDetails.lossDetails).map(([category, detail]) => [category, detail.hours]),
@@ -139,11 +169,11 @@ export function materializeCalculatedFields(payload: CapturePayload): CapturePay
   const firstLoss = Object.entries(payloadWithLossDetails.lossDetails).find(([, detail]) => detail.hours > 0);
 
   return {
-    ...payloadWithLossDetails,
+    ...payloadWithFrozenRates,
     plantName: plantConfigFor(payload.plantCode)?.name ?? payload.plantName,
     plantHours: {
       ...payload.plantHours,
-      loss: totalLossHours,
+      loss: calculatedLossHours(payload.plantHours),
     },
     lossHours,
     lossEvent: {
@@ -159,40 +189,52 @@ export function materializeCalculatedFields(payload: CapturePayload): CapturePay
     machineHours: calculations.equipmentRunningHours,
     tph: calculations.equipmentTph,
     electrical: {
-      ...payload.electrical,
+      ...payloadWithFrozenRates.electrical,
       kwhMultiplyingFactor: plantMf,
       kvahMultiplyingFactor: plantMf,
       unitsConsumed: calculations.electricalUnitsConsumed,
       kvahUnitsConsumed: calculations.kvahUnitsConsumed,
       domesticUnits: calculations.domesticPowerUnits,
       domestic: {
-        ...payload.electrical.domestic,
-        multiplyingFactor: DOMESTIC_MF,
+        ...payloadWithFrozenRates.electrical.domestic,
+        multiplyingFactor: domesticMeterMfFor(payload.plantCode || payload.plantName),
         unitsConsumed: calculations.domesticPowerUnits,
       },
       powerFactor: calculations.powerFactor,
     },
     loader: {
-      ...payload.loader,
+      ...payloadWithFrozenRates.loader,
       hours: calculations.loaderRunningHours,
       productionHours: calculations.loaderProductionHours,
       tph: calculations.loaderTph,
       dieselCost: calculations.loaderDieselCost,
+      dieselVarianceCost: calculations.loaderDieselVarianceCost,
     },
     cop: {
-      ...payload.cop,
+      ...payloadWithFrozenRates.cop,
       fixedCostDaily: calculations.fixedCostDaily,
+      frozenDrillingBlastingRate: payloadWithFrozenRates.cop.frozenDrillingBlastingRate,
+      frozenLoadingTransportRate: payloadWithFrozenRates.cop.frozenLoadingTransportRate,
+      frozenObSoftRockRate: payloadWithFrozenRates.cop.frozenObSoftRockRate,
+      frozenObHardRockRate: payloadWithFrozenRates.cop.frozenObHardRockRate,
+      frozenDieselRate: payloadWithFrozenRates.cop.frozenDieselRate,
+      frozenDieselVarianceRate: payloadWithFrozenRates.cop.frozenDieselVarianceRate,
       electricalCost: calculations.electricalCost,
-      loaderCost: calculations.loaderDieselCost,
+      loaderCost: calculations.loaderDieselCost + calculations.loaderDieselVarianceCost,
       powerCost: calculations.electricalCost,
       dieselCost: calculations.loaderDieselCost,
-      fixedCost: payload.cop.fixedCost || payload.cop.fixedCostMonthly,
-      drillingBlastingCost: payload.cop.drillingBlastingCost || payload.cop.quarryBlastingCost,
-      overburdenRemovalCost: payload.cop.overburdenRemovalCost || payload.cop.quarryObCost,
-      plantMaintenanceCost: payload.cop.plantMaintenanceCost || payload.cop.plantCost,
-      sparesConsumablesCost: payload.cop.sparesConsumablesCost || payload.cop.consumablesCost,
+      fixedCost: payloadWithFrozenRates.cop.fixedCost || payloadWithFrozenRates.cop.fixedCostMonthly,
+      drillingBlastingCost: calculations.drillingBlastingCost,
+      internalTransportationCost: calculations.loadingTransportCost,
+      overburdenRemovalCost: calculations.overburdenCost,
+      plantMaintenanceCost: payloadWithFrozenRates.cop.plantMaintenanceCost || payloadWithFrozenRates.cop.plantCost,
+      sparesConsumablesCost: payloadWithFrozenRates.cop.sparesConsumablesCost || payloadWithFrozenRates.cop.consumablesCost,
     },
   };
+}
+
+export function calculatedLossHours(plantHours: Pick<DailyPlantRecord["plantHours"], "available" | "production" | "scheduledStoppage">) {
+  return round(Math.max(0, plantHours.available - plantHours.production - plantHours.scheduledStoppage), 2);
 }
 
 export function plantConfigFor(codeOrName: string) {
@@ -242,6 +284,62 @@ export function domesticMeterMf() {
   return DOMESTIC_MF;
 }
 
+export function domesticMeterMfFor(codeOrName: string) {
+  return plantRateGroup(codeOrName) === "Keesara" ? 30 : DOMESTIC_MF;
+}
+
+export function frozenCostRatesFor(codeOrName: string) {
+  return FROZEN_COST_RATES[plantRateGroup(codeOrName)];
+}
+
+export function plantRateGroup(codeOrName: string): keyof typeof FROZEN_COST_RATES {
+  const normalized = normalizePlant(codeOrName);
+  if (normalized.includes("KEESARA") || normalized.includes("KEESRA")) return "Keesara";
+  if (normalized.includes("LAKADARAM") || normalized.includes("LAK-")) return "Lakadaram";
+  return "Girmapur";
+}
+
+function materializeProductMix(payload: CapturePayload): CapturePayload {
+  const percentages = hasAnyProductValue(payload.productMixPercentages)
+    ? payload.productMixPercentages
+    : percentagesFromProductMix(payload.productMix, payload.productionMt);
+  return {
+    ...payload,
+    productMixPercentages: percentages,
+    productMix: Object.fromEntries(
+      CAPTURE_PRODUCTS.map((product) => [product, round((payload.productionMt * percentages[product]) / 100, 2)]),
+    ) as CapturePayload["productMix"],
+  };
+}
+
+function materializeFrozenRates(payload: CapturePayload): CapturePayload {
+  const rates = frozenCostRatesFor(payload.plantCode || payload.plantName);
+  return {
+    ...payload,
+    electrical: {
+      ...payload.electrical,
+      domestic: {
+        ...payload.electrical.domestic,
+        multiplyingFactor: domesticMeterMfFor(payload.plantCode || payload.plantName),
+      },
+    },
+    loader: {
+      ...payload.loader,
+      dieselRate: rates.diesel,
+      dieselVarianceRate: rates.dieselVariance,
+    },
+    cop: {
+      ...payload.cop,
+      frozenDrillingBlastingRate: rates.drillingBlasting,
+      frozenLoadingTransportRate: rates.loadingTransport,
+      frozenObSoftRockRate: rates.obSoftRock,
+      frozenObHardRockRate: rates.obHardRock,
+      frozenDieselRate: rates.diesel,
+      frozenDieselVarianceRate: rates.dieselVariance,
+    },
+  };
+}
+
 export function ensureLossDetails(payload: CapturePayload): CapturePayload {
   const details = Object.fromEntries(
     LOSS_CATEGORIES.map((typedCategory) => {
@@ -259,6 +357,16 @@ export function ensureLossDetails(payload: CapturePayload): CapturePayload {
     details[category] = { hours: payload.lossEvent.hours, comments: payload.lossEvent.comments };
   }
   return { ...payload, lossDetails: details };
+}
+
+function percentagesFromProductMix(productMix: CapturePayload["productMix"], productionMt: number) {
+  return Object.fromEntries(
+    CAPTURE_PRODUCTS.map((product) => [product, round(productionMt ? (productMix[product] / productionMt) * 100 : 0, 2)]),
+  ) as CapturePayload["productMixPercentages"];
+}
+
+function hasAnyProductValue(values: Partial<Record<(typeof CAPTURE_PRODUCTS)[number], number>> | undefined) {
+  return CAPTURE_PRODUCTS.some((product) => (values?.[product] ?? 0) > 0);
 }
 
 function reasonForLossCategory(category: LossCategory): LossReason {

@@ -70,7 +70,11 @@ function recordToDailySnapshot(record: DailyPlantRecord): DailySnapshot {
     production: {
       mt: record.productionMt,
       rawMaterialMt: record.productionMt,
-      products: CAPTURE_PRODUCTS.map((name) => ({ name, mt: round(record.productMix[name]) })),
+      products: CAPTURE_PRODUCTS.map((name) => ({ name, mt: round(record.productMix[name]), ratio: round(record.productMixPercentages[name], 2) })),
+      overburden: {
+        softRockMt: round(record.overburden.softRockMt, 2),
+        hardRockMt: round(record.overburden.hardRockMt, 2),
+      },
     },
     dispatch: {
       totalMt: dispatchTotal,
@@ -80,6 +84,7 @@ function recordToDailySnapshot(record: DailyPlantRecord): DailySnapshot {
       opening: CAPTURE_PRODUCTS.map((name) => ({ name, mt: round(record.openingStock[name]) })),
       closing: CAPTURE_PRODUCTS.map((name) => ({ name, mt: round(record.calculations.calculatedClosingStock[name]) })),
       bookClosing: CAPTURE_PRODUCTS.map((name) => ({ name, mt: round(record.calculations.calculatedBookStock[name]) })),
+      adjustmentComment: record.stockAdjustmentComment,
     },
     machine: {
       jawHours: round(record.calculations.equipmentRunningHours.jaw, 2),
@@ -130,6 +135,9 @@ function recordToDailySnapshot(record: DailyPlantRecord): DailySnapshot {
       dieselLitres: round(record.loader.dieselLitres),
       dieselRate: round(record.loader.dieselRate, 2),
       dieselCost: round(record.calculations.loaderDieselCost, 2),
+      dieselVarianceRate: round(record.loader.dieselVarianceRate, 2),
+      dieselVarianceCost: round(record.calculations.loaderDieselVarianceCost, 2),
+      includeDieselVariance: record.loader.includeDieselVariance,
       litresPerHour: round(record.loader.dieselLitres / (record.calculations.loaderRunningHours || 1), 2),
       litresPerMt: record.calculations.loaderLitresPerMt,
     },
@@ -150,7 +158,8 @@ function recordToDailySnapshot(record: DailyPlantRecord): DailySnapshot {
       plantCost: round(record.cop.plantCost, 2),
       plantMaintenanceCost: round(record.cop.plantMaintenanceCost || record.cop.plantCost, 2),
       electricalCost: round(record.calculations.electricalCost, 2),
-      loaderCost: round(record.calculations.loaderDieselCost, 2),
+      loaderCost: round(record.calculations.loaderDieselCost + record.calculations.loaderDieselVarianceCost, 2),
+      dieselVarianceCost: round(record.calculations.loaderDieselVarianceCost, 2),
       sparesConsumablesCost: round(record.cop.sparesConsumablesCost || record.cop.consumablesCost, 2),
       wearPartsCost: round(record.cop.wearPartsCost, 2),
       intercartingExpenses: round(record.cop.intercartingExpenses, 2),

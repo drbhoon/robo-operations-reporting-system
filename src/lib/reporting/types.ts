@@ -30,7 +30,11 @@ export type DailySnapshot = {
   production: {
     mt: number;
     rawMaterialMt: number;
-    products: Array<{ name: ProductName; mt: number }>;
+    products: Array<{ name: ProductName; mt: number; ratio?: number }>;
+    overburden?: {
+      softRockMt: number;
+      hardRockMt: number;
+    };
   };
   dispatch: {
     totalMt: number;
@@ -40,6 +44,7 @@ export type DailySnapshot = {
     opening: Array<{ name: ProductName; mt: number }>;
     closing: Array<{ name: ProductName; mt: number }>;
     bookClosing?: Array<{ name: ProductName; mt: number }>;
+    adjustmentComment?: string;
   };
   machine: {
     jawHours: number;
@@ -94,6 +99,9 @@ export type DailySnapshot = {
     dieselLitres: number;
     dieselRate?: number;
     dieselCost?: number;
+    dieselVarianceRate?: number;
+    dieselVarianceCost?: number;
+    includeDieselVariance?: boolean;
     litresPerHour: number;
     litresPerMt: number;
   };
@@ -115,6 +123,7 @@ export type DailySnapshot = {
     plantMaintenanceCost?: number;
     electricalCost?: number;
     loaderCost?: number;
+    dieselVarianceCost?: number;
     sparesConsumablesCost?: number;
     wearPartsCost?: number;
     intercartingExpenses?: number;

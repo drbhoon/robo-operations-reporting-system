@@ -96,11 +96,17 @@ export type DailyPlantRecord = {
   reviewStatus: ReviewStatus;
   targetMt: number;
   productionMt: number;
+  productMixPercentages: MetricByProduct;
   productMix: MetricByProduct;
+  overburden: {
+    softRockMt: number;
+    hardRockMt: number;
+  };
   dispatch: MetricByProduct;
   openingStock: MetricByProduct;
   closingStock: MetricByProduct;
   stockAdjustments: MetricByProduct;
+  stockAdjustmentComment: string;
   bookStock: {
     monthlyOpening: MetricByProduct;
     calculatedClosing: MetricByProduct;
@@ -152,13 +158,22 @@ export type DailyPlantRecord = {
     tph: number;
     dieselLitres: number;
     dieselRate: number;
+    dieselVarianceRate: number;
+    includeDieselVariance: boolean;
     dieselCost: number;
+    dieselVarianceCost: number;
     dispatchMt: number;
   };
   cop: {
     fixedCostMonthly: number;
     fixedCostDaily: number;
     fixedCost: number;
+    frozenDrillingBlastingRate: number;
+    frozenLoadingTransportRate: number;
+    frozenObSoftRockRate: number;
+    frozenObHardRockRate: number;
+    frozenDieselRate: number;
+    frozenDieselVarianceRate: number;
     quarryObCost: number;
     quarryBlastingCost: number;
     quarryLtCost: number;
@@ -183,6 +198,7 @@ export type DailyPlantRecord = {
   evidencePhotos: EvidencePhoto[];
   calculations: {
     productMixTotal: number;
+    productMixPercentageTotal: number;
     dispatchTotal: number;
     calculatedClosingStock: MetricByProduct;
     calculatedBookStock: MetricByProduct;
@@ -201,6 +217,10 @@ export type DailyPlantRecord = {
     loaderProductionHours: number;
     loaderTph: number;
     loaderDieselCost: number;
+    loaderDieselVarianceCost: number;
+    drillingBlastingCost: number;
+    loadingTransportCost: number;
+    overburdenCost: number;
     electricalCost: number;
     fixedCostDaily: number;
     totalCopCost: number;

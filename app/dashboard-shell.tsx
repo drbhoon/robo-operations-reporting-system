@@ -29,7 +29,7 @@ import {
   Send,
 } from "lucide-react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import { calculateDailyRecord, domesticMeterMf, materializeCalculatedFields } from "@/src/lib/capture/calculations";
+import { calculateDailyRecord, domesticMeterMfFor, materializeCalculatedFields } from "@/src/lib/capture/calculations";
 import {
   CAPTURE_PRODUCTS,
   LOSS_CATEGORIES,
@@ -109,6 +109,11 @@ type LoaderBasisRow = {
   litresPerMt: number;
   tph: number;
   dispatchMt: number;
+};
+type CopProjectionRow = {
+  label: string;
+  value: number;
+  suffix?: string;
 };
 
 const fmt = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
@@ -425,13 +430,17 @@ function CaptureWorkspace({
         </Section>
 
         <Section title="Production and product mix" meta="Production must equal mix total">
-          <div className="form-grid three">
+          <div className="form-grid four">
             <NumberField label="Production MT" value={form.productionMt} onChange={(value) => setField(setForm, "productionMt", value)} />
+            <NumberField label="OB soft rock MT" value={form.overburden.softRockMt} onChange={(value) => setOverburden(setForm, "softRockMt", value)} />
+            <NumberField label="OB hard rock MT" value={form.overburden.hardRockMt} onChange={(value) => setOverburden(setForm, "hardRockMt", value)} />
             <ReadOnlyMetric label="Product mix total" value={previewRecord.calculations.productMixTotal} suffix="MT" />
-            <ReadOnlyMetric label="Product mix total" value={productionRatio(previewRecord.calculations.productMixTotal, form.productionMt)} suffix="%" />
+            <ReadOnlyMetric label="Product mix total" value={previewRecord.calculations.productMixPercentageTotal} suffix="%" />
           </div>
-          <ProductGrid values={form.productMix} onChange={(product, value) => setProduct(setForm, "productMix", product, value)} />
-          <ProductPercentageGrid production={form.productionMt} values={previewRecord.productMix} />
+          <h3 className="section-subtitle">Product mix percentage entry</h3>
+          <ProductGrid suffix="%" values={form.productMixPercentages} onChange={(product, value) => setProduct(setForm, "productMixPercentages", product, value)} />
+          <h3 className="section-subtitle">Calculated product quantity</h3>
+          <ProductReadOnlyGrid values={previewRecord.productMix} />
         </Section>
 
         <Section title="Dispatch and calculated stock" meta="Closing = opening + production - dispatch + adjustment">
@@ -439,6 +448,10 @@ function CaptureWorkspace({
           <ProductGrid values={form.dispatch} onChange={(product, value) => setProduct(setForm, "dispatch", product, value)} />
           <h3 className="section-subtitle">Stock adjustments / other transactions</h3>
           <ProductGrid values={form.stockAdjustments} onChange={(product, value) => setProduct(setForm, "stockAdjustments", product, value)} />
+          <label className="text-area-field">
+            <span>Stock adjustment comments</span>
+            <textarea value={form.stockAdjustmentComment} onChange={(event) => setField(setForm, "stockAdjustmentComment", event.target.value)} />
+          </label>
           <h3 className="section-subtitle">Calculated closing physical stock</h3>
           <ProductReadOnlyGrid values={previewRecord.calculations.calculatedClosingStock} />
           <h3 className="section-subtitle">Calculated book stock</h3>
@@ -486,7 +499,7 @@ function CaptureWorkspace({
           <h3 className="section-subtitle">Domestic power consumption</h3>
           <div className="form-grid four">
             <NumberField label="Domestic closing kWh" value={form.electrical.domestic.closingKwh} onChange={(value) => setDomesticElectrical(setForm, "closingKwh", value)} />
-            <NumberField disabled label="Domestic MF" value={domesticMeterMf()} onChange={(value) => setDomesticElectrical(setForm, "multiplyingFactor", value)} />
+            <NumberField disabled label="Domestic MF" value={domesticMeterMfFor(form.plantCode || form.plantName)} onChange={(value) => setDomesticElectrical(setForm, "multiplyingFactor", value)} />
             <ReadOnlyMetric label="Domestic units" value={previewRecord.calculations.domesticPowerUnits} />
             <ReadOnlyMetric label="Domestic Units / MT" value={previewRecord.calculations.domesticUnitsPerMt} />
             <ReadOnlyMetric label="Combined units" value={previewRecord.calculations.combinedPowerUnits} />
@@ -497,23 +510,30 @@ function CaptureWorkspace({
         <Section title="Loader" meta="Hour meter, other works, diesel and TPH">
           <div className="form-grid four">
             <NumberField label="Loader closing HM" value={form.loader.hourMeter.closing} onChange={(value) => setLoaderHourMeter(setForm, "closing", value)} />
-            <HourField label="Other works usage" value={form.loader.otherWorksHours} onChange={(value) => setNested(setForm, "loader", "otherWorksHours", value)} />
+            <NumberField label="Other works hours" value={form.loader.otherWorksHours} onChange={(value) => setNested(setForm, "loader", "otherWorksHours", value)} />
             <ReadOnlyMetric label="Loader running hrs" value={previewRecord.calculations.loaderRunningHours} />
             <ReadOnlyMetric label="Production loader hrs" value={previewRecord.calculations.loaderProductionHours} />
             <NumberField label="Loader diesel L" value={form.loader.dieselLitres} onChange={(value) => setNested(setForm, "loader", "dieselLitres", value)} />
-            <NumberField label="Monthly diesel rate" value={form.loader.dieselRate} onChange={(value) => setNested(setForm, "loader", "dieselRate", value)} />
+            <NumberField disabled label="Frozen diesel rate" value={previewRecord.loader.dieselRate} onChange={(value) => setNested(setForm, "loader", "dieselRate", value)} />
+            <NumberField disabled label="Diesel variance rate" value={previewRecord.loader.dieselVarianceRate} onChange={(value) => setNested(setForm, "loader", "dieselVarianceRate", value)} />
             <NumberField label="Loader dispatch MT" value={form.loader.dispatchMt} onChange={(value) => setNested(setForm, "loader", "dispatchMt", value)} />
+            <CheckboxField label="Include diesel variance" checked={form.loader.includeDieselVariance} onChange={(value) => setLoaderFlag(setForm, "includeDieselVariance", value)} />
             <ReadOnlyMetric label="Loader TPH" value={previewRecord.calculations.loaderTph} />
             <ReadOnlyMetric label="Loader L / MT" value={previewRecord.calculations.loaderLitresPerMt} />
             <ReadOnlyMetric label="Diesel cost" value={previewRecord.calculations.loaderDieselCost} prefix="Rs" />
+            <ReadOnlyMetric label="Diesel variance" value={previewRecord.calculations.loaderDieselVarianceCost} prefix="Rs" />
           </div>
         </Section>
 
         <Section title="COP inputs" meta="Update weekly; Rs/MT calculated from production">
           <div className="form-grid four">
-            <NumberField label="Drilling & blasting" value={form.cop.drillingBlastingCost} onChange={(value) => setNested(setForm, "cop", "drillingBlastingCost", value)} />
-            <NumberField label="Internal transportation" value={form.cop.internalTransportationCost} onChange={(value) => setNested(setForm, "cop", "internalTransportationCost", value)} />
-            <NumberField label="Overburden removal" value={form.cop.overburdenRemovalCost} onChange={(value) => setNested(setForm, "cop", "overburdenRemovalCost", value)} />
+            <ReadOnlyMetric label="Drilling & blasting rate" value={previewRecord.cop.frozenDrillingBlastingRate} prefix="Rs" />
+            <ReadOnlyMetric label="Drilling & blasting" value={previewRecord.calculations.drillingBlastingCost} prefix="Rs" />
+            <ReadOnlyMetric label="Loading & transport rate" value={previewRecord.cop.frozenLoadingTransportRate} prefix="Rs" />
+            <ReadOnlyMetric label="Loading & transport" value={previewRecord.calculations.loadingTransportCost} prefix="Rs" />
+            <ReadOnlyMetric label="OB soft rock rate" value={previewRecord.cop.frozenObSoftRockRate} prefix="Rs" />
+            <ReadOnlyMetric label="OB hard rock rate" value={previewRecord.cop.frozenObHardRockRate} prefix="Rs" />
+            <ReadOnlyMetric label="Overburden removal" value={previewRecord.calculations.overburdenCost} prefix="Rs" />
             <NumberField label="Raw material cost" value={form.cop.rawMaterialCost} onChange={(value) => setNested(setForm, "cop", "rawMaterialCost", value)} />
             <NumberField label="Rent - plant" value={form.cop.rentPlantCost} onChange={(value) => setNested(setForm, "cop", "rentPlantCost", value)} />
             <NumberField label="Plant maintenance" value={form.cop.plantMaintenanceCost} onChange={(value) => setNested(setForm, "cop", "plantMaintenanceCost", value)} />
@@ -642,6 +662,7 @@ function DashboardWorkspace({
   const mtdRows = buildMtdRows(visibleDays);
   const loaderRows = buildLoaderRows(visibleDays);
   const copRows = buildCopRows(visibleDays);
+  const copProjectionRows = buildCopProjectionRows(visibleDays);
   const topProduct = productRatios[0];
 
   return (
@@ -810,6 +831,9 @@ function DashboardWorkspace({
             </Panel>
             <Panel title="COP structure" meta="Actuals and Rs./MT">
               <CopTable rows={copRows} />
+            </Panel>
+            <Panel title="MTD and extrapolated COP" meta="Projected from MTD production average">
+              <CopProjectionTable rows={copProjectionRows} />
             </Panel>
           </div>
 
@@ -1087,15 +1111,17 @@ function ReadOnlyMetric({
 
 function ProductGrid({
   onChange,
+  suffix,
   values,
 }: {
   onChange: (product: (typeof CAPTURE_PRODUCTS)[number], value: number) => void;
+  suffix?: string;
   values: CapturePayload["productMix"];
 }) {
   return (
     <div className="form-grid product-grid">
       {CAPTURE_PRODUCTS.map((product) => (
-        <NumberField key={product} label={product} value={values[product]} onChange={(value) => onChange(product, value)} />
+        <NumberField key={product} label={suffix ? `${product} ${suffix}` : product} value={values[product]} onChange={(value) => onChange(product, value)} />
       ))}
     </div>
   );
@@ -1117,19 +1143,20 @@ function ProductReadOnlyGrid({
   );
 }
 
-function ProductPercentageGrid({
-  production,
-  values,
+function CheckboxField({
+  checked,
+  label,
+  onChange,
 }: {
-  production: number;
-  values: CapturePayload["productMix"];
+  checked: boolean;
+  label: string;
+  onChange: (value: boolean) => void;
 }) {
   return (
-    <div className="form-grid product-grid">
-      {CAPTURE_PRODUCTS.map((product) => (
-        <ReadOnlyMetric key={product} label={`${product} %`} value={productionRatio(values[product], production)} suffix="%" />
-      ))}
-    </div>
+    <label className="checkbox-field">
+      <input checked={checked} type="checkbox" onChange={(event) => onChange(event.target.checked)} />
+      <span>{label}</span>
+    </label>
   );
 }
 
@@ -1365,6 +1392,23 @@ function CopTable({ rows }: { rows: Array<{ label: string; actuals: number; perM
   );
 }
 
+function CopProjectionTable({ rows }: { rows: CopProjectionRow[] }) {
+  return (
+    <div className="table-shell mini-table">
+      <table>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.label}>
+              <td>{row.label}</td>
+              <td>{fmt.format(row.value)}{row.suffix ? ` ${row.suffix}` : ""}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function defaultPayload(): CapturePayload {
   const defaultPlant = PLANT_CONFIGS[0];
   return {
@@ -1373,11 +1417,14 @@ function defaultPayload(): CapturePayload {
     date: todayIso(),
     targetMt: 1700,
     productionMt: 0,
+    productMixPercentages: emptyProducts(),
     productMix: emptyProducts(),
+    overburden: { softRockMt: 0, hardRockMt: 0 },
     dispatch: emptyProducts(),
     openingStock: emptyProducts(),
     closingStock: emptyProducts(),
     stockAdjustments: emptyProducts(),
+    stockAdjustmentComment: "",
     bookStock: { monthlyOpening: emptyProducts(), calculatedClosing: emptyProducts() },
     machineHours: { jaw: 0, cone: 0, vsi: 0 },
     equipmentHourMeters: {
@@ -1403,7 +1450,7 @@ function defaultPayload(): CapturePayload {
       domestic: {
         openingKwh: 0,
         closingKwh: 0,
-        multiplyingFactor: domesticMeterMf(),
+        multiplyingFactor: domesticMeterMfFor(defaultPlant.code),
         unitsConsumed: 0,
       },
       excludeDomesticFromUnitsPerMt: true,
@@ -1418,13 +1465,22 @@ function defaultPayload(): CapturePayload {
       tph: 0,
       dieselLitres: 0,
       dieselRate: 0,
+      dieselVarianceRate: 0,
+      includeDieselVariance: false,
       dieselCost: 0,
+      dieselVarianceCost: 0,
       dispatchMt: 0,
     },
     cop: {
       fixedCostMonthly: 0,
       fixedCostDaily: 0,
       fixedCost: 0,
+      frozenDrillingBlastingRate: 0,
+      frozenLoadingTransportRate: 0,
+      frozenObSoftRockRate: 0,
+      frozenObHardRockRate: 0,
+      frozenDieselRate: 0,
+      frozenDieselVarianceRate: 0,
       quarryObCost: 0,
       quarryBlastingCost: 0,
       quarryLtCost: 0,
@@ -1505,6 +1561,7 @@ function recordToPayload(record: DailyPlantRecord): CapturePayload {
   const mergedElectrical = { ...fallback.electrical, ...electrical };
   const mergedLoader = { ...fallback.loader, ...loader };
   const mergedCop = { ...fallback.cop, ...cop };
+  const domesticMf = domesticMeterMfFor(plant?.code ?? plantCode);
   return {
     id,
     plantCode: plant?.code ?? plantCode,
@@ -1512,11 +1569,14 @@ function recordToPayload(record: DailyPlantRecord): CapturePayload {
     date,
     targetMt,
     productionMt,
+    productMixPercentages: { ...fallback.productMixPercentages, ...(record.productMixPercentages ?? {}) },
     productMix: { ...fallback.productMix, ...productMix },
+    overburden: { ...fallback.overburden, ...(record.overburden ?? {}) },
     dispatch: { ...fallback.dispatch, ...dispatch },
     openingStock: { ...fallback.openingStock, ...openingStock },
     closingStock: { ...fallback.closingStock, ...closingStock },
     stockAdjustments: { ...fallback.stockAdjustments, ...record.stockAdjustments },
+    stockAdjustmentComment: record.stockAdjustmentComment ?? "",
     bookStock: {
       monthlyOpening: { ...fallback.bookStock.monthlyOpening, ...record.bookStock?.monthlyOpening },
       calculatedClosing: { ...fallback.bookStock.calculatedClosing, ...record.bookStock?.calculatedClosing },
@@ -1535,7 +1595,7 @@ function recordToPayload(record: DailyPlantRecord): CapturePayload {
       domestic: {
         ...fallback.electrical.domestic,
         ...electrical.domestic,
-        multiplyingFactor: domesticMeterMf(),
+        multiplyingFactor: domesticMf,
       },
     },
     loader: {
@@ -1545,7 +1605,10 @@ function recordToPayload(record: DailyPlantRecord): CapturePayload {
       productionHours: loader.productionHours ?? loader.hours ?? 0,
       tph: loader.tph ?? 0,
       dieselRate: loader.dieselRate ?? 0,
+      dieselVarianceRate: loader.dieselVarianceRate ?? 0,
+      includeDieselVariance: loader.includeDieselVariance ?? false,
       dieselCost: loader.dieselCost ?? cop.dieselCost ?? 0,
+      dieselVarianceCost: loader.dieselVarianceCost ?? 0,
     },
     cop: mergedCop,
     remarks,
@@ -1583,7 +1646,7 @@ function setPlant(
       kvahMultiplyingFactor: plant.electricalMf,
       domestic: {
         ...current.electrical.domestic,
-        multiplyingFactor: domesticMeterMf(),
+        multiplyingFactor: domesticMeterMfFor(plant.code),
       },
     },
   }));
@@ -1602,11 +1665,27 @@ function setNested<
 
 function setProduct(
   setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
-  section: "productMix" | "dispatch" | "openingStock" | "closingStock" | "stockAdjustments",
+  section: "productMixPercentages" | "productMix" | "dispatch" | "openingStock" | "closingStock" | "stockAdjustments",
   product: (typeof CAPTURE_PRODUCTS)[number],
   value: number,
 ) {
   setForm((current) => ({ ...current, [section]: { ...current[section], [product]: value } }));
+}
+
+function setOverburden(
+  setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
+  field: keyof CapturePayload["overburden"],
+  value: number,
+) {
+  setForm((current) => ({ ...current, overburden: { ...current.overburden, [field]: value } }));
+}
+
+function setLoaderFlag(
+  setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
+  field: "includeDieselVariance",
+  value: boolean,
+) {
+  setForm((current) => ({ ...current, loader: { ...current.loader, [field]: value } }));
 }
 
 function setBookStock(
@@ -1810,6 +1889,67 @@ function buildCopRows(days: SnapshotDay[]) {
   ];
 }
 
+function buildCopProjectionRows(days: SnapshotDay[]): CopProjectionRow[] {
+  const mtdDays = monthToDateDays(days);
+  const latest = [...mtdDays].sort((a, b) => a.date.localeCompare(b.date)).at(-1);
+  if (!latest) {
+    return [
+      { label: "MTD production", value: 0, suffix: "MT" },
+      { label: "Extrapolated production", value: 0, suffix: "MT" },
+      { label: "MTD total COP", value: 0 },
+      { label: "Extrapolated COP", value: 0 },
+      { label: "MTD COP / MT", value: 0 },
+    ];
+  }
+  const [year, month, dayOfMonth] = latest.date.split("-").map(Number);
+  const elapsedDays = Math.max(dayOfMonth || mtdDays.length, 1);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const production = sum(mtdDays.map((day) => day.production.mt));
+  const totalCop = totalCopCost(mtdDays);
+  const copPerMt = production ? totalCop / production : 0;
+  const projectedProduction = (production / elapsedDays) * daysInMonth;
+  const projectedCop = copPerMt * projectedProduction;
+  return [
+    { label: "MTD production", value: roundDisplay(production), suffix: "MT" },
+    { label: "Elapsed calendar days", value: elapsedDays },
+    { label: "Extrapolated production", value: roundDisplay(projectedProduction), suffix: "MT" },
+    { label: "MTD total COP", value: roundDisplay(totalCop) },
+    { label: "Extrapolated COP", value: roundDisplay(projectedCop) },
+    { label: "MTD COP / MT", value: roundDisplay(copPerMt) },
+  ];
+}
+
+function totalCopCost(days: SnapshotDay[]) {
+  const totals = {
+    drillingBlasting: sum(days.map((day) => day.cop?.drillingBlastingCost ?? day.cop?.quarryBlastingCost ?? 0)),
+    internalTransport: sum(days.map((day) => day.cop?.internalTransportationCost ?? day.cop?.quarryLtCost ?? 0)),
+    overburden: sum(days.map((day) => day.cop?.overburdenRemovalCost ?? day.cop?.quarryObCost ?? 0)),
+    rawMaterial: sum(days.map((day) => day.cop?.rawMaterialCost ?? 0)),
+    rentPlant: sum(days.map((day) => day.cop?.rentPlantCost ?? 0)),
+    electricity: sum(days.map((day) => day.cop?.electricalCost ?? 0)),
+    plantMaintenance: sum(days.map((day) => day.cop?.plantMaintenanceCost ?? day.cop?.plantCost ?? 0)),
+    spares: sum(days.map((day) => day.cop?.sparesConsumablesCost ?? 0)),
+    wearParts: sum(days.map((day) => day.cop?.wearPartsCost ?? 0)),
+    loaderDiesel: sum(days.map((day) => day.cop?.loaderCost ?? day.loader.dieselCost ?? 0)),
+    intercarting: sum(days.map((day) => day.cop?.intercartingExpenses ?? 0)),
+    fixed: sum(days.map((day) => day.cop?.fixedCost ?? day.cop?.fixedCostMonthly ?? 0)),
+  };
+  return (
+    totals.drillingBlasting +
+    totals.internalTransport +
+    totals.overburden +
+    totals.rawMaterial +
+    totals.rentPlant +
+    totals.electricity +
+    totals.plantMaintenance +
+    totals.spares +
+    totals.wearParts +
+    totals.loaderDiesel +
+    totals.intercarting +
+    totals.fixed
+  );
+}
+
 function buildMtdRows(days: SnapshotDay[]) {
   let production = 0;
   let dispatch = 0;
@@ -1865,10 +2005,6 @@ function weightedAverage(values: Array<[number, number]>) {
   const weightedTotal = values.reduce((total, [value, weight]) => total + (Number.isFinite(value) ? value : 0) * weight, 0);
   const weightTotal = values.reduce((total, [, weight]) => total + (Number.isFinite(weight) ? weight : 0), 0);
   return weightTotal ? weightedTotal / weightTotal : 0;
-}
-
-function productionRatio(value: number, production: number) {
-  return roundDisplay(production ? (value / production) * 100 : 0);
 }
 
 function lossCategoryLabel(category: LossCategory) {

@@ -194,9 +194,6 @@ function carryWeeklyCop(current: CapturePayload["cop"], source: CapturePayload["
 function weeklyCopFields(): Array<keyof CapturePayload["cop"]> {
   return [
     "fixedCost",
-    "drillingBlastingCost",
-    "internalTransportationCost",
-    "overburdenRemovalCost",
     "rawMaterialCost",
     "rentPlantCost",
     "plantMaintenanceCost",

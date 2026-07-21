@@ -33,6 +33,7 @@ export async function generatePowerPoint(snapshot: ReportSnapshot) {
   addLoader(pptx, snapshot);
   addLoaderMonitoring(pptx, snapshot);
   addCopStructure(pptx, snapshot);
+  addCopProjection(pptx, snapshot);
   addCommentary(pptx, snapshot);
   addNextWeek(pptx, snapshot);
   addThankYou(pptx, snapshot);
@@ -250,6 +251,17 @@ function addCopStructure(pptx: PptxGenJS, snapshot: ReportSnapshot) {
   slide.addText(`Location: ${snapshot.plantName}`, { x: 0.75, y: 0.82, w: 3.5, h: 0.25, fontSize: 11, bold: true, color: "183153" });
   slide.addText(`Month: ${snapshot.period.start.slice(0, 7)}`, { x: 4.3, y: 0.82, w: 2.4, h: 0.25, fontSize: 11, bold: true, color: "183153" });
   addTable(slide, ["Quantitative Information", "Actuals", "Rs./Mt"], copRows(snapshot), 1.15);
+}
+
+function addCopProjection(pptx: PptxGenJS, snapshot: ReportSnapshot) {
+  const slide = contentSlide(pptx, snapshot, "MTD and Extrapolated COP");
+  addTable(
+    slide,
+    ["Metric", "Value"],
+    copProjectionRows(snapshot).map((row) => [row.label, row.value]),
+    1.05,
+    7.8,
+  );
 }
 
 function addCommentary(pptx: PptxGenJS, snapshot: ReportSnapshot) {
@@ -521,6 +533,54 @@ function copRows(snapshot: ReportSnapshot) {
     ["Fixed cost", currency(totals.fixed), perMt(totals.fixed, production)],
     ["Total COP", currency(totalCop), perMt(totalCop, production)],
   ];
+}
+
+function copProjectionRows(snapshot: ReportSnapshot) {
+  const days = monthToDateDays(snapshot.daily);
+  const latest = [...days].sort((a, b) => a.date.localeCompare(b.date)).at(-1);
+  if (!latest) {
+    return [
+      { label: "MTD production", value: "0 MT" },
+      { label: "Extrapolated production", value: "0 MT" },
+      { label: "MTD total COP", value: "Rs 0" },
+      { label: "Extrapolated COP", value: "Rs 0" },
+      { label: "MTD COP / MT", value: "0" },
+    ];
+  }
+  const [year, month, dayOfMonth] = latest.date.split("-").map(Number);
+  const elapsedDays = Math.max(dayOfMonth || days.length, 1);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const production = sum(days.map((day) => day.production.mt));
+  const totalCop = copTotal(days);
+  const copPerMt = production ? totalCop / production : 0;
+  const projectedProduction = (production / elapsedDays) * daysInMonth;
+  const projectedCop = copPerMt * projectedProduction;
+  return [
+    { label: "MTD production", value: `${inrNumber(production)} MT` },
+    { label: "Elapsed calendar days", value: String(elapsedDays) },
+    { label: "Days in month", value: String(daysInMonth) },
+    { label: "Extrapolated production", value: `${inrNumber(projectedProduction)} MT` },
+    { label: "MTD total COP", value: currency(totalCop) },
+    { label: "Extrapolated COP", value: currency(projectedCop) },
+    { label: "MTD COP / MT", value: perMt(totalCop, production) },
+  ];
+}
+
+function copTotal(days: ReportSnapshot["daily"]) {
+  return sum(days.map((day) => day.cop?.totalCost ?? 0)) || sum(days.map((day) => (
+    (day.cop?.drillingBlastingCost ?? day.cop?.quarryBlastingCost ?? 0) +
+    (day.cop?.internalTransportationCost ?? day.cop?.quarryLtCost ?? 0) +
+    (day.cop?.overburdenRemovalCost ?? day.cop?.quarryObCost ?? 0) +
+    (day.cop?.rawMaterialCost ?? 0) +
+    (day.cop?.rentPlantCost ?? 0) +
+    (day.cop?.electricalCost ?? 0) +
+    (day.cop?.plantMaintenanceCost ?? day.cop?.plantCost ?? 0) +
+    (day.cop?.sparesConsumablesCost ?? 0) +
+    (day.cop?.wearPartsCost ?? 0) +
+    (day.cop?.loaderCost ?? day.loader.dieselCost ?? 0) +
+    (day.cop?.intercartingExpenses ?? 0) +
+    (day.cop?.fixedCost ?? day.cop?.fixedCostMonthly ?? 0)
+  )));
 }
 
 function mtdRows(snapshot: ReportSnapshot) {
