@@ -1,7 +1,6 @@
 import type {
   CaptureValidationResult,
   DailyPlantRecord,
-  PhotoCategory,
 } from "./types";
 import { CAPTURE_PRODUCTS, LOSS_CATEGORIES } from "./types";
 import { round, sum } from "../reporting/calculations";
@@ -10,7 +9,7 @@ import { calculatedLossHours, domesticMeterMfFor, frozenCostRatesFor, plantElect
 
 export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidationResult {
   const issues: ValidationIssue[] = [];
-  const requiredPhotoCategories = requiredPhotos(record);
+  const requiredPhotoCategories = requiredPhotos();
   const productMixTotal = record.calculations.productMixTotal;
   const productMixPercentageTotal = record.calculations.productMixPercentageTotal;
   const dispatchTotal = record.calculations.dispatchTotal;
@@ -507,19 +506,6 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
     });
   }
 
-  for (const category of requiredPhotoCategories) {
-    const uploaded = record.evidencePhotos.some((photo) => photo.category === category && photo.fileName);
-    if (!uploaded) {
-      issues.push({
-        severity: "ERROR",
-        code: "PHOTO_EVIDENCE_REQUIRED",
-        date: record.date,
-        field: `evidencePhotos.${category}`,
-        message: `${category} photo evidence is required for this exception.`,
-      });
-    }
-  }
-
   return {
     valid: !issues.some((issue) => issue.severity === "ERROR"),
     issues,
@@ -528,13 +514,8 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
   };
 }
 
-function requiredPhotos(record: DailyPlantRecord): PhotoCategory[] {
-  const categories = new Set<PhotoCategory>();
-  if (record.calculations.achievementPct < 80) categories.add("equipment");
-  if (record.plantHours.loss >= 4 || record.lossHours.plantBreakdown > 0) categories.add("breakdown");
-  if (record.calculations.unitsPerMt > 5) categories.add("electricalMeter");
-  if (record.calculations.loaderLitresPerMt > 0.12) categories.add("loaderDiesel");
-  return [...categories];
+function requiredPhotos(): [] {
+  return [];
 }
 
 function requireText(

@@ -548,7 +548,7 @@ function CaptureWorkspace({
           </div>
         </Section>
 
-        <Section title="Remarks and evidence photos" meta="Required for exceptions">
+        <Section title="Remarks and evidence photos" meta="Photos optional">
           <label className="text-area-field">
             <span>Remarks</span>
             <textarea value={form.remarks} onChange={(event) => setField(setForm, "remarks", event.target.value)} />

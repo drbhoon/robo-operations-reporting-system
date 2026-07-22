@@ -352,6 +352,9 @@ export function ensureLossDetails(payload: CapturePayload): CapturePayload {
       ];
     }),
   ) as CapturePayload["lossDetails"];
+  if (Object.values(details).some((detail) => detail.hours > 0 || detail.comments.trim())) {
+    return { ...payload, lossDetails: details };
+  }
   const category = lossCategoryForReason(payload.lossEvent.reason);
   if (category) {
     details[category] = { hours: payload.lossEvent.hours, comments: payload.lossEvent.comments };
