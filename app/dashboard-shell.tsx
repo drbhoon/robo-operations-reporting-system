@@ -124,7 +124,7 @@ export function DashboardShell({ initialSnapshot, initialRecords }: Props) {
   const [dashboardView, setDashboardView] = useState<DashboardView>("daily");
   const [records, setRecords] = useState(initialRecords);
   const [snapshot, setSnapshot] = useState(initialSnapshot);
-  const [form, setForm] = useState<CapturePayload>(() => defaultPayload());
+  const [form, setForm] = useState<CapturePayload>(() => initialPayload(initialRecords));
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [startDate, setStartDate] = useState(initialSnapshot?.period.start ?? todayIso());
@@ -405,10 +405,10 @@ function CaptureWorkspace({
               label="Plant"
               value={form.plantCode}
               options={PLANT_CONFIGS.map((plant) => ({ label: plant.name, value: plant.code }))}
-              onChange={(value) => setPlant(setForm, value)}
+              onChange={(value) => setPlant(setForm, value, records)}
             />
             <TextField disabled label="Plant name" value={form.plantName} onChange={(value) => setField(setForm, "plantName", value)} />
-            <TextField label="Date" type="date" value={form.date} onChange={(value) => setField(setForm, "date", value)} />
+            <TextField label="Date" type="date" value={form.date} onChange={(value) => setDateWithCarryForward(setForm, records, value)} />
             <NumberField label="Target MT" value={form.targetMt} onChange={(value) => setField(setForm, "targetMt", value)} />
           </div>
         </Section>
@@ -1507,6 +1507,11 @@ function defaultPayload(): CapturePayload {
   };
 }
 
+function initialPayload(records: DailyPlantRecord[]) {
+  const base = defaultPayload();
+  return payloadForPlantDate(base, records, base.plantCode, base.date);
+}
+
 function emptyProducts() {
   return Object.fromEntries(CAPTURE_PRODUCTS.map((product) => [product, 0])) as CapturePayload["productMix"];
 }
@@ -1634,22 +1639,141 @@ function setField<K extends keyof CapturePayload>(
 function setPlant(
   setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
   plantCode: string,
+  records: DailyPlantRecord[] = [],
 ) {
   const plant = PLANT_CONFIGS.find((config) => config.code === plantCode) ?? PLANT_CONFIGS[0];
-  setForm((current) => ({
-    ...current,
+  setForm((current) => payloadForPlantDate(current, records, plant.code, current.date));
+}
+
+function setDateWithCarryForward(
+  setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
+  records: DailyPlantRecord[],
+  date: string,
+) {
+  setForm((current) => payloadForPlantDate(current, records, current.plantCode, date));
+}
+
+function payloadForPlantDate(
+  current: CapturePayload,
+  records: DailyPlantRecord[],
+  plantCode: string,
+  date: string,
+) {
+  const plant = PLANT_CONFIGS.find((config) => config.code === plantCode) ?? PLANT_CONFIGS[0];
+  const existing = records.find((record) => record.plantCode === plant.code && record.date === date);
+  if (existing) return recordToPayload(existing);
+
+  const previous = previousRecordForDate(records, plant.code, date);
+  const base = defaultPayload();
+  const carried = previous ? carryForwardFromPreviousRecord(base, previous, date) : base;
+  return {
+    ...carried,
+    id: undefined,
     plantCode: plant.code,
     plantName: plant.name,
+    date,
+    targetMt: previous?.targetMt ?? current.targetMt,
     electrical: {
-      ...current.electrical,
+      ...carried.electrical,
       kwhMultiplyingFactor: plant.electricalMf,
       kvahMultiplyingFactor: plant.electricalMf,
       domestic: {
-        ...current.electrical.domestic,
+        ...carried.electrical.domestic,
         multiplyingFactor: domesticMeterMfFor(plant.code),
       },
     },
-  }));
+  };
+}
+
+function previousRecordForDate(records: DailyPlantRecord[], plantCode: string, date: string) {
+  const previousCalendarDate = addDays(date, -1);
+  const plantRecords = records
+    .filter((record) => record.plantCode === plantCode && record.date < date)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  return plantRecords.find((record) => record.date === previousCalendarDate) ?? plantRecords[0];
+}
+
+function carryForwardFromPreviousRecord(base: CapturePayload, previous: DailyPlantRecord, date: string): CapturePayload {
+  const previousPayload = recordToPayload(previous);
+  const previousCalculations = calculateDailyRecord(materializeCalculatedFields(previousPayload));
+  const closingStock = {
+    ...base.openingStock,
+    ...previousCalculations.calculatedClosingStock,
+  };
+  const bookOpening =
+    previous.date.slice(0, 7) === date.slice(0, 7)
+      ? { ...base.bookStock.monthlyOpening, ...previousPayload.bookStock.monthlyOpening }
+      : { ...base.bookStock.monthlyOpening, ...previousCalculations.calculatedBookStock };
+  const equipmentHourMeters = {
+    jaw: carryEquipmentMeter(previousPayload, "jaw"),
+    cone: carryEquipmentMeter(previousPayload, "cone"),
+    vsi: carryEquipmentMeter(previousPayload, "vsi"),
+  };
+  const loaderOpening = previousPayload.loader.hourMeter.closing;
+
+  return {
+    ...base,
+    plantCode: previousPayload.plantCode,
+    plantName: previousPayload.plantName,
+    date,
+    targetMt: previousPayload.targetMt,
+    openingStock: closingStock,
+    closingStock,
+    bookStock: {
+      monthlyOpening: bookOpening,
+      calculatedClosing: bookOpening,
+    },
+    equipmentHourMeters,
+    electrical: {
+      ...base.electrical,
+      openingKwh: previousPayload.electrical.closingKwh,
+      closingKwh: previousPayload.electrical.closingKwh,
+      kwhMultiplyingFactor: previousPayload.electrical.kwhMultiplyingFactor,
+      openingKvah: previousPayload.electrical.closingKvah,
+      closingKvah: previousPayload.electrical.closingKvah,
+      kvahMultiplyingFactor: previousPayload.electrical.kvahMultiplyingFactor,
+      domestic: {
+        ...base.electrical.domestic,
+        openingKwh: previousPayload.electrical.domestic.closingKwh,
+        closingKwh: previousPayload.electrical.domestic.closingKwh,
+        multiplyingFactor: previousPayload.electrical.domestic.multiplyingFactor,
+      },
+      excludeDomesticFromUnitsPerMt: previousPayload.electrical.excludeDomesticFromUnitsPerMt,
+      cmd: previousPayload.electrical.cmd,
+    },
+    loader: {
+      ...base.loader,
+      hourMeter: {
+        opening: loaderOpening,
+        closing: loaderOpening,
+      },
+      dieselRate: previousPayload.loader.dieselRate,
+      dieselVarianceRate: previousPayload.loader.dieselVarianceRate,
+      includeDieselVariance: previousPayload.loader.includeDieselVariance,
+    },
+    cop: {
+      ...base.cop,
+      fixedCost: previousPayload.cop.fixedCost,
+      rawMaterialCost: previousPayload.cop.rawMaterialCost,
+      rentPlantCost: previousPayload.cop.rentPlantCost,
+      plantMaintenanceCost: previousPayload.cop.plantMaintenanceCost,
+      sparesConsumablesCost: previousPayload.cop.sparesConsumablesCost,
+      wearPartsCost: previousPayload.cop.wearPartsCost,
+      intercartingExpenses: previousPayload.cop.intercartingExpenses,
+    },
+    submittedBy: previousPayload.submittedBy,
+  };
+}
+
+function carryEquipmentMeter(previous: CapturePayload, equipment: keyof CapturePayload["equipmentHourMeters"]) {
+  const opening = previous.equipmentHourMeters[equipment].closing;
+  return { opening, closing: opening };
+}
+
+function addDays(date: string, days: number) {
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  parsed.setUTCDate(parsed.getUTCDate() + days);
+  return parsed.toISOString().slice(0, 10);
 }
 
 function setNested<
