@@ -197,7 +197,7 @@ function addElectrical(pptx: PptxGenJS, snapshot: ReportSnapshot) {
   addMetricTiles(slide, [
     ["Avg Units/MT", `${snapshot.totals.avgUnitsPerMt}`],
     ["Best Day", `${Math.min(...snapshot.daily.filter((d) => d.electrical.unitsPerMt > 0).map((d) => d.electrical.unitsPerMt))}`],
-    ["Avg PF", `${avg(snapshot.daily.map((d) => d.electrical.powerFactor)).toFixed(3)}`],
+    ["Avg PF", `${avg(snapshot.daily.map((d) => d.electrical.powerFactor)).toFixed(2)}`],
     ["kWh", `${inrNumber(sum(snapshot.daily.map((d) => d.electrical.kwh)))}`],
   ]);
   addSimpleBars(slide, snapshot.daily.map((d) => d.label), [
@@ -663,7 +663,18 @@ function formatHours(value: number) {
 }
 
 function formatPeriod(snapshot: ReportSnapshot) {
-  return `${snapshot.period.start} to ${snapshot.period.end}`;
+  return `${formatDisplayDate(snapshot.period.start)} to ${formatDisplayDate(snapshot.period.end)}`;
+}
+
+function formatDisplayDate(date: string) {
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 function sum(values: number[]) {

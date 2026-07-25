@@ -215,6 +215,7 @@ export type DailyPlantRecord = {
     powerFactor: number;
     loaderRunningHours: number;
     loaderProductionHours: number;
+    loaderDispatchMt: number;
     loaderTph: number;
     loaderDieselCost: number;
     loaderDieselVarianceCost: number;

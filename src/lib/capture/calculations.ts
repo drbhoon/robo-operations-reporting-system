@@ -96,7 +96,8 @@ export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord[
   const powerFactor = round(ratio(electricalUnitsConsumed, kvahUnitsConsumed), 4);
   const loaderRunningHours = round(Math.max(0, input.loader.hourMeter.closing - input.loader.hourMeter.opening), 2);
   const loaderProductionHours = round(Math.max(0, loaderRunningHours - input.loader.otherWorksHours), 2);
-  const loaderTph = round(ratio(input.loader.dispatchMt, loaderProductionHours), 2);
+  const loaderDispatchMt = mirroredLoaderDispatchPlant(input.plantCode || input.plantName) ? dispatchTotal : input.loader.dispatchMt;
+  const loaderTph = round(ratio(loaderDispatchMt, loaderProductionHours), 2);
   const loaderDieselCost = round(input.loader.dieselLitres * rates.diesel, 2);
   const loaderDieselVarianceCost = round(input.loader.includeDieselVariance ? input.loader.dieselLitres * rates.dieselVariance : 0, 2);
   const drillingBlastingCost = round(input.productionMt * rates.drillingBlasting, 2);
@@ -141,6 +142,7 @@ export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord[
     powerFactor,
     loaderRunningHours,
     loaderProductionHours,
+    loaderDispatchMt: round(loaderDispatchMt),
     loaderTph,
     loaderDieselCost,
     loaderDieselVarianceCost,
@@ -150,7 +152,7 @@ export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord[
     electricalCost,
     fixedCostDaily: 0,
     totalCopCost: round(totalCost, 2),
-    loaderLitresPerMt: round(ratio(input.loader.dieselLitres, input.loader.dispatchMt), 3),
+    loaderLitresPerMt: round(ratio(input.loader.dieselLitres, loaderDispatchMt), 3),
     copPerMt: round(ratio(totalCost, input.productionMt), 2),
     achievementPct: round(ratio(input.productionMt, input.targetMt) * 100),
   };
@@ -206,6 +208,7 @@ export function materializeCalculatedFields(payload: CapturePayload): CapturePay
       ...payloadWithFrozenRates.loader,
       hours: calculations.loaderRunningHours,
       productionHours: calculations.loaderProductionHours,
+      dispatchMt: calculations.loaderDispatchMt,
       tph: calculations.loaderTph,
       dieselCost: calculations.loaderDieselCost,
       dieselVarianceCost: calculations.loaderDieselVarianceCost,
@@ -297,6 +300,11 @@ export function plantRateGroup(codeOrName: string): keyof typeof FROZEN_COST_RAT
   if (normalized.includes("KEESARA") || normalized.includes("KEESRA")) return "Keesara";
   if (normalized.includes("LAKADARAM") || normalized.includes("LAK-")) return "Lakadaram";
   return "Girmapur";
+}
+
+export function mirroredLoaderDispatchPlant(codeOrName: string) {
+  const group = plantRateGroup(codeOrName);
+  return group === "Keesara" || group === "Lakadaram";
 }
 
 function materializeProductMix(payload: CapturePayload): CapturePayload {

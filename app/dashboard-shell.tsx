@@ -29,7 +29,7 @@ import {
   Send,
 } from "lucide-react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import { calculateDailyRecord, domesticMeterMfFor, materializeCalculatedFields } from "@/src/lib/capture/calculations";
+import { calculateDailyRecord, domesticMeterMfFor, materializeCalculatedFields, mirroredLoaderDispatchPlant } from "@/src/lib/capture/calculations";
 import {
   CAPTURE_PRODUCTS,
   LOSS_CATEGORIES,
@@ -129,6 +129,7 @@ export function DashboardShell({ initialSnapshot, initialRecords }: Props) {
   const [status, setStatus] = useState<string | null>(null);
   const [startDate, setStartDate] = useState(initialSnapshot?.period.start ?? todayIso());
   const [endDate, setEndDate] = useState(initialSnapshot?.period.end ?? todayIso());
+  const [reportPlantCode, setReportPlantCode] = useState(initialSnapshot?.plantCode ?? initialPayload(initialRecords).plantCode);
   const [reportType, setReportType] = useState<"DAILY" | "WEEKLY" | "MONTHLY">("WEEKLY");
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -255,7 +256,7 @@ export function DashboardShell({ initialSnapshot, initialRecords }: Props) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          plantCode: form.plantCode,
+          plantCode: reportPlantCode,
           startDate,
           endDate,
           reportType,
@@ -365,8 +366,10 @@ export function DashboardShell({ initialSnapshot, initialRecords }: Props) {
           fileRef={fileRef}
           generatePpt={generatePpt}
           importWorkbook={importWorkbook}
+          plantCode={reportPlantCode}
           reportType={reportType}
           setEndDate={setEndDate}
+          setPlantCode={setReportPlantCode}
           setReportType={setReportType}
           setStartDate={setStartDate}
           snapshot={snapshot}
@@ -399,7 +402,7 @@ function CaptureWorkspace({
   return (
     <section className="capture-layout">
       <div className="capture-form">
-        <Section title="Plant and date" meta="Mandatory">
+        <Section title="Plant and date" meta="Mandatory" defaultOpen>
           <div className="form-grid four">
             <SelectField
               label="Plant"
@@ -409,11 +412,12 @@ function CaptureWorkspace({
             />
             <TextField disabled label="Plant name" value={form.plantName} onChange={(value) => setField(setForm, "plantName", value)} />
             <TextField label="Date" type="date" value={form.date} onChange={(value) => setDateWithCarryForward(setForm, records, value)} />
+            <ReadOnlyText label="Date display" value={formatDisplayDate(form.date)} />
             <NumberField label="Target MT" value={form.targetMt} onChange={(value) => setField(setForm, "targetMt", value)} />
           </div>
         </Section>
 
-        <Section title="Opening parameters" meta="Enter before day closing">
+        <Section title="Opening parameters" meta="Enter before day closing" defaultOpen>
           <h3 className="section-subtitle">Opening stock</h3>
           <ProductGrid values={form.openingStock} onChange={(product, value) => setProduct(setForm, "openingStock", product, value)} />
           <h3 className="section-subtitle">Monthly opening book stock</h3>
@@ -445,7 +449,7 @@ function CaptureWorkspace({
 
         <Section title="Dispatch and calculated stock" meta="Closing = opening + production - dispatch + adjustment">
           <h3 className="section-subtitle">Dispatch</h3>
-          <ProductGrid values={form.dispatch} onChange={(product, value) => setProduct(setForm, "dispatch", product, value)} />
+          <ProductGrid values={form.dispatch} onChange={(product, value) => setDispatchProduct(setForm, form.plantCode, product, value)} />
           <h3 className="section-subtitle">Stock adjustments / other transactions</h3>
           <ProductGrid values={form.stockAdjustments} onChange={(product, value) => setProduct(setForm, "stockAdjustments", product, value)} />
           <label className="text-area-field">
@@ -491,7 +495,7 @@ function CaptureWorkspace({
             <NumberField label="Closing KVAH" value={form.electrical.closingKvah} onChange={(value) => setNested(setForm, "electrical", "closingKvah", value)} />
             <NumberField disabled label="KVAH MF" value={previewRecord.electrical.kvahMultiplyingFactor} onChange={(value) => setNested(setForm, "electrical", "kvahMultiplyingFactor", value)} />
             <ReadOnlyMetric label="KVAH units" value={previewRecord.calculations.kvahUnitsConsumed} />
-            <ReadOnlyMetric label="Power factor" value={previewRecord.calculations.powerFactor} />
+            <ReadOnlyMetric format="powerFactor" label="Power factor" value={previewRecord.calculations.powerFactor} />
             <ReadOnlyMetric label="Electricity cost" value={previewRecord.calculations.electricalCost} prefix="Rs" />
             <ReadOnlyMetric label="Production units" value={previewRecord.calculations.productionPowerUnits} />
             <ReadOnlyMetric label="Production Units / MT" value={previewRecord.calculations.unitsPerMt} />
@@ -516,7 +520,12 @@ function CaptureWorkspace({
             <NumberField label="Loader diesel L" value={form.loader.dieselLitres} onChange={(value) => setNested(setForm, "loader", "dieselLitres", value)} />
             <NumberField disabled label="Frozen diesel rate" value={previewRecord.loader.dieselRate} onChange={(value) => setNested(setForm, "loader", "dieselRate", value)} />
             <NumberField disabled label="Diesel variance rate" value={previewRecord.loader.dieselVarianceRate} onChange={(value) => setNested(setForm, "loader", "dieselVarianceRate", value)} />
-            <NumberField label="Loader dispatch MT" value={form.loader.dispatchMt} onChange={(value) => setNested(setForm, "loader", "dispatchMt", value)} />
+            <NumberField
+              disabled={mirroredLoaderDispatchPlant(form.plantCode || form.plantName)}
+              label={mirroredLoaderDispatchPlant(form.plantCode || form.plantName) ? "Loader dispatch MT auto" : "Loader dispatch MT"}
+              value={previewRecord.loader.dispatchMt}
+              onChange={(value) => setNested(setForm, "loader", "dispatchMt", value)}
+            />
             <CheckboxField label="Include diesel variance" checked={form.loader.includeDieselVariance} onChange={(value) => setLoaderFlag(setForm, "includeDieselVariance", value)} />
             <ReadOnlyMetric label="Loader TPH" value={previewRecord.calculations.loaderTph} />
             <ReadOnlyMetric label="Loader L / MT" value={previewRecord.calculations.loaderLitresPerMt} />
@@ -603,7 +612,7 @@ function CaptureWorkspace({
           <div className="record-list">
             {records.slice(-8).reverse().map((record) => (
               <button className="record-pill" key={record.id} onClick={() => setForm(recordToPayload(record))}>
-                <span>{record.date}</span>
+                <span>{formatDisplayDate(record.date)}</span>
                 <strong>{record.status}</strong>
                 <small>{record.validation.valid ? "Valid" : `${record.validation.issues.length} issues`}</small>
               </button>
@@ -708,7 +717,7 @@ function DashboardWorkspace({
               <tbody>
                 {exceptionRecords.map((record) => (
                   <tr key={record.id}>
-                    <td>{record.date}</td>
+                    <td>{formatDisplayDate(record.date)}</td>
                     <td>{record.status}</td>
                     <td>{record.reviewStatus}</td>
                     <td>{record.validation.issues.map((issue) => issue.code).join(", ")}</td>
@@ -844,7 +853,7 @@ function DashboardWorkspace({
                   <li>
                     <Lock size={14} /> {snapshot.version}
                   </li>
-                  <li>Period: {snapshot.period.start} to {snapshot.period.end}</li>
+                  <li>Period: {formatDisplayDate(snapshot.period.start)} to {formatDisplayDate(snapshot.period.end)}</li>
                   <li>Source checksum: {snapshot.source.checksum.slice(0, 12)}</li>
                 </ul>
               </div>
@@ -876,8 +885,10 @@ function ReportsWorkspace({
   fileRef,
   generatePpt,
   importWorkbook,
+  plantCode,
   reportType,
   setEndDate,
+  setPlantCode,
   setReportType,
   setStartDate,
   snapshot,
@@ -889,8 +900,10 @@ function ReportsWorkspace({
   fileRef: React.RefObject<HTMLInputElement | null>;
   generatePpt: () => void;
   importWorkbook: () => void;
+  plantCode: string;
   reportType: "DAILY" | "WEEKLY" | "MONTHLY";
   setEndDate: (value: string) => void;
+  setPlantCode: (value: string) => void;
   setReportType: (value: "DAILY" | "WEEKLY" | "MONTHLY") => void;
   setStartDate: (value: string) => void;
   snapshot: ReportSnapshot | null;
@@ -900,8 +913,16 @@ function ReportsWorkspace({
     <section className="reports-grid">
       <Panel title="Generate locked dashboard snapshot" meta="Database to report">
         <div className="form-grid two report-controls">
+          <SelectField
+            label="Plant"
+            value={plantCode}
+            options={PLANT_CONFIGS.map((plant) => ({ label: plant.name, value: plant.code }))}
+            onChange={setPlantCode}
+          />
           <TextField label="Start date" type="date" value={startDate} onChange={setStartDate} />
           <TextField label="End date" type="date" value={endDate} onChange={setEndDate} />
+          <ReadOnlyText label="Start date display" value={formatDisplayDate(startDate)} />
+          <ReadOnlyText label="End date display" value={formatDisplayDate(endDate)} />
           <label className="field">
             <span>Report type</span>
             <select value={reportType} onChange={(event) => setReportType(event.target.value as "DAILY" | "WEEKLY" | "MONTHLY")}>
@@ -911,7 +932,7 @@ function ReportsWorkspace({
             </select>
           </label>
           <div className="required-photo-list">
-            <strong>Required photo categories</strong>
+            <strong>Optional photo categories</strong>
             <span>{PHOTO_CATEGORIES.join(", ")}</span>
           </div>
         </div>
@@ -949,7 +970,7 @@ function ReportsWorkspace({
           <MetricList
             items={[
               ["Plant", snapshot.plantCode],
-              ["Period", `${snapshot.period.start} to ${snapshot.period.end}`],
+              ["Period", `${formatDisplayDate(snapshot.period.start)} to ${formatDisplayDate(snapshot.period.end)}`],
               ["Version", snapshot.version],
               ["Validation", snapshot.validation.valid ? "Valid" : `${snapshot.validation.issues.length} issues`],
             ]}
@@ -984,15 +1005,25 @@ function Panel({ title, meta, children }: { title: string; meta: string; childre
   );
 }
 
-function Section({ title, meta, children }: { title: string; meta: string; children: ReactNode }) {
+function Section({
+  children,
+  defaultOpen = false,
+  meta,
+  title,
+}: {
+  children: ReactNode;
+  defaultOpen?: boolean;
+  meta: string;
+  title: string;
+}) {
   return (
-    <section className="form-section">
-      <div className="panel-header">
+    <details className="form-section" defaultOpen={defaultOpen}>
+      <summary className="panel-header section-summary">
         <h2>{title}</h2>
         <span>{meta}</span>
-      </div>
+      </summary>
       <div className="section-body">{children}</div>
-    </section>
+    </details>
   );
 }
 
@@ -1087,6 +1118,15 @@ function HourField({
   );
 }
 
+function ReadOnlyText({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="readonly-metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
 function ReadOnlyMetric({
   format,
   label,
@@ -1094,13 +1134,13 @@ function ReadOnlyMetric({
   suffix,
   value,
 }: {
-  format?: "hours";
+  format?: "hours" | "powerFactor";
   label: string;
   prefix?: string;
   suffix?: string;
   value: number;
 }) {
-  const renderedValue = format === "hours" ? formatHours(value) : fmt.format(value);
+  const renderedValue = format === "hours" ? formatHours(value) : format === "powerFactor" ? value.toFixed(2) : fmt.format(value);
   return (
     <div className="readonly-metric">
       <span>{label}</span>
@@ -1264,7 +1304,7 @@ function DailyTable({ days }: { days: ReportSnapshot["daily"] }) {
         <tbody>
           {days.map((day) => (
             <tr key={day.date}>
-              <td>{day.date}</td>
+              <td>{formatDisplayDate(day.date)}</td>
               <td>{fmt.format(day.targetMt)}</td>
               <td>{fmt.format(day.production.mt)}</td>
               <td>{fmt.format(day.dispatch.totalMt)}</td>
@@ -1776,6 +1816,17 @@ function addDays(date: string, days: number) {
   return parsed.toISOString().slice(0, 10);
 }
 
+function formatDisplayDate(date: string) {
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 function setNested<
   K extends "machineHours" | "tph" | "plantHours" | "electrical" | "loader" | "cop",
 >(
@@ -1794,6 +1845,21 @@ function setProduct(
   value: number,
 ) {
   setForm((current) => ({ ...current, [section]: { ...current[section], [product]: value } }));
+}
+
+function setDispatchProduct(
+  setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
+  plantCode: string,
+  product: (typeof CAPTURE_PRODUCTS)[number],
+  value: number,
+) {
+  setForm((current) => {
+    const dispatch = { ...current.dispatch, [product]: value };
+    const loader = mirroredLoaderDispatchPlant(plantCode || current.plantName)
+      ? { ...current.loader, dispatchMt: roundDisplay(sum(CAPTURE_PRODUCTS.map((item) => dispatch[item]))) }
+      : current.loader;
+    return { ...current, dispatch, loader };
+  });
 }
 
 function setOverburden(

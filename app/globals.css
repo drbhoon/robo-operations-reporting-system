@@ -195,6 +195,38 @@ h1 {
   border-radius: 8px;
   background: var(--panel);
   box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.form-section summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.form-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.section-summary {
+  user-select: none;
+}
+
+.section-summary::after {
+  content: "+";
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-muted);
+  color: var(--navy);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.form-section[open] .section-summary::after {
+  content: "-";
 }
 
 .section-body {
