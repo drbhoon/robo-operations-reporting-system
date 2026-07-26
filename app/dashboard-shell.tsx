@@ -6,7 +6,6 @@ import {
   Line,
   Scatter,
 } from "react-chartjs-2";
-import Image from "next/image";
 import {
   ArcElement,
   BarElement,
@@ -312,7 +311,8 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
       <section className="topbar">
         <div className="brand-block">
           <div className="logo-panel">
-            <Image alt="Robo Silicon" height={52} priority src="/robo-logo.png" width={92} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img alt="Robo Silicon" src="/robo-logo.png" />
           </div>
           <div>
             <p className="eyebrow">Robo Silicon operations</p>
