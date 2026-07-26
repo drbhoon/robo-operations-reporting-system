@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/src/lib/auth/admin";
 import { getSnapshot } from "@/src/lib/reporting/store";
 import { loadSampleSnapshot } from "@/src/lib/reporting/sample";
 import { generatePowerPoint } from "@/src/lib/reporting/ppt";
@@ -9,6 +10,7 @@ export async function POST(
   _request: Request,
   context: { params: Promise<{ snapshotId: string }> },
 ) {
+  await requireAdminSession();
   const { snapshotId } = await context.params;
   const sample = await loadSampleSnapshot();
   const snapshot = (await getSnapshot(snapshotId)) ?? (sample?.id === snapshotId ? sample : null);

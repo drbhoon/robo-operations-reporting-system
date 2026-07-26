@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/src/lib/auth/admin";
 import { listDailyRecords } from "@/src/lib/capture/store";
 import { buildSnapshotFromDailyRecords } from "@/src/lib/capture/snapshot";
 import { saveSnapshot } from "@/src/lib/reporting/store";
@@ -6,6 +7,7 @@ import { saveSnapshot } from "@/src/lib/reporting/store";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  await requireAdminSession();
   const body = (await request.json()) as {
     plantCode?: string;
     startDate?: string;

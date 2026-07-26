@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/src/lib/auth/admin";
 import { listDailyRecords, saveDailyRecord } from "@/src/lib/capture/store";
 import type { CapturePayload } from "@/src/lib/capture/types";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
+  await requireAdminSession();
   const url = new URL(request.url);
   const records = await listDailyRecords({
     plantCode: url.searchParams.get("plantCode") || undefined,
@@ -17,6 +19,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const admin = await requireAdminSession();
   const body = (await request.json()) as {
     action?: "DRAFT" | "SUBMIT";
     record?: CapturePayload;
@@ -32,7 +35,7 @@ export async function POST(request: Request) {
     const result = await saveDailyRecord({
       payload: body.record,
       action: body.action === "SUBMIT" ? "SUBMIT" : "DRAFT",
-      actor: body.actor,
+      actor: body.actor || admin.username,
       allowFinalEdit: body.allowFinalEdit,
     });
 

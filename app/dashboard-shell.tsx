@@ -6,6 +6,7 @@ import {
   Line,
   Scatter,
 } from "react-chartjs-2";
+import Image from "next/image";
 import {
   ArcElement,
   BarElement,
@@ -88,6 +89,7 @@ ChartJS.register(
 );
 
 type Props = {
+  adminUsername: string;
   initialSnapshot: ReportSnapshot | null;
   initialRecords: DailyPlantRecord[];
 };
@@ -119,7 +121,7 @@ type CopProjectionRow = {
 const fmt = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const pct = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1, style: "percent" });
 
-export function DashboardShell({ initialSnapshot, initialRecords }: Props) {
+export function DashboardShell({ adminUsername, initialSnapshot, initialRecords }: Props) {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("capture");
   const [dashboardView, setDashboardView] = useState<DashboardView>("daily");
   const [records, setRecords] = useState(initialRecords);
@@ -308,15 +310,21 @@ export function DashboardShell({ initialSnapshot, initialRecords }: Props) {
   return (
     <main className="app-shell">
       <section className="topbar">
-        <div>
-          <p className="eyebrow">Robo Silicon operations</p>
-          <h1>Daily plant reality capture before reporting</h1>
-          <p className="subtitle">
-            Operators capture plant data once. Validation blocks weak data before it reaches
-            dashboards, locked snapshots, PowerPoint, PDF, or management summaries.
-          </p>
+        <div className="brand-block">
+          <div className="logo-panel">
+            <Image alt="Robo Silicon" height={52} priority src="/robo-logo.png" width={92} />
+          </div>
+          <div>
+            <p className="eyebrow">Robo Silicon operations</p>
+            <h1>Daily plant reality capture before reporting</h1>
+            <p className="subtitle">
+              Operators capture plant data once. Validation blocks weak data before it reaches
+              dashboards, locked snapshots, PowerPoint, PDF, or management summaries.
+            </p>
+          </div>
         </div>
         <div className="toolbar">
+          <span className="admin-chip">{adminUsername}</span>
           <button className={tabClass(activeTab, "capture")} onClick={() => setActiveTab("capture")}>
             <ClipboardCheck size={16} />
             Capture
@@ -329,6 +337,9 @@ export function DashboardShell({ initialSnapshot, initialRecords }: Props) {
             <Presentation size={16} />
             Reports
           </button>
+          <a className="btn" href="/api/auth/logout">
+            Sign out
+          </a>
         </div>
       </section>
 
