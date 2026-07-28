@@ -111,6 +111,20 @@ type LoaderBasisRow = {
   tph: number;
   dispatchMt: number;
 };
+type PeriodSummaryRow = {
+  achievementPct: number;
+  dispatch: number;
+  end: string;
+  jawTph: number;
+  kvahPerMt: number;
+  label: string;
+  loaderLitresPerMt: number;
+  lossHours: number;
+  production: number;
+  start: string;
+  target: number;
+  vsiTph: number;
+};
 type CopProjectionRow = {
   label: string;
   value: number;
@@ -431,8 +445,10 @@ function CaptureWorkspace({
         <Section title="Opening parameters" meta="Enter before day closing" defaultOpen>
           <h3 className="section-subtitle">Opening stock</h3>
           <ProductGrid values={form.openingStock} onChange={(product, value) => setProduct(setForm, "openingStock", product, value)} />
+          <ProductTotal label="Opening stock total" values={form.openingStock} />
           <h3 className="section-subtitle">Monthly opening book stock</h3>
           <ProductGrid values={form.bookStock.monthlyOpening} onChange={(product, value) => setBookStock(setForm, "monthlyOpening", product, value)} />
+          <ProductTotal label="Monthly opening book stock total" values={form.bookStock.monthlyOpening} />
           <div className="form-grid four">
             <NumberField label="Opening kWh" value={form.electrical.openingKwh} onChange={(value) => setNested(setForm, "electrical", "openingKwh", value)} />
             <NumberField label="Opening KVAH" value={form.electrical.openingKvah} onChange={(value) => setNested(setForm, "electrical", "openingKvah", value)} />
@@ -461,16 +477,20 @@ function CaptureWorkspace({
         <Section title="Dispatch and calculated stock" meta="Closing = opening + production - dispatch + adjustment">
           <h3 className="section-subtitle">Dispatch</h3>
           <ProductGrid values={form.dispatch} onChange={(product, value) => setDispatchProduct(setForm, form.plantCode, product, value)} />
+          <ProductTotal label="Dispatch total" values={form.dispatch} />
           <h3 className="section-subtitle">Stock adjustments / other transactions</h3>
           <ProductGrid values={form.stockAdjustments} onChange={(product, value) => setProduct(setForm, "stockAdjustments", product, value)} />
+          <ProductTotal label="Stock adjustment total" values={form.stockAdjustments} />
           <label className="text-area-field">
             <span>Stock adjustment comments</span>
             <textarea value={form.stockAdjustmentComment} onChange={(event) => setField(setForm, "stockAdjustmentComment", event.target.value)} />
           </label>
           <h3 className="section-subtitle">Calculated closing physical stock</h3>
           <ProductReadOnlyGrid values={previewRecord.calculations.calculatedClosingStock} />
+          <ProductTotal label="Closing physical stock total" values={previewRecord.calculations.calculatedClosingStock} />
           <h3 className="section-subtitle">Calculated book stock</h3>
           <ProductReadOnlyGrid values={previewRecord.calculations.calculatedBookStock} />
+          <ProductTotal label="Calculated book stock total" values={previewRecord.calculations.calculatedBookStock} />
         </Section>
 
         <Section title="Equipment hour meter readings and TPH" meta="Running hours and TPH auto-calculated">
@@ -683,6 +703,8 @@ function DashboardWorkspace({
   const loaderRows = buildLoaderRows(visibleDays);
   const copRows = buildCopRows(visibleDays);
   const copProjectionRows = buildCopProjectionRows(visibleDays);
+  const weeklyRows = buildPeriodSummaryRows(visibleDays, "week");
+  const monthlyRows = buildPeriodSummaryRows(visibleDays, "month");
   const topProduct = productRatios[0];
 
   return (
@@ -704,6 +726,22 @@ function DashboardWorkspace({
         <Kpi title="Loader L / MT" value={fmt.format(loaderRows[0]?.litresPerMt ?? 0)} detail={`${fmt.format(totals.diesel)} L diesel`} />
       </section>
 
+      {dashboardView === "weekly" ? <PeriodDashboard period="Weekly" rows={weeklyRows} /> : null}
+      {dashboardView === "monthly" ? <PeriodDashboard period="Monthly" rows={monthlyRows} /> : null}
+      {dashboardView === "trends" ? (
+        <TrendDashboard
+          copProjectionRows={copProjectionRows}
+          copRows={copRows}
+          labels={labels}
+          loaderRows={loaderRows}
+          mtdRows={mtdRows}
+          visibleDays={visibleDays}
+        />
+      ) : null}
+      {dashboardView === "exceptions" ? <ExceptionDashboard exceptionRecords={exceptionRecords} /> : null}
+
+      {dashboardView === "daily" ? (
+        <>
       <section className="grid dashboard-summary-grid">
         <Panel title="Production and product ratios" meta="Linked to total production">
           <RatioTable rows={productRatios} />
@@ -713,32 +751,6 @@ function DashboardWorkspace({
         </Panel>
       </section>
 
-      {dashboardView === "exceptions" ? (
-        <Panel title="Exception view" meta="Warnings and blockers">
-          <div className="table-shell">
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Status</th>
-                  <th>Review</th>
-                  <th>Issues</th>
-                </tr>
-              </thead>
-              <tbody>
-                {exceptionRecords.map((record) => (
-                  <tr key={record.id}>
-                    <td>{formatDisplayDate(record.date)}</td>
-                    <td>{record.status}</td>
-                    <td>{record.reviewStatus}</td>
-                    <td>{record.validation.issues.map((issue) => issue.code).join(", ")}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Panel>
-      ) : (
         <section className="grid main-grid">
           <div className="grid">
             <Panel title="Production, dispatch and target" meta="Validated MT">
@@ -876,7 +888,6 @@ function DashboardWorkspace({
             </Panel>
           </aside>
         </section>
-      )}
 
       <section className="panel table-panel">
         <div className="panel-header">
@@ -885,7 +896,156 @@ function DashboardWorkspace({
         </div>
         <DailyTable days={visibleDays} />
       </section>
+        </>
+      ) : null}
     </>
+  );
+}
+
+function PeriodDashboard({ period, rows }: { period: "Weekly" | "Monthly"; rows: PeriodSummaryRow[] }) {
+  return (
+    <section className="grid">
+      <Panel title={`${period} summary`} meta="Aggregated from validated daily records">
+        <PeriodSummaryTable rows={rows} />
+      </Panel>
+      <div className="grid chart-grid">
+        <Panel title={`${period} production and dispatch`} meta="MT">
+          <Bar
+            data={{
+              labels: rows.map((row) => row.label),
+              datasets: [
+                { label: "Production", data: rows.map((row) => row.production), backgroundColor: "#087f8c" },
+                { label: "Dispatch", data: rows.map((row) => row.dispatch), backgroundColor: "#d1495b" },
+              ],
+            }}
+            options={labelledBarOptions}
+          />
+        </Panel>
+        <Panel title={`${period} efficiency`} meta="KVAH/MT and loader L/MT">
+          <Line
+            data={{
+              labels: rows.map((row) => row.label),
+              datasets: [
+                dataset("KVAH / MT", rows.map((row) => row.kvahPerMt), "#f3a712"),
+                dataset("Loader L / MT", rows.map((row) => row.loaderLitresPerMt), "#183153"),
+              ],
+            }}
+            options={chartOptions}
+          />
+        </Panel>
+      </div>
+    </section>
+  );
+}
+
+function TrendDashboard({
+  copProjectionRows,
+  copRows,
+  labels,
+  loaderRows,
+  mtdRows,
+  visibleDays,
+}: {
+  copProjectionRows: CopProjectionRow[];
+  copRows: ReturnType<typeof buildCopRows>;
+  labels: string[];
+  loaderRows: LoaderBasisRow[];
+  mtdRows: ReturnType<typeof buildMtdRows>;
+  visibleDays: ReportSnapshot["daily"];
+}) {
+  return (
+    <section className="grid">
+      <div className="grid chart-grid">
+        <Panel title="MTD production and dispatch trend" meta="Cumulative MT with values">
+          <Bar
+            data={{
+              labels: mtdRows.map((row) => row.label),
+              datasets: [
+                { label: "MTD Production", data: mtdRows.map((row) => row.production), backgroundColor: "#087f8c" },
+                { label: "MTD Dispatch", data: mtdRows.map((row) => row.dispatch), backgroundColor: "#d1495b" },
+              ],
+            }}
+            options={labelledBarOptions}
+          />
+        </Panel>
+        <Panel title="Electrical efficiency trend" meta="KVAH/MT and PF">
+          <Line
+            data={{
+              labels,
+              datasets: [
+                dataset("KVAH / MT", visibleDays.map((day) => day.electrical.unitsPerMt), "#f3a712"),
+                dataset("Power factor", visibleDays.map((day) => day.electrical.powerFactor), "#2f855a"),
+              ],
+            }}
+            options={chartOptions}
+          />
+        </Panel>
+        <Panel title="Loader dispatch and TPH trend" meta="Daily values">
+          <Line
+            data={{
+              labels,
+              datasets: [
+                dataset("Dispatch MT", visibleDays.map((day) => day.loader.dispatchMt), "#087f8c"),
+                dataset("Loader TPH", visibleDays.map((day) => day.loader.tph), "#183153"),
+              ],
+            }}
+            options={chartOptions}
+          />
+        </Panel>
+        <Panel title="Loader diesel efficiency trend" meta="Daily litres/MT">
+          <Bar
+            data={{
+              labels,
+              datasets: [{ label: "Ltr/MT", data: visibleDays.map((day) => day.loader.litresPerMt), backgroundColor: "#f3a712" }],
+            }}
+            options={labelledBarOptions}
+          />
+        </Panel>
+      </div>
+      <Panel title="Loader Daily / Weekly / MTD trends" meta="Running hours, Ltr/MT, TPH and dispatch">
+        <LoaderTable rows={loaderRows} />
+      </Panel>
+      <Panel title="COP structure" meta="Actuals and Rs./MT">
+        <CopTable rows={copRows} />
+      </Panel>
+      <Panel title="MTD and extrapolated COP" meta="Projected from MTD production average">
+        <CopProjectionTable rows={copProjectionRows} />
+      </Panel>
+    </section>
+  );
+}
+
+function ExceptionDashboard({ exceptionRecords }: { exceptionRecords: DailyPlantRecord[] }) {
+  return (
+    <Panel title="Exception view" meta="Warnings and blockers">
+      <div className="table-shell">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Status</th>
+              <th>Review</th>
+              <th>Issues</th>
+            </tr>
+          </thead>
+          <tbody>
+            {exceptionRecords.map((record) => (
+              <tr key={record.id}>
+                <td>{formatDisplayDate(record.date)}</td>
+                <td>{record.status}</td>
+                <td>{record.reviewStatus}</td>
+                <td>{record.validation.issues.map((issue) => issue.code).join(", ")}</td>
+              </tr>
+            ))}
+            {!exceptionRecords.length ? (
+              <tr>
+                <td colSpan={4}>No exceptions for the current records.</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
   );
 }
 
@@ -1194,6 +1354,20 @@ function ProductReadOnlyGrid({
   );
 }
 
+function ProductTotal({
+  label,
+  values,
+}: {
+  label: string;
+  values: CapturePayload["productMix"];
+}) {
+  return (
+    <div className="product-total-row">
+      <ReadOnlyMetric label={label} value={productTotal(values)} suffix="MT" />
+    </div>
+  );
+}
+
 function CheckboxField({
   checked,
   label,
@@ -1327,6 +1501,52 @@ function DailyTable({ days }: { days: ReportSnapshot["daily"] }) {
               <td>{fmt.format(day.loader.litresPerMt)}</td>
             </tr>
           ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PeriodSummaryTable({ rows }: { rows: PeriodSummaryRow[] }) {
+  return (
+    <div className="table-shell">
+      <table>
+        <thead>
+          <tr>
+            <th>Period</th>
+            <th>Date range</th>
+            <th>Target</th>
+            <th>Production</th>
+            <th>Dispatch</th>
+            <th>Achievement</th>
+            <th>Jaw TPH</th>
+            <th>VSI TPH</th>
+            <th>KVAH/MT</th>
+            <th>Loader L/MT</th>
+            <th>Loss Hrs</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={`${row.label}-${row.start}-${row.end}`}>
+              <td>{row.label}</td>
+              <td>{formatDisplayDate(row.start)} to {formatDisplayDate(row.end)}</td>
+              <td>{fmt.format(row.target)}</td>
+              <td>{fmt.format(row.production)}</td>
+              <td>{fmt.format(row.dispatch)}</td>
+              <td>{fmt.format(row.achievementPct)}%</td>
+              <td>{fmt.format(row.jawTph)}</td>
+              <td>{fmt.format(row.vsiTph)}</td>
+              <td>{fmt.format(row.kvahPerMt)}</td>
+              <td>{fmt.format(row.loaderLitresPerMt)}</td>
+              <td>{formatHours(row.lossHours)}</td>
+            </tr>
+          ))}
+          {!rows.length ? (
+            <tr>
+              <td colSpan={11}>No records available for this period.</td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </div>
@@ -2003,6 +2223,10 @@ function aggregateProducts(days: ReportSnapshot["daily"]) {
   return [...buckets].map(([name, value]) => ({ name, value }));
 }
 
+function productTotal(values: CapturePayload["productMix"]) {
+  return roundDisplay(sum(CAPTURE_PRODUCTS.map((product) => values[product])));
+}
+
 function aggregateLosses(days: ReportSnapshot["daily"]) {
   const buckets = new Map<string, number>();
   days.forEach((day) => {
@@ -2160,6 +2384,50 @@ function buildMtdRows(days: SnapshotDay[]) {
       dispatch: roundDisplay(dispatch),
     };
   });
+}
+
+function buildPeriodSummaryRows(days: SnapshotDay[], period: "week" | "month"): PeriodSummaryRow[] {
+  const groups = new Map<string, SnapshotDay[]>();
+  [...days].sort((a, b) => a.date.localeCompare(b.date)).forEach((day) => {
+    const key = period === "week" ? weekGroupKey(day.date) : day.date.slice(0, 7);
+    groups.set(key, [...(groups.get(key) ?? []), day]);
+  });
+
+  return [...groups.entries()].map(([key, groupedDays]) => summarizePeriod(key, groupedDays));
+}
+
+function summarizePeriod(label: string, days: SnapshotDay[]): PeriodSummaryRow {
+  const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
+  const target = sum(sorted.map((day) => day.targetMt));
+  const production = sum(sorted.map((day) => day.production.mt));
+  const dispatch = sum(sorted.map((day) => day.dispatch.totalMt));
+  const loaderDispatch = sum(sorted.map((day) => day.loader.dispatchMt));
+  const loaderDiesel = sum(sorted.map((day) => day.loader.dieselLitres));
+
+  return {
+    label,
+    start: sorted[0]?.date ?? "",
+    end: sorted.at(-1)?.date ?? "",
+    target: roundDisplay(target),
+    production: roundDisplay(production),
+    dispatch: roundDisplay(dispatch),
+    achievementPct: roundDisplay(target ? (production / target) * 100 : 0),
+    jawTph: roundDisplay(average(sorted.map((day) => day.machine.jawTph))),
+    vsiTph: roundDisplay(average(sorted.map((day) => day.machine.vsiTph))),
+    kvahPerMt: roundDisplay(weightedAverage(sorted.map((day) => [day.electrical.unitsPerMt, day.production.mt]))),
+    loaderLitresPerMt: roundDisplay(loaderDispatch ? loaderDiesel / loaderDispatch : 0),
+    lossHours: roundDisplay(sum(sorted.map((day) => day.plantHours.lossHours))),
+  };
+}
+
+function weekGroupKey(date: string) {
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  const dayOfWeek = parsed.getUTCDay() || 7;
+  const monday = new Date(parsed);
+  monday.setUTCDate(parsed.getUTCDate() - dayOfWeek + 1);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  return `${formatDisplayDate(monday.toISOString().slice(0, 10))} to ${formatDisplayDate(sunday.toISOString().slice(0, 10))}`;
 }
 
 function summarizeBasis(label: BasisRow["label"], days: SnapshotDay[]): BasisRow {

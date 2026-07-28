@@ -334,6 +334,12 @@ h1 {
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
+.product-total-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px);
+  justify-content: end;
+}
+
 .loss-grid {
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
@@ -792,6 +798,7 @@ td {
   .form-grid.three,
   .form-grid.four,
   .product-grid,
+  .product-total-row,
   .loss-grid,
   .loss-detail-layout,
   .loss-detail-row,
