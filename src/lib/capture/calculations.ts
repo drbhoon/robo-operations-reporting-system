@@ -58,10 +58,13 @@ export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord[
       round(input.openingStock[product] + input.productMix[product] - input.dispatch[product] + input.stockAdjustments[product]),
     ]),
   ) as DailyPlantRecord["calculations"]["calculatedClosingStock"];
+  const bookOpeningStock = input.date.endsWith("-01") && hasAnyProductValue(input.bookStock.monthlyOpening)
+    ? input.bookStock.monthlyOpening
+    : input.openingStock;
   const calculatedBookStock = Object.fromEntries(
     CAPTURE_PRODUCTS.map((product) => [
       product,
-      round(input.bookStock.monthlyOpening[product] + input.productMix[product] - input.dispatch[product] + input.stockAdjustments[product]),
+      round(bookOpeningStock[product] + input.productMix[product] - input.dispatch[product] + input.stockAdjustments[product]),
     ]),
   ) as DailyPlantRecord["calculations"]["calculatedBookStock"];
   const equipmentRunningHours = Object.fromEntries(
@@ -91,8 +94,10 @@ export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord[
     Math.max(0, input.electrical.domestic.closingKwh - input.electrical.domestic.openingKwh) *
       domesticMultiplyingFactor,
   );
-  const productionPowerUnits = round(Math.max(0, electricalUnitsConsumed - domesticPowerUnits));
-  const combinedPowerUnits = round(electricalUnitsConsumed);
+  const combinedPowerUnits = round(kvahUnitsConsumed);
+  const productionPowerUnits = round(
+    Math.max(0, input.electrical.excludeDomesticFromUnitsPerMt ? kvahUnitsConsumed - domesticPowerUnits : kvahUnitsConsumed),
+  );
   const powerFactor = round(ratio(electricalUnitsConsumed, kvahUnitsConsumed), 4);
   const loaderRunningHours = round(Math.max(0, input.loader.hourMeter.closing - input.loader.hourMeter.opening), 2);
   const loaderProductionHours = round(Math.max(0, loaderRunningHours - input.loader.otherWorksHours), 2);
@@ -103,7 +108,7 @@ export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord[
   const drillingBlastingCost = round(input.productionMt * rates.drillingBlasting, 2);
   const loadingTransportCost = round(input.productionMt * rates.loadingTransport, 2);
   const overburdenCost = round((input.overburden.softRockMt * rates.obSoftRock) + (input.overburden.hardRockMt * rates.obHardRock), 2);
-  const electricalCost = round(electricalUnitsConsumed * 7.71, 2);
+  const electricalCost = round(kvahUnitsConsumed * 7.71, 2);
   const fixedCost = input.cop.fixedCost || input.cop.fixedCostMonthly;
   const overburdenRemovalCost = overburdenCost;
   const plantMaintenanceCost = input.cop.plantMaintenanceCost || input.cop.plantCost;

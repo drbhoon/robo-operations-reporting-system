@@ -59,7 +59,7 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
         code: "BOOK_STOCK_RECONCILIATION",
         date: record.date,
         field: `bookStock.calculatedClosing.${product}`,
-        message: `${product} book stock should be ${round(expectedBookClosing)} MT based on monthly opening book stock, production, dispatch and stock movements.`,
+        message: `${product} book stock should be ${round(expectedBookClosing)} MT based on the applicable book opening, production, dispatch and stock movements.`,
       });
     }
   }
@@ -415,7 +415,7 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
       code: "ELECTRICAL_COST_RECONCILIATION",
       date: record.date,
       field: "cop.electricalCost",
-      message: `Electrical cost should be Rs ${round(record.calculations.electricalCost, 2)} at Rs 7.71/unit.`,
+      message: `Electrical cost should be Rs ${round(record.calculations.electricalCost, 2)} at Rs 7.71/KVAH unit.`,
     });
   }
   if (Math.abs(record.cop.drillingBlastingCost - record.calculations.drillingBlastingCost) > 1) {
@@ -481,7 +481,7 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
       code: "HIGH_UNITS_PER_MT",
       date: record.date,
       field: "electrical.unitsPerMt",
-      message: "Units/MT is above the configured review threshold.",
+      message: "KVAH/MT is above the configured review threshold.",
     });
   }
 

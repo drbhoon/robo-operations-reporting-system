@@ -110,7 +110,7 @@ function addProductRatiosAndBasis(pptx: PptxGenJS, snapshot: ReportSnapshot) {
   addTable(slide, ["Product", "Production", "Ratio"], productRows, 0.9, 5.55);
   addTable(
     slide,
-    ["Basis", "Production", "Jaw TPH", "Cone TPH", "VSI TPH", "Units/MT"],
+    ["Basis", "Production", "Jaw TPH", "Cone TPH", "VSI TPH", "KVAH/MT"],
     basisRows(snapshot).map((row) => [
       row.label,
       inrNumber(row.production),
@@ -166,7 +166,7 @@ function addUtilisation(pptx: PptxGenJS, snapshot: ReportSnapshot) {
       ["Dispatch to production", `${snapshot.totals.dispatchToProductionPct}%`],
       ["Production hours", `${inrNumber(snapshot.totals.plantRunningHours)} hr`],
       ["Stoppage hours", `${inrNumber(snapshot.totals.stoppageHours)} hr`],
-      ["Avg units/MT", `${snapshot.totals.avgUnitsPerMt}`],
+      ["Avg KVAH/MT", `${snapshot.totals.avgUnitsPerMt}`],
     ],
     1.05,
   );
@@ -178,7 +178,7 @@ function addMtdTrends(pptx: PptxGenJS, snapshot: ReportSnapshot) {
   addMetricTiles(slide, [
     ["MTD Production", `${inrNumber(rows.at(-1)?.production ?? 0)} MT`],
     ["MTD Dispatch", `${inrNumber(rows.at(-1)?.dispatch ?? 0)} MT`],
-    ["Avg Units/MT", `${snapshot.totals.avgUnitsPerMt}`],
+    ["Avg KVAH/MT", `${snapshot.totals.avgUnitsPerMt}`],
     ["Loader L/MT", `${snapshot.totals.loaderLitresPerMt}`],
   ]);
   addSimpleBars(
@@ -193,15 +193,15 @@ function addMtdTrends(pptx: PptxGenJS, snapshot: ReportSnapshot) {
 }
 
 function addElectrical(pptx: PptxGenJS, snapshot: ReportSnapshot) {
-  const slide = contentSlide(pptx, snapshot, "Electricity - Units / MT");
+  const slide = contentSlide(pptx, snapshot, "Electricity - KVAH / MT");
   addMetricTiles(slide, [
-    ["Avg Units/MT", `${snapshot.totals.avgUnitsPerMt}`],
+    ["Avg KVAH/MT", `${snapshot.totals.avgUnitsPerMt}`],
     ["Best Day", `${Math.min(...snapshot.daily.filter((d) => d.electrical.unitsPerMt > 0).map((d) => d.electrical.unitsPerMt))}`],
     ["Avg PF", `${avg(snapshot.daily.map((d) => d.electrical.powerFactor)).toFixed(2)}`],
-    ["kWh", `${inrNumber(sum(snapshot.daily.map((d) => d.electrical.kwh)))}`],
+    ["KVAH", `${inrNumber(sum(snapshot.daily.map((d) => d.electrical.kvah)))}`],
   ]);
   addSimpleBars(slide, snapshot.daily.map((d) => d.label), [
-    { name: "Units/MT", values: snapshot.daily.map((d) => d.electrical.unitsPerMt), color: "F3A712" },
+    { name: "KVAH/MT", values: snapshot.daily.map((d) => d.electrical.unitsPerMt), color: "F3A712" },
   ]);
 }
 
@@ -291,7 +291,7 @@ function addNextWeek(pptx: PptxGenJS, snapshot: ReportSnapshot) {
     [
       ["Confirm daily production target before shift plan freeze", "Plant Head", `${inrNumber(dailyTarget)} MT/day`],
       ["Review Jaw/VSI TPH days below average", "Maintenance", "Daily morning meeting"],
-      ["Track units/MT and loader litres/MT exceptions", "Electrical / Stores", "Exception log"],
+      ["Track KVAH/MT and loader litres/MT exceptions", "Electrical / Stores", "Exception log"],
       ["Close data gaps before report lock", "Operations MIS", "Same day"],
     ],
     1.05,

@@ -497,7 +497,7 @@ function CaptureWorkspace({
           <LossDetailGrid form={form} setForm={setForm} />
         </Section>
 
-        <Section title="Electrical readings and units" meta="Units/MT auto-calculated">
+        <Section title="Electrical readings and units" meta="KVAH/MT auto-calculated">
           <div className="form-grid four">
             <NumberField label="CMD" value={form.electrical.cmd} onChange={(value) => setNested(setForm, "electrical", "cmd", value)} />
             <NumberField label="Closing kWh" value={form.electrical.closingKwh} onChange={(value) => setNested(setForm, "electrical", "closingKwh", value)} />
@@ -507,18 +507,18 @@ function CaptureWorkspace({
             <NumberField disabled label="KVAH MF" value={previewRecord.electrical.kvahMultiplyingFactor} onChange={(value) => setNested(setForm, "electrical", "kvahMultiplyingFactor", value)} />
             <ReadOnlyMetric label="KVAH units" value={previewRecord.calculations.kvahUnitsConsumed} />
             <ReadOnlyMetric format="powerFactor" label="Power factor" value={previewRecord.calculations.powerFactor} />
-            <ReadOnlyMetric label="Electricity cost" value={previewRecord.calculations.electricalCost} prefix="Rs" />
-            <ReadOnlyMetric label="Production units" value={previewRecord.calculations.productionPowerUnits} />
-            <ReadOnlyMetric label="Production Units / MT" value={previewRecord.calculations.unitsPerMt} />
+            <ReadOnlyMetric label="Electricity cost on KVAH" value={previewRecord.calculations.electricalCost} prefix="Rs" />
+            <ReadOnlyMetric label="Production KVAH units" value={previewRecord.calculations.productionPowerUnits} />
+            <ReadOnlyMetric label="Production KVAH / MT" value={previewRecord.calculations.unitsPerMt} />
           </div>
           <h3 className="section-subtitle">Domestic power consumption</h3>
           <div className="form-grid four">
             <NumberField label="Domestic closing kWh" value={form.electrical.domestic.closingKwh} onChange={(value) => setDomesticElectrical(setForm, "closingKwh", value)} />
             <NumberField disabled label="Domestic MF" value={domesticMeterMfFor(form.plantCode || form.plantName)} onChange={(value) => setDomesticElectrical(setForm, "multiplyingFactor", value)} />
             <ReadOnlyMetric label="Domestic units" value={previewRecord.calculations.domesticPowerUnits} />
-            <ReadOnlyMetric label="Domestic Units / MT" value={previewRecord.calculations.domesticUnitsPerMt} />
-            <ReadOnlyMetric label="Combined units" value={previewRecord.calculations.combinedPowerUnits} />
-            <ReadOnlyMetric label="Combined Units / MT" value={previewRecord.calculations.combinedUnitsPerMt} />
+            <ReadOnlyMetric label="Domestic units / MT" value={previewRecord.calculations.domesticUnitsPerMt} />
+            <ReadOnlyMetric label="Combined KVAH units" value={previewRecord.calculations.combinedPowerUnits} />
+            <ReadOnlyMetric label="Combined KVAH / MT" value={previewRecord.calculations.combinedUnitsPerMt} />
           </div>
         </Section>
 
@@ -561,7 +561,7 @@ function CaptureWorkspace({
             <NumberField label="Wear parts" value={form.cop.wearPartsCost} onChange={(value) => setNested(setForm, "cop", "wearPartsCost", value)} />
             <NumberField label="Intercarting expenses" value={form.cop.intercartingExpenses} onChange={(value) => setNested(setForm, "cop", "intercartingExpenses", value)} />
             <NumberField label="Weekly fixed cost" value={form.cop.fixedCost} onChange={(value) => setNested(setForm, "cop", "fixedCost", value)} />
-            <ReadOnlyMetric label="Electrical cost" value={previewRecord.calculations.electricalCost} prefix="Rs" />
+            <ReadOnlyMetric label="Electrical cost on KVAH" value={previewRecord.calculations.electricalCost} prefix="Rs" />
             <ReadOnlyMetric label="Diesel - loader" value={previewRecord.calculations.loaderDieselCost} prefix="Rs" />
             <ReadOnlyMetric label="Total COP cost" value={previewRecord.calculations.totalCopCost} prefix="Rs" />
             <ReadOnlyMetric label="COP / MT" value={previewRecord.calculations.copPerMt} />
@@ -610,7 +610,7 @@ function CaptureWorkspace({
               ["Product mix", `${fmt.format(previewRecord.calculations.productMixTotal)} MT`],
               ["Dispatch", `${fmt.format(previewRecord.calculations.dispatchTotal)} MT`],
               ["Achievement", `${fmt.format(previewRecord.calculations.achievementPct)}%`],
-              ["Units/MT", fmt.format(previewRecord.calculations.unitsPerMt)],
+              ["KVAH/MT", fmt.format(previewRecord.calculations.unitsPerMt)],
               ["Loader L/MT", fmt.format(previewRecord.calculations.loaderLitresPerMt)],
               ["COP/MT", fmt.format(previewRecord.calculations.copPerMt)],
             ]}
@@ -700,7 +700,7 @@ function DashboardWorkspace({
         <Kpi title="Dispatch" value={`${fmt.format(totals.dispatch)} MT`} detail={`${pct.format(totals.dispatchRatio)} of production`} />
         <Kpi title="Top product" value={topProduct ? topProduct.name : "-"} detail={topProduct ? `${fmt.format(topProduct.ratio)}% of production` : "No mix"} />
         <Kpi title="Avg TPH" value={fmt.format((totals.jawTph + totals.vsiTph) / 2)} detail={`Jaw ${fmt.format(totals.jawTph)} | VSI ${fmt.format(totals.vsiTph)}`} />
-        <Kpi title="Units / MT" value={fmt.format(totals.unitsMt)} detail="Auto-calculated" />
+        <Kpi title="KVAH / MT" value={fmt.format(totals.unitsMt)} detail="Auto-calculated" />
         <Kpi title="Loader L / MT" value={fmt.format(loaderRows[0]?.litresPerMt ?? 0)} detail={`${fmt.format(totals.diesel)} L diesel`} />
       </section>
 
@@ -708,7 +708,7 @@ function DashboardWorkspace({
         <Panel title="Production and product ratios" meta="Linked to total production">
           <RatioTable rows={productRatios} />
         </Panel>
-        <Panel title="Daily / Weekly / MTD KPI basis" meta="TPH and Units/MT">
+        <Panel title="Daily / Weekly / MTD KPI basis" meta="TPH and KVAH/MT">
           <BasisTable rows={basisRows} />
         </Panel>
       </section>
@@ -806,12 +806,12 @@ function DashboardWorkspace({
                   options={chartOptions}
                 />
               </Panel>
-              <Panel title="Electrical efficiency" meta="Units / MT">
+              <Panel title="Electrical efficiency" meta="KVAH / MT">
                 <Line
                   data={{
                     labels,
                     datasets: [
-                      dataset("Units / MT", visibleDays.map((d) => d.electrical.unitsPerMt), "#f3a712"),
+                      dataset("KVAH / MT", visibleDays.map((d) => d.electrical.unitsPerMt), "#f3a712"),
                       dataset("Power factor", visibleDays.map((d) => d.electrical.powerFactor), "#2f855a"),
                     ],
                   }}
@@ -1308,7 +1308,7 @@ function DailyTable({ days }: { days: ReportSnapshot["daily"] }) {
             <th>VSI TPH</th>
             <th>Run Hrs</th>
             <th>Loss Hrs</th>
-            <th>Units/MT</th>
+            <th>KVAH/MT</th>
             <th>Loader L/MT</th>
           </tr>
         </thead>
@@ -1369,7 +1369,7 @@ function BasisTable({ rows }: { rows: BasisRow[] }) {
             <th>Jaw TPH</th>
             <th>Cone TPH</th>
             <th>VSI TPH</th>
-            <th>Units/MT</th>
+            <th>KVAH/MT</th>
           </tr>
         </thead>
         <tbody>
@@ -1751,10 +1751,7 @@ function carryForwardFromPreviousRecord(base: CapturePayload, previous: DailyPla
     ...base.openingStock,
     ...previousCalculations.calculatedClosingStock,
   };
-  const bookOpening =
-    previous.date.slice(0, 7) === date.slice(0, 7)
-      ? { ...base.bookStock.monthlyOpening, ...previousPayload.bookStock.monthlyOpening }
-      : { ...base.bookStock.monthlyOpening, ...previousCalculations.calculatedBookStock };
+  const bookOpening = { ...base.bookStock.monthlyOpening, ...previousCalculations.calculatedBookStock };
   const equipmentHourMeters = {
     jaw: carryEquipmentMeter(previousPayload, "jaw"),
     cone: carryEquipmentMeter(previousPayload, "cone"),

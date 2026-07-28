@@ -63,7 +63,7 @@ function fallbackCommentary(snapshot: Omit<ReportSnapshot, "commentary">) {
     `Production closed at ${inrNumber(totals.productionMt)} MT against ${inrNumber(totals.targetMt)} MT target, with ${totals.achievementPct}% achievement.`,
     `Dispatch was ${inrNumber(totals.dispatchMt)} MT, equal to ${totals.dispatchToProductionPct}% of production for the selected period.`,
     `Average Jaw/VSI TPH was ${totals.avgJawTph}/${totals.avgVsiTph}; review days below the weekly average before locking the next plan.`,
-    `Electrical consumption averaged ${totals.avgUnitsPerMt} units/MT; prioritise checks on days above this level.`,
+    `Electrical consumption averaged ${totals.avgUnitsPerMt} KVAH/MT; prioritise checks on days above this level.`,
     `Loader diesel consumption was ${inrNumber(totals.dieselLitres)} litres; monitor litres/MT alongside dispatch mix.`,
   ];
 

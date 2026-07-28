@@ -84,7 +84,7 @@ export function validateDailySnapshots(days: DailySnapshot[]): ValidationResult 
         code: "HIGH_UNITS_PER_MT",
         date: day.date,
         field: "electrical.unitsPerMt",
-        message: `Units/MT is ${round(day.electrical.unitsPerMt)}, which is above the configured review threshold.`,
+        message: `KVAH/MT is ${round(day.electrical.unitsPerMt)}, which is above the configured review threshold.`,
       });
     }
 

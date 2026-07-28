@@ -146,6 +146,12 @@ async function applyMonthlyParameters(payload: CapturePayload): Promise<CaptureP
     endDate: monthEnd,
   });
   const sourceWithBookStock = monthRecords.find((record) => hasAnyProductValue(record.bookStock?.monthlyOpening));
+  const previousBookRecord = monthRecords
+    .filter((record) => record.date < payload.date)
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  const previousBookOpening = previousBookRecord
+    ? previousBookRecord.calculations?.calculatedBookStock ?? previousBookRecord.bookStock.calculatedClosing
+    : undefined;
   const sourceWithDieselRate = monthRecords.find((record) => (record.loader?.dieselRate ?? 0) > 0);
   const weekRange = weekBounds(payload.date);
   const weekRecords = monthRecords.filter((record) => record.date >= weekRange.start && record.date <= weekRange.end);
@@ -155,9 +161,11 @@ async function applyMonthlyParameters(payload: CapturePayload): Promise<CaptureP
     ...payload,
     bookStock: {
       ...payload.bookStock,
-      monthlyOpening: hasAnyProductValue(payload.bookStock.monthlyOpening)
-        ? payload.bookStock.monthlyOpening
-        : sourceWithBookStock?.bookStock?.monthlyOpening ?? payload.bookStock.monthlyOpening,
+      monthlyOpening:
+        previousBookOpening ??
+        (hasAnyProductValue(payload.bookStock.monthlyOpening)
+          ? payload.bookStock.monthlyOpening
+          : sourceWithBookStock?.bookStock?.monthlyOpening ?? payload.openingStock),
     },
     loader: {
       ...payload.loader,
