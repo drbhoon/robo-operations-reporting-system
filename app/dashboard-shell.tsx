@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   ClipboardCheck,
   Database,
+  Download,
   FileUp,
   Lock,
   Presentation,
@@ -147,6 +148,7 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
   const [reportPlantCode, setReportPlantCode] = useState(initialSnapshot?.plantCode ?? initialPayload(initialRecords).plantCode);
   const [reportType, setReportType] = useState<"DAILY" | "WEEKLY" | "MONTHLY">("WEEKLY");
   const fileRef = useRef<HTMLInputElement>(null);
+  const backfillFileRef = useRef<HTMLInputElement>(null);
 
   const previewRecord = useMemo(() => {
     const materializedForm = materializeCalculatedFields(form);
@@ -257,6 +259,42 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
       setStatus("Reference Excel snapshot imported. Use it only for reconciliation, not daily operations.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Import failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function uploadBackfill() {
+    const file = backfillFileRef.current?.files?.[0];
+    if (!file) {
+      setStatus("Choose the completed Apr-Jul backfill CSV or XLSX first.");
+      return;
+    }
+
+    setBusy(true);
+    setStatus("Uploading historical daily records...");
+    const upload = new FormData();
+    upload.append("file", file);
+
+    try {
+      const response = await fetch("/api/backfill-upload", { method: "POST", body: upload });
+      const body = (await response.json()) as {
+        error?: string;
+        imported?: number;
+        rejected?: Array<{ rowNumber: number; message: string }>;
+        totalRows?: number;
+      };
+      if (!response.ok) throw new Error(body.error ?? "Backfill upload failed");
+
+      const recordsResponse = await fetch("/api/daily-records");
+      const recordsBody = (await recordsResponse.json()) as { records?: DailyPlantRecord[] };
+      if (recordsBody.records) setRecords(recordsBody.records);
+
+      const rejected = body.rejected ?? [];
+      const firstError = rejected[0] ? ` First issue: row ${rejected[0].rowNumber}: ${rejected[0].message}` : "";
+      setStatus(`Backfill processed ${body.totalRows ?? 0} rows. Imported ${body.imported ?? 0}; rejected ${rejected.length}.${firstError}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Backfill upload failed");
     } finally {
       setBusy(false);
     }
@@ -385,6 +423,7 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
 
       {activeTab === "reports" ? (
         <ReportsWorkspace
+          backfillFileRef={backfillFileRef}
           busy={busy}
           buildSnapshot={buildSnapshot}
           endDate={endDate}
@@ -399,6 +438,7 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
           setStartDate={setStartDate}
           snapshot={snapshot}
           startDate={startDate}
+          uploadBackfill={uploadBackfill}
         />
       ) : null}
 
@@ -1050,6 +1090,7 @@ function ExceptionDashboard({ exceptionRecords }: { exceptionRecords: DailyPlant
 }
 
 function ReportsWorkspace({
+  backfillFileRef,
   busy,
   buildSnapshot,
   endDate,
@@ -1064,7 +1105,9 @@ function ReportsWorkspace({
   setStartDate,
   snapshot,
   startDate,
+  uploadBackfill,
 }: {
+  backfillFileRef: React.RefObject<HTMLInputElement | null>;
   busy: boolean;
   buildSnapshot: () => void;
   endDate: string;
@@ -1079,6 +1122,7 @@ function ReportsWorkspace({
   setStartDate: (value: string) => void;
   snapshot: ReportSnapshot | null;
   startDate: string;
+  uploadBackfill: () => void;
 }) {
   return (
     <section className="reports-grid">
@@ -1115,6 +1159,27 @@ function ReportsWorkspace({
           <button className="btn" disabled={busy || !snapshot || !snapshot.validation.valid} onClick={generatePpt}>
             <Presentation size={16} />
             Generate PPT
+          </button>
+        </div>
+      </Panel>
+
+      <Panel title="Historical backfill upload" meta="Apr, May, Jun and Jul 2026">
+        <div className="commentary">
+          <p>Download the flat template, fill one row per plant-date, then upload the completed CSV or XLSX. Accepted rows are saved as final daily records and can feed snapshots immediately.</p>
+        </div>
+        <div className="form-actions">
+          <a className="btn" href="/api/backfill-template">
+            <Download size={16} />
+            Download Apr-Jul template
+          </a>
+          <label className="file-control">
+            <FileUp size={16} />
+            <input ref={backfillFileRef} aria-label="Upload Apr-Jul backfill file" type="file" accept=".csv,.xlsx" hidden />
+            Backfill file
+          </label>
+          <button className="btn primary" disabled={busy} onClick={uploadBackfill}>
+            <RefreshCw size={16} />
+            Upload final data
           </button>
         </div>
       </Panel>
