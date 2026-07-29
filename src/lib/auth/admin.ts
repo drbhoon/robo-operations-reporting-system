@@ -64,10 +64,10 @@ export async function getAdminSession(): Promise<AdminSession | null> {
   };
 }
 
-export async function requireAdminSession(): Promise<AdminSession> {
+export async function requireAdminSession(returnTo = "/operations"): Promise<AdminSession> {
   const session = await getAdminSession();
   if (session) return session;
-  redirect("/login");
+  redirect(`/login?return_to=${encodeURIComponent(safeRelativeReturnPath(returnTo))}`);
 }
 
 function signPayload(payload: SessionPayload) {
@@ -94,6 +94,17 @@ function verifyToken(token: string): SessionPayload | null {
 
 function sessionSecret() {
   return process.env.ROBOOPS_SESSION_SECRET || process.env[ADMIN_PASSWORD_ENV] || "local-dev-session-secret";
+}
+
+function safeRelativeReturnPath(value: string) {
+  if (!value.startsWith("/") || value.startsWith("//")) return "/operations";
+  try {
+    const url = new URL(value, "https://robo.rdcc.ai");
+    if (url.origin !== "https://robo.rdcc.ai") return "/operations";
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return "/operations";
+  }
 }
 
 function secureEqual(left: string, right: string) {

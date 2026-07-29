@@ -7,11 +7,12 @@ export const metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ error?: string }>;
+  searchParams?: Promise<{ error?: string; return_to?: string }>;
 }) {
   const params = (await searchParams) ?? {};
   const configured = isAdminConfigured();
   const hasError = params.error === "1";
+  const returnTo = safeReturnTo(params.return_to);
 
   return (
     <main className="login-shell">
@@ -37,6 +38,7 @@ export default async function LoginPage({
         {hasError ? <div className="alert-card">Invalid admin username or password.</div> : null}
 
         <form action="/api/auth/login" className="login-form" method="post">
+          <input name="return_to" type="hidden" value={returnTo} />
           <label className="field">
             <span>Username</span>
             <input autoComplete="username" defaultValue={adminUsername()} name="username" required />
@@ -52,4 +54,9 @@ export default async function LoginPage({
       </section>
     </main>
   );
+}
+
+function safeReturnTo(value: string | undefined) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/operations";
+  return value;
 }

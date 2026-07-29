@@ -7,11 +7,17 @@ export async function POST(request: Request) {
   const form = await request.formData();
   const username = String(form.get("username") ?? "");
   const password = String(form.get("password") ?? "");
+  const returnTo = safeReturnTo(String(form.get("return_to") ?? ""));
 
   if (!verifyAdminCredentials(username, password)) {
-    return NextResponse.redirect(new URL("/login?error=1", request.url), { status: 303 });
+    return NextResponse.redirect(new URL(`/login?error=1&return_to=${encodeURIComponent(returnTo)}`, request.url), { status: 303 });
   }
 
   await createAdminSession(username.trim());
-  return NextResponse.redirect(new URL("/", request.url), { status: 303 });
+  return NextResponse.redirect(new URL(returnTo, request.url), { status: 303 });
+}
+
+function safeReturnTo(value: string) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/operations";
+  return value;
 }

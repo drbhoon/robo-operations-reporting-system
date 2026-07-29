@@ -304,6 +304,94 @@ h1 {
   padding: 24px;
 }
 
+.portal-shell {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 56px;
+}
+
+.portal-hero {
+  margin-bottom: 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+
+.portal-logo {
+  width: 136px;
+  min-width: 136px;
+  height: 84px;
+}
+
+.portal-app-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.portal-app-card {
+  display: grid;
+  min-height: 260px;
+  align-content: start;
+  gap: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--foreground);
+  padding: 20px;
+  text-decoration: none;
+  box-shadow: var(--shadow);
+}
+
+.portal-app-card.active:hover {
+  border-color: var(--accent);
+}
+
+.portal-app-card h2 {
+  margin: 0 0 8px;
+  color: var(--navy);
+  font-size: 20px;
+}
+
+.portal-app-card p {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.portal-app-card ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.portal-app-card li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.portal-app-icon {
+  display: inline-grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--panel-muted);
+  color: var(--accent);
+}
+
+.muted-card {
+  opacity: 0.68;
+}
+
 .login-card {
   display: grid;
   width: min(480px, 100%);
@@ -785,6 +873,15 @@ td {
 
   .brand-block {
     flex-direction: column;
+  }
+
+  .portal-shell {
+    width: min(100% - 20px, 1180px);
+    padding-top: 14px;
+  }
+
+  .portal-app-grid {
+    grid-template-columns: 1fr;
   }
 
   h1 {
