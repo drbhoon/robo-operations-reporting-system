@@ -134,8 +134,32 @@ type CopProjectionRow = {
 type BackfillUploadResult = {
   accepted: Array<{ date: string; plantCode: string; rowNumber: number }>;
   imported: number;
-  rejected: Array<{ date?: string; message: string; plantCode?: string; rowNumber: number }>;
+  rejected: BackfillRejectedRow[];
   totalRows: number;
+};
+type BackfillRejectedRow = {
+  date?: string;
+  diagnostics?: {
+    availableHours: number;
+    calculatedLossHours: number;
+    dispatchTotal: number;
+    lossDetailTotal: number;
+    productMixPercentageTotal: number;
+    productMixTotal: number;
+    productionHours: number;
+    productionMt: number;
+    scheduledStoppageHours: number;
+  };
+  issueCount?: number;
+  issues?: Array<{
+    code: string;
+    field?: string;
+    message: string;
+    severity: string;
+  }>;
+  message: string;
+  plantCode?: string;
+  rowNumber: number;
 };
 
 const fmt = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
@@ -1264,6 +1288,9 @@ function BackfillResultPanel({ result }: { result: BackfillUploadResult }) {
   const monthRows = buildBackfillMonthRows(result);
   return (
     <div className="backfill-result">
+      <p className="muted">
+        Only imported rows are saved as final daily records. Rejected rows do not appear in dashboards, snapshots, or PPT until the source workbook is corrected and uploaded again.
+      </p>
       <MetricList
         items={[
           ["Rows processed", String(result.totalRows)],
@@ -1298,13 +1325,21 @@ function BackfillResultPanel({ result }: { result: BackfillUploadResult }) {
         </p>
       ) : null}
       {result.rejected.length ? (
+        <div className="form-actions compact-actions">
+          <button className="btn" onClick={() => downloadBackfillErrorReport(result)}>
+            <Download size={16} />
+            Download correction report CSV
+          </button>
+        </div>
+      ) : null}
+      {result.rejected.length ? (
         <div className="table-shell compact-table">
           <table>
             <thead>
               <tr>
                 <th>Row</th>
                 <th>Date</th>
-                <th>First issue</th>
+                <th>Issue summary</th>
               </tr>
             </thead>
             <tbody>
@@ -1321,6 +1356,71 @@ function BackfillResultPanel({ result }: { result: BackfillUploadResult }) {
       ) : null}
     </div>
   );
+}
+
+function downloadBackfillErrorReport(result: BackfillUploadResult) {
+  const rows = result.rejected.flatMap((row) => {
+    const issues = row.issues?.length
+      ? row.issues
+      : [{ code: "UPLOAD_ERROR", field: "", message: row.message, severity: "ERROR" }];
+    return issues.map((issue) => ({
+      row_number: row.rowNumber,
+      plant_code: row.plantCode ?? "",
+      report_date: row.date ?? "",
+      severity: issue.severity,
+      issue_code: issue.code,
+      field: issue.field ?? "",
+      issue_message: issue.message,
+      correction_hint: correctionHint(issue.code),
+      available_hours: row.diagnostics?.availableHours ?? "",
+      production_hours: row.diagnostics?.productionHours ?? "",
+      scheduled_stoppage_hours: row.diagnostics?.scheduledStoppageHours ?? "",
+      calculated_loss_hours: row.diagnostics?.calculatedLossHours ?? "",
+      entered_loss_detail_total: row.diagnostics?.lossDetailTotal ?? "",
+      production_mt: row.diagnostics?.productionMt ?? "",
+      product_mix_total_mt: row.diagnostics?.productMixTotal ?? "",
+      product_mix_percentage_total: row.diagnostics?.productMixPercentageTotal ?? "",
+      dispatch_total_mt: row.diagnostics?.dispatchTotal ?? "",
+    }));
+  });
+
+  const csv = toCsv(rows);
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `backfill-correction-report-${todayIso()}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function correctionHint(code: string) {
+  const hints: Record<string, string> = {
+    LOSS_HOURS_RECONCILIATION: "Correct production hours, scheduled stoppage, or loss detail hours so calculated loss equals entered loss detail total.",
+    PLANT_HOURS_RECONCILIATION: "Available hours must equal production hours plus scheduled stoppage plus loss hours.",
+    PLANT_LOSS_COMMENT_REQUIRED: "Enter comments for every plant loss category where hours are greater than zero.",
+    PRODUCTION_PRODUCT_MIX_RECONCILIATION: "Product mix quantities must equal total production. If using percentages, ensure percentages total 100.",
+    PRODUCT_MIX_PERCENT_TOTAL: "Product mix percentages must total 100 percent.",
+    REMARKS_REQUIRED: "Add meaningful remarks for major deviations or warnings.",
+    STOCK_RECONCILIATION: "Closing stock must match opening stock plus production minus dispatch plus stock adjustment.",
+    BOOK_STOCK_RECONCILIATION: "Book stock must follow monthly opening plus production minus dispatch plus stock movement.",
+    MANDATORY_FIELD: "Fill the required field in the upload template.",
+    MANDATORY_POSITIVE_VALUE: "Enter a value greater than zero for this mandatory field.",
+  };
+  return hints[code] ?? "Review the issue message, correct the source workbook row, and upload again.";
+}
+
+function toCsv(rows: Array<Record<string, string | number>>) {
+  if (!rows.length) return "";
+  const headers = Object.keys(rows[0]);
+  return [
+    headers.join(","),
+    ...rows.map((row) => headers.map((header) => csvCell(String(row[header] ?? ""))).join(",")),
+  ].join("\n");
+}
+
+function csvCell(value: string) {
+  return /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
 function buildBackfillMonthRows(result: BackfillUploadResult) {
