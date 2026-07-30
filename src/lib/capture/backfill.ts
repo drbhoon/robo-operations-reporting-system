@@ -176,6 +176,8 @@ function rowsToPayloads(rows: unknown[][]): BackfillParseResult {
 }
 
 function isOperationalBlankRow(row: Record<string, unknown>) {
+  if (!text(row.plant_code) && !text(row.report_date)) return true;
+
   const nonOperationalHeaders = new Set([
     "plant_code",
     "report_date",
@@ -232,9 +234,9 @@ function rowToPayload(row: Record<string, unknown>): CapturePayload {
     },
     tph: { jaw: 0, cone: 0, vsi: 0 },
     plantHours: {
-      available: num(row.available_hours),
-      production: num(row.production_hours),
-      scheduledStoppage: num(row.scheduled_stoppage_hours),
+      available: durationHours(row.available_hours),
+      production: durationHours(row.production_hours),
+      scheduledStoppage: durationHours(row.scheduled_stoppage_hours),
       loss: 0,
     },
     lossHours: Object.fromEntries(LOSS_CATEGORIES.map((category) => [category, 0])) as CapturePayload["lossHours"],
@@ -242,7 +244,7 @@ function rowToPayload(row: Record<string, unknown>): CapturePayload {
       LOSS_COLUMNS.map(([category, key]) => [
         category,
         {
-          hours: num(row[`${key}_hours`]),
+          hours: durationHours(row[`${key}_hours`]),
           comments: text(row[`${key}_comments`]),
         },
       ]),
@@ -413,6 +415,31 @@ function num(value: unknown) {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   const parsed = Number(text(value).replace(/,/g, ""));
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function durationHours(value: unknown) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.getUTCHours() + value.getUTCMinutes() / 60 + value.getUTCSeconds() / 3600;
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) return 0;
+    return value > 0 && value <= 1 ? value * 24 : value;
+  }
+
+  const raw = text(value);
+  if (!raw) return 0;
+  const hhmm = raw.match(/^(\d{1,3}):(\d{2})(?::(\d{2}))?$/);
+  if (hhmm) {
+    const [, hour, minute, second = "0"] = hhmm;
+    return Number(hour) + Number(minute) / 60 + Number(second) / 3600;
+  }
+
+  const date = new Date(raw);
+  if (!Number.isNaN(date.getTime()) && raw.includes("T")) {
+    return date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
+  }
+
+  return num(value);
 }
 
 function bool(value: unknown, fallback: boolean) {

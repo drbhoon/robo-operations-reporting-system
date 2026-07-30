@@ -143,6 +143,7 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
   const [form, setForm] = useState<CapturePayload>(() => initialPayload(initialRecords));
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [backfillFileName, setBackfillFileName] = useState("");
   const [startDate, setStartDate] = useState(initialSnapshot?.period.start ?? todayIso());
   const [endDate, setEndDate] = useState(initialSnapshot?.period.end ?? todayIso());
   const [reportPlantCode, setReportPlantCode] = useState(initialSnapshot?.plantCode ?? initialPayload(initialRecords).plantCode);
@@ -424,6 +425,7 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
       {activeTab === "reports" ? (
         <ReportsWorkspace
           backfillFileRef={backfillFileRef}
+          backfillFileName={backfillFileName}
           busy={busy}
           buildSnapshot={buildSnapshot}
           endDate={endDate}
@@ -438,6 +440,11 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
           setStartDate={setStartDate}
           snapshot={snapshot}
           startDate={startDate}
+          status={status}
+          onBackfillFileSelected={(fileName) => {
+            setBackfillFileName(fileName);
+            setStatus(fileName ? `Selected ${fileName}. Press Upload final data to import.` : null);
+          }}
           uploadBackfill={uploadBackfill}
         />
       ) : null}
@@ -1091,6 +1098,7 @@ function ExceptionDashboard({ exceptionRecords }: { exceptionRecords: DailyPlant
 
 function ReportsWorkspace({
   backfillFileRef,
+  backfillFileName,
   busy,
   buildSnapshot,
   endDate,
@@ -1105,9 +1113,12 @@ function ReportsWorkspace({
   setStartDate,
   snapshot,
   startDate,
+  status,
+  onBackfillFileSelected,
   uploadBackfill,
 }: {
   backfillFileRef: React.RefObject<HTMLInputElement | null>;
+  backfillFileName: string;
   busy: boolean;
   buildSnapshot: () => void;
   endDate: string;
@@ -1122,6 +1133,8 @@ function ReportsWorkspace({
   setStartDate: (value: string) => void;
   snapshot: ReportSnapshot | null;
   startDate: string;
+  status: string | null;
+  onBackfillFileSelected: (fileName: string) => void;
   uploadBackfill: () => void;
 }) {
   return (
@@ -1167,6 +1180,7 @@ function ReportsWorkspace({
         <div className="commentary">
           <p>Download the flat template, fill one row per plant-date, then upload the completed CSV or XLSX. Accepted rows are saved as final daily records and can feed snapshots immediately.</p>
         </div>
+        {status ? <p className="status-line">{status}</p> : null}
         <div className="form-actions">
           <a className="btn" href="/api/backfill-template">
             <Download size={16} />
@@ -1174,8 +1188,15 @@ function ReportsWorkspace({
           </a>
           <label className="file-control">
             <FileUp size={16} />
-            <input ref={backfillFileRef} aria-label="Upload Apr-Jul backfill file" type="file" accept=".csv,.xlsx" hidden />
-            Backfill file
+            <input
+              ref={backfillFileRef}
+              aria-label="Upload Apr-Jul backfill file"
+              type="file"
+              accept=".csv,.xlsx"
+              hidden
+              onChange={(event) => onBackfillFileSelected(event.target.files?.[0]?.name ?? "")}
+            />
+            {backfillFileName || "Backfill file"}
           </label>
           <button className="btn primary" disabled={busy} onClick={uploadBackfill}>
             <RefreshCw size={16} />
