@@ -703,6 +703,21 @@ h1 {
   font-size: 13px;
 }
 
+.backfill-result {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.compact-actions {
+  margin-bottom: 0;
+}
+
+.compact-table {
+  max-height: 280px;
+  overflow: auto;
+}
+
 .grid {
   display: grid;
   gap: 14px;
