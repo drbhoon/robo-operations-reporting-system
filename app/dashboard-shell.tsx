@@ -131,6 +131,12 @@ type CopProjectionRow = {
   value: number;
   suffix?: string;
 };
+type BackfillUploadResult = {
+  accepted: Array<{ date: string; plantCode: string; rowNumber: number }>;
+  imported: number;
+  rejected: Array<{ date?: string; message: string; plantCode?: string; rowNumber: number }>;
+  totalRows: number;
+};
 
 const fmt = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const pct = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1, style: "percent" });
@@ -144,6 +150,7 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [backfillFileName, setBackfillFileName] = useState("");
+  const [backfillResult, setBackfillResult] = useState<BackfillUploadResult | null>(null);
   const [startDate, setStartDate] = useState(initialSnapshot?.period.start ?? todayIso());
   const [endDate, setEndDate] = useState(initialSnapshot?.period.end ?? todayIso());
   const [reportPlantCode, setReportPlantCode] = useState(initialSnapshot?.plantCode ?? initialPayload(initialRecords).plantCode);
@@ -273,6 +280,7 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
     }
 
     setBusy(true);
+    setBackfillResult(null);
     setStatus("Uploading historical daily records...");
     const upload = new FormData();
     upload.append("file", file);
@@ -280,9 +288,10 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
     try {
       const response = await fetch("/api/backfill-upload", { method: "POST", body: upload });
       const body = (await response.json()) as {
+        accepted?: BackfillUploadResult["accepted"];
         error?: string;
         imported?: number;
-        rejected?: Array<{ rowNumber: number; message: string }>;
+        rejected?: BackfillUploadResult["rejected"];
         totalRows?: number;
       };
       if (!response.ok) throw new Error(body.error ?? "Backfill upload failed");
@@ -292,6 +301,12 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
       if (recordsBody.records) setRecords(recordsBody.records);
 
       const rejected = body.rejected ?? [];
+      setBackfillResult({
+        accepted: body.accepted ?? [],
+        imported: body.imported ?? 0,
+        rejected,
+        totalRows: body.totalRows ?? 0,
+      });
       const firstError = rejected[0] ? ` First issue: row ${rejected[0].rowNumber}: ${rejected[0].message}` : "";
       setStatus(`Backfill processed ${body.totalRows ?? 0} rows. Imported ${body.imported ?? 0}; rejected ${rejected.length}.${firstError}`);
     } catch (error) {
@@ -426,6 +441,7 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
         <ReportsWorkspace
           backfillFileRef={backfillFileRef}
           backfillFileName={backfillFileName}
+          backfillResult={backfillResult}
           busy={busy}
           buildSnapshot={buildSnapshot}
           endDate={endDate}
@@ -443,6 +459,7 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
           status={status}
           onBackfillFileSelected={(fileName) => {
             setBackfillFileName(fileName);
+            setBackfillResult(null);
             setStatus(fileName ? `Selected ${fileName}. Press Upload final data to import.` : null);
           }}
           uploadBackfill={uploadBackfill}
@@ -1099,6 +1116,7 @@ function ExceptionDashboard({ exceptionRecords }: { exceptionRecords: DailyPlant
 function ReportsWorkspace({
   backfillFileRef,
   backfillFileName,
+  backfillResult,
   busy,
   buildSnapshot,
   endDate,
@@ -1119,6 +1137,7 @@ function ReportsWorkspace({
 }: {
   backfillFileRef: React.RefObject<HTMLInputElement | null>;
   backfillFileName: string;
+  backfillResult: BackfillUploadResult | null;
   busy: boolean;
   buildSnapshot: () => void;
   endDate: string;
@@ -1203,6 +1222,7 @@ function ReportsWorkspace({
             Upload final data
           </button>
         </div>
+        {backfillResult ? <BackfillResultPanel result={backfillResult} /> : null}
       </Panel>
 
       <Panel title="Excel reconciliation utility" meta="Temporary">
@@ -1238,6 +1258,89 @@ function ReportsWorkspace({
       </Panel>
     </section>
   );
+}
+
+function BackfillResultPanel({ result }: { result: BackfillUploadResult }) {
+  const monthRows = buildBackfillMonthRows(result);
+  return (
+    <div className="backfill-result">
+      <MetricList
+        items={[
+          ["Rows processed", String(result.totalRows)],
+          ["Imported", String(result.imported)],
+          ["Rejected", String(result.rejected.length)],
+        ]}
+      />
+      <div className="table-shell compact-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Accepted</th>
+              <th>Rejected</th>
+            </tr>
+          </thead>
+          <tbody>
+            {monthRows.map((row) => (
+              <tr key={row.month}>
+                <td>{row.month}</td>
+                <td>{row.accepted}</td>
+                <td>{row.rejected}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {result.accepted.length ? (
+        <p className="muted">
+          Accepted dates: {result.accepted.slice(0, 8).map((row) => formatDisplayDate(row.date)).join(", ")}
+          {result.accepted.length > 8 ? ` and ${result.accepted.length - 8} more` : ""}
+        </p>
+      ) : null}
+      {result.rejected.length ? (
+        <div className="table-shell compact-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Row</th>
+                <th>Date</th>
+                <th>First issue</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.rejected.slice(0, 8).map((row) => (
+                <tr key={`${row.rowNumber}-${row.date ?? "blank"}`}>
+                  <td>{row.rowNumber}</td>
+                  <td>{row.date ? formatDisplayDate(row.date) : "-"}</td>
+                  <td>{row.message}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function buildBackfillMonthRows(result: BackfillUploadResult) {
+  const months = new Map<string, { accepted: number; rejected: number }>();
+  const ensure = (date?: string) => {
+    const key = date?.slice(0, 7) || "No date";
+    const current = months.get(key) ?? { accepted: 0, rejected: 0 };
+    months.set(key, current);
+    return current;
+  };
+
+  for (const row of result.accepted) ensure(row.date).accepted += 1;
+  for (const row of result.rejected) ensure(row.date).rejected += 1;
+
+  return [...months.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, counts]) => ({
+      month: month === "No date" ? month : formatMonthLabel(month),
+      ...counts,
+    }));
 }
 
 function Kpi({ title, value, detail }: { title: string; value: string; detail: string }) {
@@ -2135,6 +2238,16 @@ function formatDisplayDate(date: string) {
   if (Number.isNaN(parsed.getTime())) return date;
   return parsed.toLocaleDateString("en-IN", {
     day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function formatMonthLabel(month: string) {
+  const parsed = new Date(`${month}-01T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) return month;
+  return parsed.toLocaleDateString("en-IN", {
     month: "long",
     year: "numeric",
     timeZone: "UTC",

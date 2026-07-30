@@ -15,7 +15,8 @@ export async function POST(request: Request) {
   }
 
   const parsed = await parseBackfillFile(await file.arrayBuffer(), file.name);
-  const rejected = [...parsed.errors];
+  const rejected: Array<{ date?: string; message: string; plantCode?: string; rowNumber: number }> = [...parsed.errors];
+  const accepted: Array<{ date: string; plantCode: string; rowNumber: number }> = [];
   let imported = 0;
 
   for (const item of parsed.payloads) {
@@ -28,8 +29,15 @@ export async function POST(request: Request) {
 
     if (result.accepted) {
       imported += 1;
+      accepted.push({
+        date: item.payload.date,
+        plantCode: item.payload.plantCode,
+        rowNumber: item.rowNumber,
+      });
     } else {
       rejected.push({
+        date: item.payload.date,
+        plantCode: item.payload.plantCode,
         rowNumber: item.rowNumber,
         message: result.validation.issues.map((issue) => issue.message).join(" "),
       });
@@ -37,6 +45,7 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({
+    accepted,
     imported,
     rejected,
     totalRows: parsed.totalRows,
