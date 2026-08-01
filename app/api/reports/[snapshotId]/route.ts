@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdminSession } from "@/src/lib/auth/admin";
+import { canAccessPlant, requireAdminSession } from "@/src/lib/auth/admin";
 import { getSnapshot } from "@/src/lib/reporting/store";
 import { loadSampleSnapshot } from "@/src/lib/reporting/sample";
 import { generatePowerPoint } from "@/src/lib/reporting/ppt";
@@ -10,13 +10,16 @@ export async function POST(
   _request: Request,
   context: { params: Promise<{ snapshotId: string }> },
 ) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   const { snapshotId } = await context.params;
   const sample = await loadSampleSnapshot();
   const snapshot = (await getSnapshot(snapshotId)) ?? (sample?.id === snapshotId ? sample : null);
 
   if (!snapshot) {
     return NextResponse.json({ error: "Snapshot not found." }, { status: 404 });
+  }
+  if (!canAccessPlant(session, snapshot.plantCode)) {
+    return NextResponse.json({ error: `Access denied for plant ${snapshot.plantCode}.` }, { status: 403 });
   }
 
   if (!snapshot.validation.valid) {

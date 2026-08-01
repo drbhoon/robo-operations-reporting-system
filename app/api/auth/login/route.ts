@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAdminSession, verifyAdminCredentials } from "@/src/lib/auth/admin";
+import { authenticateCredentials, createAdminSession } from "@/src/lib/auth/admin";
 
 export const runtime = "nodejs";
 
@@ -9,11 +9,12 @@ export async function POST(request: Request) {
   const password = String(form.get("password") ?? "");
   const returnTo = safeReturnTo(String(form.get("return_to") ?? ""));
 
-  if (!verifyAdminCredentials(username, password)) {
+  const session = await authenticateCredentials(username, password);
+  if (!session) {
     return NextResponse.redirect(new URL(`/login?error=1&return_to=${encodeURIComponent(returnTo)}`, request.url), { status: 303 });
   }
 
-  await createAdminSession(username.trim());
+  await createAdminSession(session);
   return NextResponse.redirect(new URL(returnTo, request.url), { status: 303 });
 }
 

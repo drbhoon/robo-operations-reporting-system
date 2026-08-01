@@ -28,8 +28,12 @@ import {
   RefreshCw,
   Save,
   Send,
+  ShieldCheck,
+  Trash2,
+  UserPlus,
 } from "lucide-react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
+import type { AppSession, PlantUserSummary, UserRole } from "@/src/lib/auth/admin";
 import { calculateDailyRecord, domesticMeterMfFor, materializeCalculatedFields, mirroredLoaderDispatchPlant } from "@/src/lib/capture/calculations";
 import {
   CAPTURE_PRODUCTS,
@@ -89,12 +93,14 @@ ChartJS.register(
 );
 
 type Props = {
-  adminUsername: string;
+  allowedPlantCodes?: string[];
+  initialPlantUsers: PlantUserSummary[];
   initialSnapshot: ReportSnapshot | null;
   initialRecords: DailyPlantRecord[];
+  session: AppSession;
 };
 
-type WorkspaceTab = "capture" | "dashboard" | "reports";
+type WorkspaceTab = "capture" | "dashboard" | "reports" | "access";
 type DashboardView = "daily" | "weekly" | "monthly" | "trends" | "exceptions";
 type SnapshotDay = ReportSnapshot["daily"][number];
 type BasisRow = {
@@ -135,17 +141,23 @@ type CopProjectionRow = {
 const fmt = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const pct = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1, style: "percent" });
 
-export function DashboardShell({ adminUsername, initialSnapshot, initialRecords }: Props) {
+export function DashboardShell({ allowedPlantCodes, initialPlantUsers, initialSnapshot, initialRecords, session }: Props) {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("capture");
   const [dashboardView, setDashboardView] = useState<DashboardView>("daily");
   const [records, setRecords] = useState(initialRecords);
   const [snapshot, setSnapshot] = useState(initialSnapshot);
-  const [form, setForm] = useState<CapturePayload>(() => initialPayload(initialRecords));
+  const plantOptions = useMemo(() => {
+    const allowed = new Set(allowedPlantCodes ?? PLANT_CONFIGS.map((plant) => plant.code));
+    return PLANT_CONFIGS.filter((plant) => allowed.has(plant.code));
+  }, [allowedPlantCodes]);
+  const [form, setForm] = useState<CapturePayload>(() => initialPayload(initialRecords, plantOptions[0]?.code));
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [plantUsers, setPlantUsers] = useState(initialPlantUsers);
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
   const [startDate, setStartDate] = useState(initialSnapshot?.period.start ?? todayIso());
   const [endDate, setEndDate] = useState(initialSnapshot?.period.end ?? todayIso());
-  const [reportPlantCode, setReportPlantCode] = useState(initialSnapshot?.plantCode ?? initialPayload(initialRecords).plantCode);
+  const [reportPlantCode, setReportPlantCode] = useState(initialSnapshot?.plantCode ?? plantOptions[0]?.code ?? initialPayload(initialRecords, plantOptions[0]?.code).plantCode);
   const [reportType, setReportType] = useState<"DAILY" | "WEEKLY" | "MONTHLY">("WEEKLY");
   const fileRef = useRef<HTMLInputElement>(null);
   const backfillFileRef = useRef<HTMLInputElement>(null);
@@ -212,7 +224,7 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
       const response = await fetch("/api/daily-records", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, record: form, actor: "operations-head" }),
+        body: JSON.stringify({ action, record: { ...form, submittedBy: session.username } }),
       });
       const body = (await response.json()) as {
         record?: DailyPlantRecord;
@@ -354,6 +366,53 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
     }
   }
 
+  async function assignPlantAccess(input: { email: string; name: string; plantCode: string }) {
+    setBusy(true);
+    setTemporaryPassword(null);
+    setStatus("Assigning plant access...");
+    try {
+      const response = await fetch("/api/admin/plant-users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const body = (await response.json()) as {
+        error?: string;
+        plantUsers?: PlantUserSummary[];
+        temporaryPassword?: string;
+      };
+      if (!response.ok) throw new Error(body.error ?? "Plant user assignment failed");
+      if (body.plantUsers) setPlantUsers(body.plantUsers);
+      setTemporaryPassword(body.temporaryPassword ?? null);
+      setStatus(`Plant access assigned for ${input.plantCode}. Share the temporary password once.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Plant user assignment failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function revokePlantAccess(accessId: string) {
+    setBusy(true);
+    setTemporaryPassword(null);
+    setStatus("Revoking plant access...");
+    try {
+      const response = await fetch("/api/admin/plant-users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessId }),
+      });
+      const body = (await response.json()) as { error?: string; plantUsers?: PlantUserSummary[] };
+      if (!response.ok) throw new Error(body.error ?? "Plant user revocation failed");
+      if (body.plantUsers) setPlantUsers(body.plantUsers);
+      setStatus("Plant access revoked. Existing sessions for that user are invalidated.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Plant user revocation failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const labels = visibleDays.map((d) => d.label);
   const productMix = aggregateProducts(visibleDays);
   const lossBuckets = aggregateLosses(visibleDays);
@@ -376,7 +435,7 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
           </div>
         </div>
         <div className="toolbar">
-          <span className="admin-chip">{adminUsername}</span>
+          <span className="admin-chip">{session.role === "SUPER_ADMIN" ? session.username : `${session.name} | ${session.plantCode}`}</span>
           <button className={tabClass(activeTab, "capture")} onClick={() => setActiveTab("capture")}>
             <ClipboardCheck size={16} />
             Capture
@@ -389,6 +448,12 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
             <Presentation size={16} />
             Reports
           </button>
+          {session.role === "SUPER_ADMIN" ? (
+            <button className={tabClass(activeTab, "access")} onClick={() => setActiveTab("access")}>
+              <ShieldCheck size={16} />
+              Access
+            </button>
+          ) : null}
           <a className="btn" href="/api/auth/logout">
             Sign out
           </a>
@@ -399,9 +464,11 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
         <CaptureWorkspace
           busy={busy}
           form={form}
+          plantOptions={plantOptions}
           previewRecord={previewRecord}
           records={records}
           setForm={setForm}
+          session={session}
           saveDraft={() => saveRecord("DRAFT")}
           submitFinal={() => saveRecord("SUBMIT")}
         />
@@ -431,6 +498,7 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
           generatePpt={generatePpt}
           importWorkbook={importWorkbook}
           plantCode={reportPlantCode}
+          plantOptions={plantOptions}
           reportType={reportType}
           setEndDate={setEndDate}
           setPlantCode={setReportPlantCode}
@@ -439,6 +507,17 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
           snapshot={snapshot}
           startDate={startDate}
           uploadBackfill={uploadBackfill}
+          userRole={session.role}
+        />
+      ) : null}
+
+      {activeTab === "access" && session.role === "SUPER_ADMIN" ? (
+        <AccessWorkspace
+          busy={busy}
+          onAssign={assignPlantAccess}
+          onRevoke={revokePlantAccess}
+          plantUsers={plantUsers}
+          temporaryPassword={temporaryPassword}
         />
       ) : null}
 
@@ -450,17 +529,21 @@ export function DashboardShell({ adminUsername, initialSnapshot, initialRecords 
 function CaptureWorkspace({
   busy,
   form,
+  plantOptions,
   previewRecord,
   records,
   setForm,
+  session,
   saveDraft,
   submitFinal,
 }: {
   busy: boolean;
   form: CapturePayload;
+  plantOptions: Array<(typeof PLANT_CONFIGS)[number]>;
   previewRecord: DailyPlantRecord;
   records: DailyPlantRecord[];
   setForm: (updater: CapturePayload | ((current: CapturePayload) => CapturePayload)) => void;
+  session: AppSession;
   saveDraft: () => void;
   submitFinal: () => void;
 }) {
@@ -470,9 +553,10 @@ function CaptureWorkspace({
         <Section title="Plant and date" meta="Mandatory" defaultOpen>
           <div className="form-grid four">
             <SelectField
+              disabled={session.role === "PLANT_USER"}
               label="Plant"
               value={form.plantCode}
-              options={PLANT_CONFIGS.map((plant) => ({ label: plant.name, value: plant.code }))}
+              options={plantOptions.map((plant) => ({ label: plant.name, value: plant.code }))}
               onChange={(value) => setPlant(setForm, value, records)}
             />
             <TextField disabled label="Plant name" value={form.plantName} onChange={(value) => setField(setForm, "plantName", value)} />
@@ -1089,6 +1173,99 @@ function ExceptionDashboard({ exceptionRecords }: { exceptionRecords: DailyPlant
   );
 }
 
+function AccessWorkspace({
+  busy,
+  onAssign,
+  onRevoke,
+  plantUsers,
+  temporaryPassword,
+}: {
+  busy: boolean;
+  onAssign: (input: { email: string; name: string; plantCode: string }) => void;
+  onRevoke: (accessId: string) => void;
+  plantUsers: PlantUserSummary[];
+  temporaryPassword: string | null;
+}) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [plantCode, setPlantCode] = useState(PLANT_CONFIGS[0]?.code ?? "");
+  const activeByPlant = new Map(plantUsers.map((user) => [user.plantCode, user]));
+
+  return (
+    <section className="reports-grid">
+      <Panel title="Assign plant access" meta="ROBOOPS only">
+        <div className="commentary">
+          <p>One active user is allowed per plant. Assigning a new user to a plant automatically revokes the previous assignment for that plant.</p>
+        </div>
+        <div className="form-grid two report-controls">
+          <SelectField
+            label="Plant"
+            value={plantCode}
+            options={PLANT_CONFIGS.map((plant) => ({ label: plant.name, value: plant.code }))}
+            onChange={setPlantCode}
+          />
+          <TextField label="Name" value={name} onChange={setName} />
+          <TextField label="Email" type="email" value={email} onChange={setEmail} />
+        </div>
+        <div className="form-actions">
+          <button
+            className="btn primary"
+            disabled={busy || !name.trim() || !email.trim() || !plantCode}
+            onClick={() => onAssign({ email, name, plantCode })}
+          >
+            <UserPlus size={16} />
+            Assign / replace user
+          </button>
+        </div>
+        {temporaryPassword ? (
+          <div className="status-line">
+            Temporary password: <strong>{temporaryPassword}</strong>
+          </div>
+        ) : null}
+      </Panel>
+
+      <Panel title="Current plant assignments" meta={`${plantUsers.length} active`}>
+        <div className="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>Plant</th>
+                <th>User</th>
+                <th>Email</th>
+                <th>Assigned</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {PLANT_CONFIGS.map((plant) => {
+                const access = activeByPlant.get(plant.code);
+                return (
+                  <tr key={plant.code}>
+                    <td>{plant.name}</td>
+                    <td>{access?.name ?? "Not assigned"}</td>
+                    <td>{access?.email ?? "-"}</td>
+                    <td>{access?.assignedAt ? formatDisplayDate(access.assignedAt.slice(0, 10)) : "-"}</td>
+                    <td>
+                      {access?.accessId ? (
+                        <button className="btn danger" disabled={busy} onClick={() => onRevoke(access.accessId!)}>
+                          <Trash2 size={16} />
+                          Revoke
+                        </button>
+                      ) : (
+                        <span className="muted">Open</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </section>
+  );
+}
+
 function ReportsWorkspace({
   backfillFileRef,
   busy,
@@ -1098,6 +1275,7 @@ function ReportsWorkspace({
   generatePpt,
   importWorkbook,
   plantCode,
+  plantOptions,
   reportType,
   setEndDate,
   setPlantCode,
@@ -1106,6 +1284,7 @@ function ReportsWorkspace({
   snapshot,
   startDate,
   uploadBackfill,
+  userRole,
 }: {
   backfillFileRef: React.RefObject<HTMLInputElement | null>;
   busy: boolean;
@@ -1115,6 +1294,7 @@ function ReportsWorkspace({
   generatePpt: () => void;
   importWorkbook: () => void;
   plantCode: string;
+  plantOptions: Array<(typeof PLANT_CONFIGS)[number]>;
   reportType: "DAILY" | "WEEKLY" | "MONTHLY";
   setEndDate: (value: string) => void;
   setPlantCode: (value: string) => void;
@@ -1123,15 +1303,17 @@ function ReportsWorkspace({
   snapshot: ReportSnapshot | null;
   startDate: string;
   uploadBackfill: () => void;
+  userRole: UserRole;
 }) {
   return (
     <section className="reports-grid">
       <Panel title="Generate locked dashboard snapshot" meta="Database to report">
         <div className="form-grid two report-controls">
           <SelectField
+            disabled={userRole === "PLANT_USER"}
             label="Plant"
             value={plantCode}
-            options={PLANT_CONFIGS.map((plant) => ({ label: plant.name, value: plant.code }))}
+            options={plantOptions.map((plant) => ({ label: plant.name, value: plant.code }))}
             onChange={setPlantCode}
           />
           <TextField label="Start date" type="date" value={startDate} onChange={setStartDate} />
@@ -1163,6 +1345,7 @@ function ReportsWorkspace({
         </div>
       </Panel>
 
+      {userRole === "SUPER_ADMIN" ? (
       <Panel title="Historical backfill upload" meta="Apr, May, Jun and Jul 2026">
         <div className="commentary">
           <p>Download the flat template, fill one row per plant-date, then upload the completed CSV or XLSX. Accepted rows are saved as final daily records and can feed snapshots immediately.</p>
@@ -1183,7 +1366,9 @@ function ReportsWorkspace({
           </button>
         </div>
       </Panel>
+      ) : null}
 
+      {userRole === "SUPER_ADMIN" ? (
       <Panel title="Excel reconciliation utility" meta="Temporary">
         <div className="commentary">
           <p>Excel is retained only to compare first system-generated reports against the old process.</p>
@@ -1200,6 +1385,7 @@ function ReportsWorkspace({
           </button>
         </div>
       </Panel>
+      ) : null}
 
       <Panel title="Current locked snapshot" meta={snapshot ? snapshot.status : "None"}>
         {snapshot ? (
@@ -1285,12 +1471,14 @@ function TextField({
 }
 
 function SelectField({
+  disabled = false,
   label,
   onChange,
   options,
   placeholder,
   value,
 }: {
+  disabled?: boolean;
   label: string;
   onChange: (value: string) => void;
   options: Array<{ label: string; value: string }>;
@@ -1300,7 +1488,7 @@ function SelectField({
   return (
     <label className="field">
       <span>{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)}>
+      <select disabled={disabled} value={value} onChange={(event) => onChange(event.target.value)}>
         {placeholder ? <option value="">{placeholder}</option> : null}
         {options.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
@@ -1843,8 +2031,13 @@ function defaultPayload(): CapturePayload {
   };
 }
 
-function initialPayload(records: DailyPlantRecord[]) {
+function initialPayload(records: DailyPlantRecord[], preferredPlantCode?: string) {
   const base = defaultPayload();
+  if (preferredPlantCode) {
+    const plant = PLANT_CONFIGS.find((config) => config.code === preferredPlantCode) ?? PLANT_CONFIGS[0];
+    base.plantCode = plant.code;
+    base.plantName = plant.name;
+  }
   return payloadForPlantDate(base, records, base.plantCode, base.date);
 }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdminSession } from "@/src/lib/auth/admin";
+import { canAccessPlant, requireAdminSession } from "@/src/lib/auth/admin";
 import { listDailyRecords } from "@/src/lib/capture/store";
 import { buildSnapshotFromDailyRecords } from "@/src/lib/capture/snapshot";
 import { saveSnapshot } from "@/src/lib/reporting/store";
@@ -7,7 +7,7 @@ import { saveSnapshot } from "@/src/lib/reporting/store";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   const body = (await request.json()) as {
     plantCode?: string;
     startDate?: string;
@@ -21,6 +21,9 @@ export async function POST(request: Request) {
       { error: "Plant, start date and end date are required to build a snapshot." },
       { status: 400 },
     );
+  }
+  if (!canAccessPlant(session, body.plantCode)) {
+    return NextResponse.json({ error: `Access denied for plant ${body.plantCode}.` }, { status: 403 });
   }
 
   const records = await listDailyRecords({

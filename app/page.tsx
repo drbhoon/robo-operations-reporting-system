@@ -36,7 +36,7 @@ export default function PortalHome() {
           <ul>
             <li><Database size={14} /> PostgreSQL-backed records</li>
             <li><LineChart size={14} /> Dashboard and trend review</li>
-            <li><Lock size={14} /> Admin access required</li>
+            <li><Lock size={14} /> Role-based plant access</li>
           </ul>
         </a>
 

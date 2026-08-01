@@ -168,6 +168,12 @@ h1 {
   color: white;
 }
 
+.btn.danger {
+  border-color: rgba(209, 73, 91, 0.35);
+  background: rgba(209, 73, 91, 0.08);
+  color: var(--accent-2);
+}
+
 .btn:disabled {
   cursor: not-allowed;
   opacity: 0.5;

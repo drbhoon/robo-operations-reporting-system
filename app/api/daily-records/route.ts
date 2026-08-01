@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
-import { requireAdminSession } from "@/src/lib/auth/admin";
+import { canAccessPlant, requireAdminSession } from "@/src/lib/auth/admin";
 import { listDailyRecords, saveDailyRecord } from "@/src/lib/capture/store";
 import type { CapturePayload } from "@/src/lib/capture/types";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   const url = new URL(request.url);
+  const requestedPlant = url.searchParams.get("plantCode") || undefined;
+  const plantCode = session.role === "PLANT_USER" ? session.plantCode : requestedPlant;
   const records = await listDailyRecords({
-    plantCode: url.searchParams.get("plantCode") || undefined,
+    plantCode,
     startDate: url.searchParams.get("startDate") || undefined,
     endDate: url.searchParams.get("endDate") || undefined,
     status: url.searchParams.get("status") === "FINAL" ? "FINAL" : undefined,
@@ -19,7 +21,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const admin = await requireAdminSession();
+  const session = await requireAdminSession();
   const body = (await request.json()) as {
     action?: "DRAFT" | "SUBMIT";
     record?: CapturePayload;
@@ -30,13 +32,16 @@ export async function POST(request: Request) {
   if (!body.record) {
     return NextResponse.json({ error: "Daily record payload is required." }, { status: 400 });
   }
+  if (!canAccessPlant(session, body.record.plantCode)) {
+    return NextResponse.json({ error: `Access denied for plant ${body.record.plantCode}.` }, { status: 403 });
+  }
 
   try {
     const result = await saveDailyRecord({
       payload: body.record,
       action: body.action === "SUBMIT" ? "SUBMIT" : "DRAFT",
-      actor: body.actor || admin.username,
-      allowFinalEdit: body.allowFinalEdit,
+      actor: session.username,
+      allowFinalEdit: session.role === "SUPER_ADMIN" && body.allowFinalEdit,
     });
 
     if (!result.accepted && body.action === "SUBMIT") {

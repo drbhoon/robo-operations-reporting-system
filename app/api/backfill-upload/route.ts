@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
-import { requireAdminSession } from "@/src/lib/auth/admin";
+import { requireSuperAdminSession } from "@/src/lib/auth/admin";
 import { parseBackfillFile } from "@/src/lib/capture/backfill";
 import { saveDailyRecord } from "@/src/lib/capture/store";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const admin = await requireAdminSession();
+  let admin: Awaited<ReturnType<typeof requireSuperAdminSession>>;
+  try {
+    admin = await requireSuperAdminSession();
+  } catch {
+    return NextResponse.json({ error: "Super admin access is required." }, { status: 403 });
+  }
   const form = await request.formData();
   const file = form.get("file");
 
