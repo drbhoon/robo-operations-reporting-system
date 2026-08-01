@@ -23,7 +23,7 @@ export default async function LoginPage({
           </div>
           <div>
             <p className="eyebrow">Robo Silicon operations</p>
-            <h1>Admin sign in</h1>
+            <h1>Sign in</h1>
           </div>
         </div>
 
@@ -38,7 +38,7 @@ export default async function LoginPage({
 
         <form action="/api/auth/login" className="login-form" method="post">
           <label className="field">
-            <span>Username</span>
+            <span>Username or email</span>
             <input autoComplete="username" defaultValue={adminUsername()} name="username" required />
           </label>
           <label className="field">

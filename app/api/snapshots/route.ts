@@ -5,7 +5,7 @@ import { getLatestSnapshot } from "@/src/lib/reporting/store";
 export const runtime = "nodejs";
 
 export async function GET() {
-  await requireAdminSession();
-  const snapshot = await getLatestSnapshot();
+  const session = await requireAdminSession();
+  const snapshot = await getLatestSnapshot({ plantCode: session.role === "PLANT_USER" ? session.plantCode : undefined });
   return NextResponse.json({ snapshot });
 }

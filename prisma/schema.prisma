@@ -15,11 +15,65 @@ model Plant {
   updatedAt DateTime @updatedAt
 
   dailyRecords DailyPlantRecord[]
-  snapshots     ReportSnapshot[]
+  snapshots    ReportSnapshot[]
+}
+
+model AppUser {
+  id           String   @id @default(cuid())
+  username     String?  @unique
+  name         String
+  email        String   @unique
+  role         String
+  passwordHash String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  plantAccesses    PlantAccess[]    @relation("PlantAccessUser")
+  assignedAccesses PlantAccess[]    @relation("PlantAccessAssignedBy")
+  revokedAccesses  PlantAccess[]    @relation("PlantAccessRevokedBy")
+  actorAuditLogs   AccessAuditLog[] @relation("AccessAuditActor")
+  targetAuditLogs  AccessAuditLog[] @relation("AccessAuditTarget")
+
+  @@index([role, isActive])
+}
+
+model PlantAccess {
+  id           String    @id @default(cuid())
+  userId       String
+  plantCode    String
+  isActive     Boolean   @default(true)
+  assignedById String?
+  assignedAt   DateTime  @default(now())
+  revokedById  String?
+  revokedAt    DateTime?
+
+  user       AppUser  @relation("PlantAccessUser", fields: [userId], references: [id], onDelete: Cascade)
+  assignedBy AppUser? @relation("PlantAccessAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  revokedBy  AppUser? @relation("PlantAccessRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@index([plantCode, isActive])
+  @@index([userId, isActive])
+}
+
+model AccessAuditLog {
+  id           String   @id @default(cuid())
+  action       String
+  actorUserId  String?
+  targetUserId String?
+  plantCode    String?
+  summary      String
+  createdAt    DateTime @default(now())
+
+  actorUser  AppUser? @relation("AccessAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  targetUser AppUser? @relation("AccessAuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([plantCode, createdAt])
+  @@index([targetUserId, createdAt])
 }
 
 model DailyPlantRecord {
-  id               String   @id
+  id               String    @id
   plantId          String
   plantCode        String
   recordDate       DateTime
@@ -29,8 +83,8 @@ model DailyPlantRecord {
   payload          Json
   submittedAt      DateTime?
   submittedBy      String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   plant     Plant      @relation(fields: [plantId], references: [id])
   auditLogs AuditLog[]
@@ -77,14 +131,14 @@ model ReportSnapshot {
 }
 
 model ValidationIssue {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   snapshotId String
   severity   String
   code       String
   message    String
   date       DateTime?
   field      String?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   snapshot ReportSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
 
@@ -92,14 +146,14 @@ model ValidationIssue {
 }
 
 model GeneratedReport {
-  id           String   @id @default(cuid())
-  snapshotId   String
-  format       String
-  storageKey   String
-  checksum     String
-  locked       Boolean  @default(true)
-  generatedBy  String?
-  generatedAt  DateTime @default(now())
+  id          String   @id @default(cuid())
+  snapshotId  String
+  format      String
+  storageKey  String
+  checksum    String
+  locked      Boolean  @default(true)
+  generatedBy String?
+  generatedAt DateTime @default(now())
 
   snapshot ReportSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
 

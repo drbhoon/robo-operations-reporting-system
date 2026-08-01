@@ -5,13 +5,16 @@ const globalForSnapshots = globalThis as unknown as {
   reportSnapshots?: ReportSnapshot[];
 };
 
-export async function getLatestSnapshot(): Promise<ReportSnapshot | null> {
+export async function getLatestSnapshot(filter?: { plantCode?: string }): Promise<ReportSnapshot | null> {
   const prisma = getPrisma();
   if (!prisma) {
-    return getLocalSnapshots().at(-1) ?? null;
+    return getLocalSnapshots().filter((snapshot) => !filter?.plantCode || snapshot.plantCode === filter.plantCode).at(-1) ?? null;
   }
 
   const row = await prisma.reportSnapshot.findFirst({
+    where: {
+      plant: filter?.plantCode ? { code: filter.plantCode } : undefined,
+    },
     orderBy: { createdAt: "desc" },
   });
 
