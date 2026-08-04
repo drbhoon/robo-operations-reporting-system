@@ -1,11 +1,6 @@
 import { PLANT_CONFIGS } from "./types";
+import type { PlantOperationalConfig } from "./plant-config-client";
 import { getPrisma } from "../reporting/prisma";
-
-export type PlantOperationalConfig = {
-  code: string;
-  electricLoaderEnabled: boolean;
-  name: string;
-};
 
 export async function listPlantOperationalConfigs(): Promise<PlantOperationalConfig[]> {
   const prisma = getPrisma();
@@ -50,10 +45,6 @@ export async function updatePlantOperationalConfig(input: {
     },
   });
   return listPlantOperationalConfigs();
-}
-
-export function electricLoaderEnabledFor(configs: PlantOperationalConfig[], plantCode: string) {
-  return configs.find((config) => config.code === plantCode)?.electricLoaderEnabled ?? false;
 }
 
 function defaultPlantOperationalConfigs(): PlantOperationalConfig[] {

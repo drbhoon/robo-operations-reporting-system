@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import type { AppSession, PlantUserSummary, UserRole } from "@/src/lib/auth/admin";
-import { electricLoaderEnabledFor, type PlantOperationalConfig } from "@/src/lib/capture/plant-config-store";
+import { electricLoaderEnabledFor, type PlantOperationalConfig } from "@/src/lib/capture/plant-config-client";
 import { calculateDailyRecord, domesticMeterMfFor, materializeCalculatedFields, mirroredLoaderDispatchPlant } from "@/src/lib/capture/calculations";
 import {
   CAPTURE_PRODUCTS,
