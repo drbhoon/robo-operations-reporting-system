@@ -75,7 +75,7 @@ export async function authenticateCredentials(identifier: string, password: stri
         { username: normalizedIdentifier.toUpperCase() },
       ],
     },
-    include: { plantAccesses: { where: { isActive: true }, take: 1 } },
+    include: { plantAccesses: { orderBy: { assignedAt: "desc" }, where: { isActive: true }, take: 1 } },
   });
   if (!user || !verifyPassword(password, user.passwordHash)) return null;
 
@@ -146,7 +146,7 @@ export async function getAdminSession(): Promise<AppSession | null> {
   if (payload.sub) {
     const user = await prisma.appUser.findUnique({
       where: { id: payload.sub },
-      include: { plantAccesses: { where: { isActive: true }, take: 1 } },
+      include: { plantAccesses: { orderBy: { assignedAt: "desc" }, where: { isActive: true }, take: 1 } },
     });
     if (!user?.isActive) return null;
     if (user.role === "PLANT_USER") {
@@ -243,20 +243,6 @@ export async function assignPlantUser(input: {
   const passwordHash = hashPassword(temporaryPassword);
 
   return prisma.$transaction(async (tx) => {
-    const existingPlantAccess = await tx.plantAccess.findFirst({
-      where: { plantCode, isActive: true },
-    });
-    if (existingPlantAccess) {
-      await tx.plantAccess.update({
-        where: { id: existingPlantAccess.id },
-        data: {
-          isActive: false,
-          revokedAt: new Date(),
-          revokedById: input.actor.userId,
-        },
-      });
-    }
-
     const user = await tx.appUser.upsert({
       where: { email },
       update: {
@@ -276,7 +262,13 @@ export async function assignPlantUser(input: {
     });
 
     await tx.plantAccess.updateMany({
-      where: { userId: user.id, isActive: true },
+      where: {
+        isActive: true,
+        OR: [
+          { plantCode },
+          { userId: user.id },
+        ],
+      },
       data: {
         isActive: false,
         revokedAt: new Date(),
@@ -356,6 +348,34 @@ export async function revokePlantUser(input: {
     });
 
     return { plantCode: access.plantCode, userId: access.userId };
+  });
+}
+
+export async function changeOwnPassword(input: {
+  currentPassword: string;
+  newPassword: string;
+  session: AppSession;
+}) {
+  const prisma = getPrisma();
+  if (!prisma) throw new Error("Database is required for password changes.");
+  if (!input.session.userId) throw new Error("Current session cannot change password.");
+  if (input.newPassword.length < 8) throw new Error("New password must be at least 8 characters.");
+
+  const user = await prisma.appUser.findUnique({ where: { id: input.session.userId } });
+  if (!user?.isActive) throw new Error("User account is not active.");
+  if (!verifyPassword(input.currentPassword, user.passwordHash)) throw new Error("Current password is incorrect.");
+
+  await prisma.appUser.update({
+    where: { id: user.id },
+    data: { passwordHash: hashPassword(input.newPassword) },
+  });
+  await prisma.accessAuditLog.create({
+    data: {
+      action: "PASSWORD_CHANGED",
+      actorUserId: user.id,
+      summary: `${user.email} changed password.`,
+      targetUserId: user.id,
+    },
   });
 }
 

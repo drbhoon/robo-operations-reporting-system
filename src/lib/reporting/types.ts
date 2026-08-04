@@ -105,6 +105,26 @@ export type DailySnapshot = {
     litresPerHour: number;
     litresPerMt: number;
   };
+  electricLoader?: {
+    dispatchMt: number;
+    kwh: {
+      closing: number;
+      opening: number;
+    };
+    kwhUnits: number;
+    kvah: {
+      closing: number;
+      opening: number;
+    };
+    kvahUnits: number;
+    meter: {
+      closing: number;
+      opening: number;
+    };
+    runningHours: number;
+    tph: number;
+    unitsPerMt: number;
+  };
   cop?: {
     costPerMt?: number;
     totalCost?: number;

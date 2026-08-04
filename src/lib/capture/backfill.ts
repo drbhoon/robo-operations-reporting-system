@@ -285,6 +285,18 @@ function rowToPayload(row: Record<string, unknown>): CapturePayload {
       dieselVarianceCost: 0,
       dispatchMt: num(row.loader_dispatch_mt),
     },
+    electricLoader: {
+      enabled: false,
+      meter: { opening: 0, closing: 0 },
+      kwh: { opening: 0, closing: 0 },
+      kvah: { opening: 0, closing: 0 },
+      dispatchMt: 0,
+      runningHours: 0,
+      kwhUnits: 0,
+      kvahUnits: 0,
+      unitsPerMt: 0,
+      tph: 0,
+    },
     cop: {
       fixedCostMonthly: 0,
       fixedCostDaily: 0,

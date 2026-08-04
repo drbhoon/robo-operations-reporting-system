@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import type { AppSession, PlantUserSummary, UserRole } from "@/src/lib/auth/admin";
+import { electricLoaderEnabledFor, type PlantOperationalConfig } from "@/src/lib/capture/plant-config-store";
 import { calculateDailyRecord, domesticMeterMfFor, materializeCalculatedFields, mirroredLoaderDispatchPlant } from "@/src/lib/capture/calculations";
 import {
   CAPTURE_PRODUCTS,
@@ -94,6 +95,7 @@ ChartJS.register(
 
 type Props = {
   allowedPlantCodes?: string[];
+  initialPlantConfigs: PlantOperationalConfig[];
   initialPlantUsers: PlantUserSummary[];
   initialSnapshot: ReportSnapshot | null;
   initialRecords: DailyPlantRecord[];
@@ -118,6 +120,15 @@ type LoaderBasisRow = {
   tph: number;
   dispatchMt: number;
 };
+type ElectricLoaderBasisRow = {
+  dispatchMt: number;
+  kwhUnits: number;
+  kvahUnits: number;
+  label: "Daily" | "Weekly" | "MTD";
+  runningHours: number;
+  tph: number;
+  unitsPerMt: number;
+};
 type PeriodSummaryRow = {
   achievementPct: number;
   dispatch: number;
@@ -141,7 +152,7 @@ type CopProjectionRow = {
 const fmt = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const pct = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1, style: "percent" });
 
-export function DashboardShell({ allowedPlantCodes, initialPlantUsers, initialSnapshot, initialRecords, session }: Props) {
+export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initialPlantUsers, initialSnapshot, initialRecords, session }: Props) {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("capture");
   const [dashboardView, setDashboardView] = useState<DashboardView>("daily");
   const [records, setRecords] = useState(initialRecords);
@@ -153,6 +164,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantUsers, initialSn
   const [form, setForm] = useState<CapturePayload>(() => initialPayload(initialRecords, plantOptions[0]?.code));
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [plantConfigs, setPlantConfigs] = useState(initialPlantConfigs);
   const [plantUsers, setPlantUsers] = useState(initialPlantUsers);
   const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
   const [startDate, setStartDate] = useState(initialSnapshot?.period.start ?? todayIso());
@@ -413,6 +425,45 @@ export function DashboardShell({ allowedPlantCodes, initialPlantUsers, initialSn
     }
   }
 
+  async function changePassword(input: { currentPassword: string; newPassword: string }) {
+    setBusy(true);
+    setStatus("Changing password...");
+    try {
+      const response = await fetch("/api/auth/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const body = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(body.error ?? "Password change failed");
+      setStatus("Password changed successfully.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Password change failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updatePlantElectricLoader(plantCode: string, electricLoaderEnabled: boolean) {
+    setBusy(true);
+    setStatus("Updating plant configuration...");
+    try {
+      const response = await fetch("/api/admin/plant-configs", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ electricLoaderEnabled, plantCode }),
+      });
+      const body = (await response.json()) as { error?: string; plantConfigs?: PlantOperationalConfig[] };
+      if (!response.ok) throw new Error(body.error ?? "Plant configuration update failed");
+      if (body.plantConfigs) setPlantConfigs(body.plantConfigs);
+      setStatus("Plant electric loader configuration updated.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Plant configuration update failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const labels = visibleDays.map((d) => d.label);
   const productMix = aggregateProducts(visibleDays);
   const lossBuckets = aggregateLosses(visibleDays);
@@ -460,9 +511,12 @@ export function DashboardShell({ allowedPlantCodes, initialPlantUsers, initialSn
         </div>
       </section>
 
+      <PasswordPanel busy={busy} onChangePassword={changePassword} />
+
       {activeTab === "capture" ? (
         <CaptureWorkspace
           busy={busy}
+          electricLoaderEnabled={electricLoaderEnabledFor(plantConfigs, form.plantCode) || form.electricLoader.enabled}
           form={form}
           plantOptions={plantOptions}
           previewRecord={previewRecord}
@@ -515,7 +569,9 @@ export function DashboardShell({ allowedPlantCodes, initialPlantUsers, initialSn
         <AccessWorkspace
           busy={busy}
           onAssign={assignPlantAccess}
+          onConfigChange={updatePlantElectricLoader}
           onRevoke={revokePlantAccess}
+          plantConfigs={plantConfigs}
           plantUsers={plantUsers}
           temporaryPassword={temporaryPassword}
         />
@@ -528,6 +584,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantUsers, initialSn
 
 function CaptureWorkspace({
   busy,
+  electricLoaderEnabled,
   form,
   plantOptions,
   previewRecord,
@@ -538,6 +595,7 @@ function CaptureWorkspace({
   submitFinal,
 }: {
   busy: boolean;
+  electricLoaderEnabled: boolean;
   form: CapturePayload;
   plantOptions: Array<(typeof PLANT_CONFIGS)[number]>;
   previewRecord: DailyPlantRecord;
@@ -581,6 +639,9 @@ function CaptureWorkspace({
             <NumberField label="Cone opening HM" value={form.equipmentHourMeters.cone.opening} onChange={(value) => setEquipmentMeter(setForm, "cone", "opening", value)} />
             <NumberField label="VSI opening HM" value={form.equipmentHourMeters.vsi.opening} onChange={(value) => setEquipmentMeter(setForm, "vsi", "opening", value)} />
             <NumberField label="Loader opening HM" value={form.loader.hourMeter.opening} onChange={(value) => setLoaderHourMeter(setForm, "opening", value)} />
+            {electricLoaderEnabled ? <NumberField label="Ele loader opening meter" value={form.electricLoader.meter.opening} onChange={(value) => setElectricLoaderReading(setForm, "meter", "opening", value)} /> : null}
+            {electricLoaderEnabled ? <NumberField label="Ele loader opening KWH" value={form.electricLoader.kwh.opening} onChange={(value) => setElectricLoaderReading(setForm, "kwh", "opening", value)} /> : null}
+            {electricLoaderEnabled ? <NumberField label="Ele loader opening KVAH" value={form.electricLoader.kvah.opening} onChange={(value) => setElectricLoaderReading(setForm, "kvah", "opening", value)} /> : null}
           </div>
         </Section>
 
@@ -689,6 +750,22 @@ function CaptureWorkspace({
           </div>
         </Section>
 
+        {electricLoaderEnabled ? (
+          <Section title="Electric loader" meta="Plant-wise configurable">
+            <div className="form-grid four">
+              <NumberField label="Closing meter reading" value={form.electricLoader.meter.closing} onChange={(value) => setElectricLoaderReading(setForm, "meter", "closing", value)} />
+              <ReadOnlyMetric label="Running hours" value={previewRecord.calculations.electricLoaderRunningHours} />
+              <NumberField label="Closing KWH reading" value={form.electricLoader.kwh.closing} onChange={(value) => setElectricLoaderReading(setForm, "kwh", "closing", value)} />
+              <ReadOnlyMetric label="KWH units" value={previewRecord.calculations.electricLoaderKwhUnits} />
+              <NumberField label="Closing KVAH reading" value={form.electricLoader.kvah.closing} onChange={(value) => setElectricLoaderReading(setForm, "kvah", "closing", value)} />
+              <ReadOnlyMetric label="KVAH units" value={previewRecord.calculations.electricLoaderKvahUnits} />
+              <NumberField label="Total dispatch quantity MT" value={form.electricLoader.dispatchMt} onChange={(value) => setElectricLoaderValue(setForm, "dispatchMt", value)} />
+              <ReadOnlyMetric label="KVAH / MT" value={previewRecord.calculations.electricLoaderUnitsPerMt} />
+              <ReadOnlyMetric label="Electric loader TPH" value={previewRecord.calculations.electricLoaderTph} />
+            </div>
+          </Section>
+        ) : null}
+
         <Section title="COP inputs" meta="Update weekly; Rs/MT calculated from production">
           <div className="form-grid four">
             <ReadOnlyMetric label="Drilling & blasting rate" value={previewRecord.cop.frozenDrillingBlastingRate} prefix="Rs" />
@@ -780,6 +857,49 @@ function CaptureWorkspace({
   );
 }
 
+function PasswordPanel({
+  busy,
+  onChangePassword,
+}: {
+  busy: boolean;
+  onChangePassword: (input: { currentPassword: string; newPassword: string }) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const mismatch = newPassword && confirmPassword && newPassword !== confirmPassword;
+
+  return (
+    <section className="account-strip">
+      <button className="btn" onClick={() => setOpen((value) => !value)}>
+        <ShieldCheck size={16} />
+        Password reset
+      </button>
+      {open ? (
+        <div className="account-password-form">
+          <TextField label="Current password" type="password" value={currentPassword} onChange={setCurrentPassword} />
+          <TextField label="New password" type="password" value={newPassword} onChange={setNewPassword} />
+          <TextField label="Confirm new password" type="password" value={confirmPassword} onChange={setConfirmPassword} />
+          <button
+            className="btn primary"
+            disabled={busy || !currentPassword || newPassword.length < 8 || mismatch}
+            onClick={() => {
+              onChangePassword({ currentPassword, newPassword });
+              setCurrentPassword("");
+              setNewPassword("");
+              setConfirmPassword("");
+            }}
+          >
+            Save password
+          </button>
+          {mismatch ? <span className="muted">New password and confirmation do not match.</span> : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function DashboardWorkspace({
   dashboardView,
   exceptionRecords,
@@ -825,6 +945,8 @@ function DashboardWorkspace({
   const basisRows = buildBasisRows(visibleDays);
   const mtdRows = buildMtdRows(visibleDays);
   const loaderRows = buildLoaderRows(visibleDays);
+  const electricLoaderRows = buildElectricLoaderRows(visibleDays);
+  const electricLoaderDays = visibleDays.filter((day): day is SnapshotDay & { electricLoader: NonNullable<SnapshotDay["electricLoader"]> } => Boolean(day.electricLoader));
   const copRows = buildCopRows(visibleDays);
   const copProjectionRows = buildCopProjectionRows(visibleDays);
   const weeklyRows = buildPeriodSummaryRows(visibleDays, "week");
@@ -850,12 +972,13 @@ function DashboardWorkspace({
         <Kpi title="Loader L / MT" value={fmt.format(loaderRows[0]?.litresPerMt ?? 0)} detail={`${fmt.format(totals.diesel)} L diesel`} />
       </section>
 
-      {dashboardView === "weekly" ? <PeriodDashboard period="Weekly" rows={weeklyRows} /> : null}
-      {dashboardView === "monthly" ? <PeriodDashboard period="Monthly" rows={monthlyRows} /> : null}
+      {dashboardView === "weekly" ? <PeriodDashboard electricLoaderRows={electricLoaderRows} period="Weekly" rows={weeklyRows} /> : null}
+      {dashboardView === "monthly" ? <PeriodDashboard electricLoaderRows={electricLoaderRows} period="Monthly" rows={monthlyRows} /> : null}
       {dashboardView === "trends" ? (
         <TrendDashboard
           copProjectionRows={copProjectionRows}
           copRows={copRows}
+          electricLoaderRows={electricLoaderRows}
           labels={labels}
           loaderRows={loaderRows}
           mtdRows={mtdRows}
@@ -981,10 +1104,34 @@ function DashboardWorkspace({
                   options={labelledBarOptions}
                 />
               </Panel>
+              {electricLoaderDays.length ? (
+                <Panel title="Electric loader KVAH/MT and TPH" meta="Daily trend">
+                  <Line
+                    data={{
+                      labels: electricLoaderDays.map((day) => day.label),
+                      datasets: [
+                        dataset("KVAH/MT", electricLoaderDays.map((day) => day.electricLoader.unitsPerMt), "#f3a712"),
+                        dataset("TPH", electricLoaderDays.map((day) => day.electricLoader.tph), "#183153"),
+                      ],
+                    }}
+                    options={chartOptions}
+                  />
+                </Panel>
+              ) : null}
             </div>
             <Panel title="Loader Daily / Weekly / MTD trends" meta="Running hours, Ltr/MT, TPH and dispatch">
               <LoaderTable rows={loaderRows} />
             </Panel>
+            {electricLoaderDays.length ? (
+              <>
+                <Panel title="Electric loader Daily / Weekly / MTD" meta="Running hours, KVAH/MT, TPH and dispatch">
+                  <ElectricLoaderTable rows={electricLoaderRows} />
+                </Panel>
+                <Panel title="Electric loader reading log" meta="Opening and closing readings">
+                  <ElectricLoaderDailyTable days={electricLoaderDays} />
+                </Panel>
+              </>
+            ) : null}
             <Panel title="COP structure" meta="Actuals and Rs./MT">
               <CopTable rows={copRows} />
             </Panel>
@@ -1026,7 +1173,15 @@ function DashboardWorkspace({
   );
 }
 
-function PeriodDashboard({ period, rows }: { period: "Weekly" | "Monthly"; rows: PeriodSummaryRow[] }) {
+function PeriodDashboard({
+  electricLoaderRows,
+  period,
+  rows,
+}: {
+  electricLoaderRows: ElectricLoaderBasisRow[];
+  period: "Weekly" | "Monthly";
+  rows: PeriodSummaryRow[];
+}) {
   return (
     <section className="grid">
       <Panel title={`${period} summary`} meta="Aggregated from validated daily records">
@@ -1058,6 +1213,11 @@ function PeriodDashboard({ period, rows }: { period: "Weekly" | "Monthly"; rows:
           />
         </Panel>
       </div>
+      {electricLoaderRows.some((row) => row.dispatchMt > 0 || row.runningHours > 0 || row.kvahUnits > 0) ? (
+        <Panel title="Electric loader Daily / Weekly / MTD" meta="Running hours, KVAH/MT, TPH and dispatch">
+          <ElectricLoaderTable rows={electricLoaderRows} />
+        </Panel>
+      ) : null}
     </section>
   );
 }
@@ -1065,6 +1225,7 @@ function PeriodDashboard({ period, rows }: { period: "Weekly" | "Monthly"; rows:
 function TrendDashboard({
   copProjectionRows,
   copRows,
+  electricLoaderRows,
   labels,
   loaderRows,
   mtdRows,
@@ -1072,11 +1233,14 @@ function TrendDashboard({
 }: {
   copProjectionRows: CopProjectionRow[];
   copRows: ReturnType<typeof buildCopRows>;
+  electricLoaderRows: ElectricLoaderBasisRow[];
   labels: string[];
   loaderRows: LoaderBasisRow[];
   mtdRows: ReturnType<typeof buildMtdRows>;
   visibleDays: ReportSnapshot["daily"];
 }) {
+  const electricLoaderDays = visibleDays.filter((day): day is SnapshotDay & { electricLoader: NonNullable<SnapshotDay["electricLoader"]> } => Boolean(day.electricLoader));
+
   return (
     <section className="grid">
       <div className="grid chart-grid">
@@ -1125,10 +1289,29 @@ function TrendDashboard({
             options={labelledBarOptions}
           />
         </Panel>
+        {electricLoaderDays.length ? (
+          <Panel title="Electric loader KVAH/MT and TPH trend" meta="Daily values">
+            <Line
+              data={{
+                labels: electricLoaderDays.map((day) => day.label),
+                datasets: [
+                  dataset("KVAH/MT", electricLoaderDays.map((day) => day.electricLoader.unitsPerMt), "#f3a712"),
+                  dataset("TPH", electricLoaderDays.map((day) => day.electricLoader.tph), "#183153"),
+                ],
+              }}
+              options={chartOptions}
+            />
+          </Panel>
+        ) : null}
       </div>
       <Panel title="Loader Daily / Weekly / MTD trends" meta="Running hours, Ltr/MT, TPH and dispatch">
         <LoaderTable rows={loaderRows} />
       </Panel>
+      {electricLoaderRows.some((row) => row.dispatchMt > 0 || row.runningHours > 0 || row.kvahUnits > 0) ? (
+        <Panel title="Electric loader Daily / Weekly / MTD" meta="Running hours, KVAH/MT, TPH and dispatch">
+          <ElectricLoaderTable rows={electricLoaderRows} />
+        </Panel>
+      ) : null}
       <Panel title="COP structure" meta="Actuals and Rs./MT">
         <CopTable rows={copRows} />
       </Panel>
@@ -1176,13 +1359,17 @@ function ExceptionDashboard({ exceptionRecords }: { exceptionRecords: DailyPlant
 function AccessWorkspace({
   busy,
   onAssign,
+  onConfigChange,
   onRevoke,
+  plantConfigs,
   plantUsers,
   temporaryPassword,
 }: {
   busy: boolean;
   onAssign: (input: { email: string; name: string; plantCode: string }) => void;
+  onConfigChange: (plantCode: string, electricLoaderEnabled: boolean) => void;
   onRevoke: (accessId: string) => void;
+  plantConfigs: PlantOperationalConfig[];
   plantUsers: PlantUserSummary[];
   temporaryPassword: string | null;
 }) {
@@ -1190,6 +1377,7 @@ function AccessWorkspace({
   const [email, setEmail] = useState("");
   const [plantCode, setPlantCode] = useState(PLANT_CONFIGS[0]?.code ?? "");
   const activeByPlant = new Map(plantUsers.map((user) => [user.plantCode, user]));
+  const configByPlant = new Map(plantConfigs.map((config) => [config.code, config]));
 
   return (
     <section className="reports-grid">
@@ -1232,6 +1420,7 @@ function AccessWorkspace({
                 <th>Plant</th>
                 <th>User</th>
                 <th>Email</th>
+                <th>Electric loader</th>
                 <th>Assigned</th>
                 <th>Action</th>
               </tr>
@@ -1239,11 +1428,19 @@ function AccessWorkspace({
             <tbody>
               {PLANT_CONFIGS.map((plant) => {
                 const access = activeByPlant.get(plant.code);
+                const config = configByPlant.get(plant.code);
                 return (
                   <tr key={plant.code}>
                     <td>{plant.name}</td>
                     <td>{access?.name ?? "Not assigned"}</td>
                     <td>{access?.email ?? "-"}</td>
+                    <td>
+                      <CheckboxField
+                        checked={config?.electricLoaderEnabled ?? false}
+                        label="Enabled"
+                        onChange={(value) => onConfigChange(plant.code, value)}
+                      />
+                    </td>
                     <td>{access?.assignedAt ? formatDisplayDate(access.assignedAt.slice(0, 10)) : "-"}</td>
                     <td>
                       {access?.accessId ? (
@@ -1891,6 +2088,80 @@ function LoaderTable({ rows }: { rows: LoaderBasisRow[] }) {
   );
 }
 
+function ElectricLoaderTable({ rows }: { rows: ElectricLoaderBasisRow[] }) {
+  return (
+    <div className="table-shell mini-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Basis</th>
+            <th>Running Hrs</th>
+            <th>KWH</th>
+            <th>KVAH</th>
+            <th>KVAH/MT</th>
+            <th>TPH</th>
+            <th>Dispatch Qty</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.label}>
+              <td>{row.label}</td>
+              <td>{fmt.format(row.runningHours)}</td>
+              <td>{fmt.format(row.kwhUnits)}</td>
+              <td>{fmt.format(row.kvahUnits)}</td>
+              <td>{fmt.format(row.unitsPerMt)}</td>
+              <td>{fmt.format(row.tph)}</td>
+              <td>{fmt.format(row.dispatchMt)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ElectricLoaderDailyTable({ days }: { days: Array<SnapshotDay & { electricLoader: NonNullable<SnapshotDay["electricLoader"]> }> }) {
+  return (
+    <div className="table-shell mini-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Opening meter</th>
+            <th>Closing meter</th>
+            <th>Run Hrs</th>
+            <th>Opening KWH</th>
+            <th>Closing KWH</th>
+            <th>Opening KVAH</th>
+            <th>Closing KVAH</th>
+            <th>Dispatch MT</th>
+            <th>KVAH/MT</th>
+            <th>TPH</th>
+          </tr>
+        </thead>
+        <tbody>
+          {days.map((day) => (
+            <tr key={day.date}>
+              <td>{formatDisplayDate(day.date)}</td>
+              <td>{fmt.format(day.electricLoader.meter.opening)}</td>
+              <td>{fmt.format(day.electricLoader.meter.closing)}</td>
+              <td>{fmt.format(day.electricLoader.runningHours)}</td>
+              <td>{fmt.format(day.electricLoader.kwh.opening)}</td>
+              <td>{fmt.format(day.electricLoader.kwh.closing)}</td>
+              <td>{fmt.format(day.electricLoader.kvah.opening)}</td>
+              <td>{fmt.format(day.electricLoader.kvah.closing)}</td>
+              <td>{fmt.format(day.electricLoader.dispatchMt)}</td>
+              <td>{fmt.format(day.electricLoader.unitsPerMt)}</td>
+              <td>{fmt.format(day.electricLoader.tph)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function CopTable({ rows }: { rows: Array<{ label: string; actuals: number; perMt: number; strong?: boolean }> }) {
   return (
     <div className="table-shell mini-table">
@@ -1995,6 +2266,18 @@ function defaultPayload(): CapturePayload {
       dieselVarianceCost: 0,
       dispatchMt: 0,
     },
+    electricLoader: {
+      enabled: false,
+      meter: { opening: 0, closing: 0 },
+      kwh: { opening: 0, closing: 0 },
+      kvah: { opening: 0, closing: 0 },
+      dispatchMt: 0,
+      runningHours: 0,
+      kwhUnits: 0,
+      kvahUnits: 0,
+      unitsPerMt: 0,
+      tph: 0,
+    },
     cop: {
       fixedCostMonthly: 0,
       fixedCostDaily: 0,
@@ -2094,6 +2377,7 @@ function recordToPayload(record: DailyPlantRecord): CapturePayload {
   const plant = PLANT_CONFIGS.find((config) => config.code === plantCode) ?? PLANT_CONFIGS.find((config) => config.aliases.includes(plantCode as never));
   const mergedElectrical = { ...fallback.electrical, ...electrical };
   const mergedLoader = { ...fallback.loader, ...loader };
+  const mergedElectricLoader = { ...fallback.electricLoader, ...record.electricLoader };
   const mergedCop = { ...fallback.cop, ...cop };
   const domesticMf = domesticMeterMfFor(plant?.code ?? plantCode);
   return {
@@ -2143,6 +2427,12 @@ function recordToPayload(record: DailyPlantRecord): CapturePayload {
       includeDieselVariance: loader.includeDieselVariance ?? false,
       dieselCost: loader.dieselCost ?? cop.dieselCost ?? 0,
       dieselVarianceCost: loader.dieselVarianceCost ?? 0,
+    },
+    electricLoader: {
+      ...mergedElectricLoader,
+      meter: { ...fallback.electricLoader.meter, ...record.electricLoader?.meter },
+      kwh: { ...fallback.electricLoader.kwh, ...record.electricLoader?.kwh },
+      kvah: { ...fallback.electricLoader.kvah, ...record.electricLoader?.kvah },
     },
     cop: mergedCop,
     remarks,
@@ -2236,6 +2526,11 @@ function carryForwardFromPreviousRecord(base: CapturePayload, previous: DailyPla
     vsi: carryEquipmentMeter(previousPayload, "vsi"),
   };
   const loaderOpening = previousPayload.loader.hourMeter.closing;
+  const electricLoaderOpening = {
+    kwh: previousPayload.electricLoader.kwh.closing,
+    kvah: previousPayload.electricLoader.kvah.closing,
+    meter: previousPayload.electricLoader.meter.closing,
+  };
 
   return {
     ...base,
@@ -2276,6 +2571,22 @@ function carryForwardFromPreviousRecord(base: CapturePayload, previous: DailyPla
       dieselRate: previousPayload.loader.dieselRate,
       dieselVarianceRate: previousPayload.loader.dieselVarianceRate,
       includeDieselVariance: previousPayload.loader.includeDieselVariance,
+    },
+    electricLoader: {
+      ...base.electricLoader,
+      enabled: previousPayload.electricLoader.enabled,
+      meter: {
+        opening: electricLoaderOpening.meter,
+        closing: electricLoaderOpening.meter,
+      },
+      kwh: {
+        opening: electricLoaderOpening.kwh,
+        closing: electricLoaderOpening.kwh,
+      },
+      kvah: {
+        opening: electricLoaderOpening.kvah,
+        closing: electricLoaderOpening.kvah,
+      },
     },
     cop: {
       ...base.cop,
@@ -2413,6 +2724,40 @@ function setLoaderHourMeter(
         ...current.loader.hourMeter,
         [field]: value,
       },
+    },
+  }));
+}
+
+function setElectricLoaderReading(
+  setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
+  group: "meter" | "kwh" | "kvah",
+  field: "opening" | "closing",
+  value: number,
+) {
+  setForm((current) => ({
+    ...current,
+    electricLoader: {
+      ...current.electricLoader,
+      enabled: true,
+      [group]: {
+        ...current.electricLoader[group],
+        [field]: value,
+      },
+    },
+  }));
+}
+
+function setElectricLoaderValue(
+  setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
+  field: "dispatchMt",
+  value: number,
+) {
+  setForm((current) => ({
+    ...current,
+    electricLoader: {
+      ...current.electricLoader,
+      enabled: true,
+      [field]: value,
     },
   }));
 }
@@ -2710,6 +3055,32 @@ function summarizeLoader(label: LoaderBasisRow["label"], days: SnapshotDay[]): L
     litresPerMt: roundDisplay(dispatchMt ? dieselLitres / dispatchMt : 0),
     tph: roundDisplay(runningHours ? dispatchMt / runningHours : 0),
     dispatchMt: roundDisplay(dispatchMt),
+  };
+}
+
+function buildElectricLoaderRows(days: SnapshotDay[]) {
+  return [
+    summarizeElectricLoader("Daily", latestDays(days, 1)),
+    summarizeElectricLoader("Weekly", latestDays(days, 7)),
+    summarizeElectricLoader("MTD", monthToDateDays(days)),
+  ];
+}
+
+function summarizeElectricLoader(label: ElectricLoaderBasisRow["label"], days: SnapshotDay[]): ElectricLoaderBasisRow {
+  const tracked = days.map((day) => day.electricLoader).filter((item): item is NonNullable<SnapshotDay["electricLoader"]> => Boolean(item));
+  const dispatchMt = sum(tracked.map((item) => item.dispatchMt));
+  const kwhUnits = sum(tracked.map((item) => item.kwhUnits));
+  const kvahUnits = sum(tracked.map((item) => item.kvahUnits));
+  const runningHours = sum(tracked.map((item) => item.runningHours));
+
+  return {
+    dispatchMt: roundDisplay(dispatchMt),
+    kwhUnits: roundDisplay(kwhUnits),
+    kvahUnits: roundDisplay(kvahUnits),
+    label,
+    runningHours: roundDisplay(runningHours),
+    tph: roundDisplay(runningHours ? dispatchMt / runningHours : 0),
+    unitsPerMt: roundDisplay(dispatchMt ? kvahUnits / dispatchMt : 0),
   };
 }
 
