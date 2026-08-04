@@ -57,6 +57,44 @@ button {
   padding: 24px 0 48px;
 }
 
+.error-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.error-card {
+  display: flex;
+  width: min(680px, 100%);
+  gap: 18px;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  padding: 24px;
+}
+
+.error-card svg {
+  color: var(--accent-2);
+  flex: 0 0 auto;
+  margin-top: 4px;
+}
+
+.error-detail {
+  margin: 14px 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-muted);
+  color: var(--navy);
+  font-family: var(--font-mono), Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 10px 12px;
+  word-break: break-word;
+}
+
 .topbar {
   display: grid;
   grid-template-columns: 1fr auto;

@@ -9,24 +9,23 @@ export type PlantOperationalConfig = {
 
 export async function listPlantOperationalConfigs(): Promise<PlantOperationalConfig[]> {
   const prisma = getPrisma();
-  if (!prisma) {
-    return PLANT_CONFIGS.map((plant) => ({
-      code: plant.code,
-      electricLoaderEnabled: false,
-      name: plant.name,
-    }));
-  }
+  if (!prisma) return defaultPlantOperationalConfigs();
 
-  const rows = await prisma.plant.findMany();
-  const byCode = new Map(rows.map((row) => [row.code, row]));
-  return PLANT_CONFIGS.map((plant) => {
-    const row = byCode.get(plant.code);
-    return {
-      code: plant.code,
-      electricLoaderEnabled: row?.electricLoaderEnabled ?? false,
-      name: row?.name ?? plant.name,
-    };
-  });
+  try {
+    const rows = await prisma.plant.findMany();
+    const byCode = new Map(rows.map((row) => [row.code, row]));
+    return PLANT_CONFIGS.map((plant) => {
+      const row = byCode.get(plant.code);
+      return {
+        code: plant.code,
+        electricLoaderEnabled: row?.electricLoaderEnabled ?? false,
+        name: row?.name ?? plant.name,
+      };
+    });
+  } catch (error) {
+    console.error("Plant operational configuration could not be loaded.", error);
+    return defaultPlantOperationalConfigs();
+  }
 }
 
 export async function updatePlantOperationalConfig(input: {
@@ -55,4 +54,12 @@ export async function updatePlantOperationalConfig(input: {
 
 export function electricLoaderEnabledFor(configs: PlantOperationalConfig[], plantCode: string) {
   return configs.find((config) => config.code === plantCode)?.electricLoaderEnabled ?? false;
+}
+
+function defaultPlantOperationalConfigs(): PlantOperationalConfig[] {
+  return PLANT_CONFIGS.map((plant) => ({
+    code: plant.code,
+    electricLoaderEnabled: false,
+    name: plant.name,
+  }));
 }
