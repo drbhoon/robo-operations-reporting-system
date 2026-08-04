@@ -141,6 +141,19 @@ function recordToDailySnapshot(record: DailyPlantRecord): DailySnapshot {
       litresPerHour: round(record.loader.dieselLitres / (record.calculations.loaderRunningHours || 1), 2),
       litresPerMt: record.calculations.loaderLitresPerMt,
     },
+    electricLoader: record.electricLoader?.enabled
+      ? {
+          dispatchMt: round(record.electricLoader.dispatchMt, 2),
+          kwh: record.electricLoader.kwh,
+          kwhUnits: round(record.calculations.electricLoaderKwhUnits, 2),
+          kvah: record.electricLoader.kvah,
+          kvahUnits: round(record.calculations.electricLoaderKvahUnits, 2),
+          meter: record.electricLoader.meter,
+          runningHours: round(record.calculations.electricLoaderRunningHours, 2),
+          tph: round(record.calculations.electricLoaderTph, 2),
+          unitsPerMt: round(record.calculations.electricLoaderUnitsPerMt, 3),
+        }
+      : undefined,
     cop: {
       costPerMt: record.calculations.copPerMt,
       totalCost: record.calculations.totalCopCost,

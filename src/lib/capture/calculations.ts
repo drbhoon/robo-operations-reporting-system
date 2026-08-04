@@ -26,6 +26,7 @@ type CalculationInput = Pick<
   | "targetMt"
   | "electrical"
   | "loader"
+  | "electricLoader"
   | "cop"
   | "equipmentHourMeters"
 >;
@@ -49,6 +50,7 @@ const FROZEN_COST_RATES: Record<"Girmapur" | "Keesara" | "Lakadaram", FrozenCost
 
 export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord["calculations"] {
   const rates = frozenCostRatesFor(input.plantCode || input.plantName);
+  const electricLoader = input.electricLoader ?? emptyElectricLoader();
   const productMixTotal = sum(CAPTURE_PRODUCTS.map((product) => input.productMix[product]));
   const productMixPercentageTotal = sum(CAPTURE_PRODUCTS.map((product) => input.productMixPercentages[product]));
   const dispatchTotal = sum(CAPTURE_PRODUCTS.map((product) => input.dispatch[product]));
@@ -103,6 +105,11 @@ export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord[
   const loaderProductionHours = round(Math.max(0, loaderRunningHours - input.loader.otherWorksHours), 2);
   const loaderDispatchMt = mirroredLoaderDispatchPlant(input.plantCode || input.plantName) ? dispatchTotal : input.loader.dispatchMt;
   const loaderTph = round(ratio(loaderDispatchMt, loaderProductionHours), 2);
+  const electricLoaderRunningHours = round(Math.max(0, electricLoader.meter.closing - electricLoader.meter.opening), 2);
+  const electricLoaderKwhUnits = round(Math.max(0, electricLoader.kwh.closing - electricLoader.kwh.opening), 2);
+  const electricLoaderKvahUnits = round(Math.max(0, electricLoader.kvah.closing - electricLoader.kvah.opening), 2);
+  const electricLoaderUnitsPerMt = round(ratio(electricLoaderKvahUnits, electricLoader.dispatchMt), 3);
+  const electricLoaderTph = round(ratio(electricLoader.dispatchMt, electricLoaderRunningHours), 2);
   const loaderDieselCost = round(input.loader.dieselLitres * rates.diesel, 2);
   const loaderDieselVarianceCost = round(input.loader.includeDieselVariance ? input.loader.dieselLitres * rates.dieselVariance : 0, 2);
   const drillingBlastingCost = round(input.productionMt * rates.drillingBlasting, 2);
@@ -149,6 +156,11 @@ export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord[
     loaderProductionHours,
     loaderDispatchMt: round(loaderDispatchMt),
     loaderTph,
+    electricLoaderRunningHours,
+    electricLoaderKwhUnits,
+    electricLoaderKvahUnits,
+    electricLoaderUnitsPerMt,
+    electricLoaderTph,
     loaderDieselCost,
     loaderDieselVarianceCost,
     drillingBlastingCost,
@@ -217,6 +229,14 @@ export function materializeCalculatedFields(payload: CapturePayload): CapturePay
       tph: calculations.loaderTph,
       dieselCost: calculations.loaderDieselCost,
       dieselVarianceCost: calculations.loaderDieselVarianceCost,
+    },
+    electricLoader: {
+      ...payloadWithFrozenRates.electricLoader,
+      runningHours: calculations.electricLoaderRunningHours,
+      kwhUnits: calculations.electricLoaderKwhUnits,
+      kvahUnits: calculations.electricLoaderKvahUnits,
+      unitsPerMt: calculations.electricLoaderUnitsPerMt,
+      tph: calculations.electricLoaderTph,
     },
     cop: {
       ...payloadWithFrozenRates.cop,
@@ -415,4 +435,19 @@ export function dailyFixedCost(monthlyFixedCost: number, date: string) {
 
 function normalizePlant(value: string) {
   return value.trim().toUpperCase().replace(/\s+/g, "").replace(/_/g, "-");
+}
+
+function emptyElectricLoader(): DailyPlantRecord["electricLoader"] {
+  return {
+    dispatchMt: 0,
+    enabled: false,
+    kwh: { opening: 0, closing: 0 },
+    kwhUnits: 0,
+    kvah: { opening: 0, closing: 0 },
+    kvahUnits: 0,
+    meter: { opening: 0, closing: 0 },
+    runningHours: 0,
+    tph: 0,
+    unitsPerMt: 0,
+  };
 }

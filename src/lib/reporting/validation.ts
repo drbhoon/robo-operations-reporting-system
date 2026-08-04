@@ -37,6 +37,20 @@ export function validateDailySnapshots(days: DailySnapshot[]): ValidationResult 
     assertNonNegative(issues, day.date, "loader.dieselLitres", day.loader.dieselLitres);
     assertNonNegative(issues, day.date, "loader.litresPerHour", day.loader.litresPerHour);
     assertNonNegative(issues, day.date, "loader.litresPerMt", day.loader.litresPerMt);
+    if (day.electricLoader) {
+      assertNonNegative(issues, day.date, "electricLoader.meter.opening", day.electricLoader.meter.opening);
+      assertNonNegative(issues, day.date, "electricLoader.meter.closing", day.electricLoader.meter.closing);
+      assertNonNegative(issues, day.date, "electricLoader.kwh.opening", day.electricLoader.kwh.opening);
+      assertNonNegative(issues, day.date, "electricLoader.kwh.closing", day.electricLoader.kwh.closing);
+      assertNonNegative(issues, day.date, "electricLoader.kvah.opening", day.electricLoader.kvah.opening);
+      assertNonNegative(issues, day.date, "electricLoader.kvah.closing", day.electricLoader.kvah.closing);
+      assertNonNegative(issues, day.date, "electricLoader.dispatchMt", day.electricLoader.dispatchMt);
+      assertNonNegative(issues, day.date, "electricLoader.runningHours", day.electricLoader.runningHours);
+      assertNonNegative(issues, day.date, "electricLoader.kwhUnits", day.electricLoader.kwhUnits);
+      assertNonNegative(issues, day.date, "electricLoader.kvahUnits", day.electricLoader.kvahUnits);
+      assertNonNegative(issues, day.date, "electricLoader.unitsPerMt", day.electricLoader.unitsPerMt);
+      assertNonNegative(issues, day.date, "electricLoader.tph", day.electricLoader.tph);
+    }
 
     for (const product of [...day.production.products, ...day.dispatch.products]) {
       assertNonNegative(issues, day.date, `${product.name}.mt`, product.mt);

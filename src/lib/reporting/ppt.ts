@@ -32,6 +32,7 @@ export async function generatePowerPoint(snapshot: ReportSnapshot) {
   addElectrical(pptx, snapshot);
   addLoader(pptx, snapshot);
   addLoaderMonitoring(pptx, snapshot);
+  addElectricLoader(pptx, snapshot);
   addCopStructure(pptx, snapshot);
   addCopProjection(pptx, snapshot);
   addCommentary(pptx, snapshot);
@@ -243,6 +244,44 @@ function addLoaderMonitoring(pptx: PptxGenJS, snapshot: ReportSnapshot) {
     true,
     2.8,
     3.65,
+  );
+}
+
+function addElectricLoader(pptx: PptxGenJS, snapshot: ReportSnapshot) {
+  const electricLoaderDays = snapshot.daily.filter((day) => day.electricLoader);
+  if (!electricLoaderDays.length) return;
+
+  const slide = contentSlide(pptx, snapshot, "Electric Loader");
+  addMetricTiles(slide, [
+    ["Dispatch", `${inrNumber(sum(electricLoaderDays.map((d) => d.electricLoader?.dispatchMt ?? 0)))} MT`],
+    ["KVAH", `${inrNumber(sum(electricLoaderDays.map((d) => d.electricLoader?.kvahUnits ?? 0)))}`],
+    ["KVAH/MT", `${electricLoaderSummary(snapshot, "MTD").unitsPerMt.toFixed(3)}`],
+    ["Avg TPH", `${avg(electricLoaderDays.map((d) => d.electricLoader?.tph ?? 0)).toFixed(1)}`],
+  ]);
+  addTable(
+    slide,
+    ["Basis", "Running Hrs", "KWH", "KVAH", "KVAH/MT", "TPH", "Dispatch Qty"],
+    electricLoaderRows(snapshot).map((row) => [
+      row.label,
+      inrNumber(row.runningHours),
+      inrNumber(row.kwhUnits),
+      inrNumber(row.kvahUnits),
+      row.unitsPerMt.toFixed(3),
+      row.tph.toFixed(1),
+      `${inrNumber(row.dispatchMt)} MT`,
+    ]),
+    1.85,
+  );
+  addSimpleBars(
+    slide,
+    electricLoaderDays.map((d) => d.label),
+    [
+      { name: "KVAH/MT", values: electricLoaderDays.map((d) => d.electricLoader?.unitsPerMt ?? 0), color: "F3A712" },
+      { name: "TPH", values: electricLoaderDays.map((d) => d.electricLoader?.tph ?? 0), color: "183153" },
+    ],
+    true,
+    3.35,
+    3.15,
   );
 }
 
@@ -466,6 +505,31 @@ function loaderRows(snapshot: ReportSnapshot) {
     summarizeLoader("Weekly", latestDays(snapshot.daily, 7)),
     summarizeLoader("MTD", monthToDateDays(snapshot.daily)),
   ];
+}
+
+function electricLoaderRows(snapshot: ReportSnapshot) {
+  return [
+    electricLoaderSummary(snapshot, "Daily", latestDays(snapshot.daily, 1)),
+    electricLoaderSummary(snapshot, "Weekly", latestDays(snapshot.daily, 7)),
+    electricLoaderSummary(snapshot, "MTD", monthToDateDays(snapshot.daily)),
+  ];
+}
+
+function electricLoaderSummary(snapshot: ReportSnapshot, labelText: string, sourceDays = monthToDateDays(snapshot.daily)) {
+  const tracked = sourceDays.map((day) => day.electricLoader).filter((item): item is NonNullable<typeof item> => Boolean(item));
+  const dispatchMt = sum(tracked.map((item) => item.dispatchMt));
+  const kwhUnits = sum(tracked.map((item) => item.kwhUnits));
+  const kvahUnits = sum(tracked.map((item) => item.kvahUnits));
+  const runningHours = sum(tracked.map((item) => item.runningHours));
+  return {
+    dispatchMt,
+    kwhUnits,
+    kvahUnits,
+    label: labelText,
+    runningHours,
+    tph: runningHours ? dispatchMt / runningHours : 0,
+    unitsPerMt: dispatchMt ? kvahUnits / dispatchMt : 0,
+  };
 }
 
 function lossRows(snapshot: ReportSnapshot) {

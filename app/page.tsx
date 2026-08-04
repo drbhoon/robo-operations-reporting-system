@@ -1,5 +1,6 @@
 import { DashboardShell } from "./dashboard-shell";
 import { allowedPlantCodes, listPlantUsers, requireAdminSession } from "@/src/lib/auth/admin";
+import { listPlantOperationalConfigs } from "@/src/lib/capture/plant-config-store";
 import { listDailyRecords } from "@/src/lib/capture/store";
 import { getLatestSnapshot } from "@/src/lib/reporting/store";
 import { loadSampleSnapshot } from "@/src/lib/reporting/sample";
@@ -16,11 +17,13 @@ export default async function Home() {
   const snapshot = (await getLatestSnapshot({ plantCode: permittedPlants?.[0] })) ?? (session.role === "SUPER_ADMIN" ? await loadSampleSnapshot() : null);
   const records = await listDailyRecords({ plantCode: permittedPlants?.[0] });
   const plantUsers = session.role === "SUPER_ADMIN" ? await listPlantUsers() : [];
+  const plantConfigs = await listPlantOperationalConfigs();
 
   return (
     <DashboardShell
       allowedPlantCodes={permittedPlants}
       initialPlantUsers={plantUsers}
+      initialPlantConfigs={plantConfigs}
       initialSnapshot={snapshot}
       initialRecords={records}
       session={session}

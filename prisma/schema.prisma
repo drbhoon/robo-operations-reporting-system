@@ -11,6 +11,7 @@ model Plant {
   id        String   @id @default(cuid())
   code      String   @unique
   name      String
+  electricLoaderEnabled Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

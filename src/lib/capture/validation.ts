@@ -366,6 +366,52 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
     });
   }
 
+  requireNonNegative(issues, record.date, "electricLoader.meter.opening", record.electricLoader.meter.opening);
+  requireNonNegative(issues, record.date, "electricLoader.meter.closing", record.electricLoader.meter.closing);
+  requireNonNegative(issues, record.date, "electricLoader.kwh.opening", record.electricLoader.kwh.opening);
+  requireNonNegative(issues, record.date, "electricLoader.kwh.closing", record.electricLoader.kwh.closing);
+  requireNonNegative(issues, record.date, "electricLoader.kvah.opening", record.electricLoader.kvah.opening);
+  requireNonNegative(issues, record.date, "electricLoader.kvah.closing", record.electricLoader.kvah.closing);
+  requireNonNegative(issues, record.date, "electricLoader.dispatchMt", record.electricLoader.dispatchMt);
+  if (record.electricLoader.enabled) {
+    if (record.electricLoader.meter.closing < record.electricLoader.meter.opening) {
+      issues.push({
+        severity: "ERROR",
+        code: "ELECTRIC_LOADER_METER_CLOSING_BELOW_OPENING",
+        date: record.date,
+        field: "electricLoader.meter.closing",
+        message: "Electric loader closing meter reading cannot be below opening meter reading.",
+      });
+    }
+    if (record.electricLoader.kwh.closing < record.electricLoader.kwh.opening) {
+      issues.push({
+        severity: "ERROR",
+        code: "ELECTRIC_LOADER_KWH_CLOSING_BELOW_OPENING",
+        date: record.date,
+        field: "electricLoader.kwh.closing",
+        message: "Electric loader closing KWH reading cannot be below opening KWH reading.",
+      });
+    }
+    if (record.electricLoader.kvah.closing < record.electricLoader.kvah.opening) {
+      issues.push({
+        severity: "ERROR",
+        code: "ELECTRIC_LOADER_KVAH_CLOSING_BELOW_OPENING",
+        date: record.date,
+        field: "electricLoader.kvah.closing",
+        message: "Electric loader closing KVAH reading cannot be below opening KVAH reading.",
+      });
+    }
+    if (Math.abs(record.electricLoader.runningHours - record.calculations.electricLoaderRunningHours) > 0.25) {
+      issues.push({
+        severity: "ERROR",
+        code: "ELECTRIC_LOADER_HOURS_RECONCILIATION",
+        date: record.date,
+        field: "electricLoader.runningHours",
+        message: `Electric loader running hours should be ${round(record.calculations.electricLoaderRunningHours, 2)} based on closing - opening meter reading.`,
+      });
+    }
+  }
+
   requireNonNegative(issues, record.date, "cop.fixedCostMonthly", record.cop.fixedCostMonthly);
   requireNonNegative(issues, record.date, "cop.fixedCostDaily", record.cop.fixedCostDaily);
   requireNonNegative(issues, record.date, "cop.fixedCost", record.cop.fixedCost);

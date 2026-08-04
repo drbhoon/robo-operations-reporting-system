@@ -164,6 +164,27 @@ export type DailyPlantRecord = {
     dieselVarianceCost: number;
     dispatchMt: number;
   };
+  electricLoader: {
+    enabled: boolean;
+    meter: {
+      opening: number;
+      closing: number;
+    };
+    kwh: {
+      opening: number;
+      closing: number;
+    };
+    kvah: {
+      opening: number;
+      closing: number;
+    };
+    dispatchMt: number;
+    runningHours: number;
+    kwhUnits: number;
+    kvahUnits: number;
+    unitsPerMt: number;
+    tph: number;
+  };
   cop: {
     fixedCostMonthly: number;
     fixedCostDaily: number;
@@ -217,6 +238,11 @@ export type DailyPlantRecord = {
     loaderProductionHours: number;
     loaderDispatchMt: number;
     loaderTph: number;
+    electricLoaderRunningHours: number;
+    electricLoaderKwhUnits: number;
+    electricLoaderKvahUnits: number;
+    electricLoaderUnitsPerMt: number;
+    electricLoaderTph: number;
     loaderDieselCost: number;
     loaderDieselVarianceCost: number;
     drillingBlastingCost: number;
