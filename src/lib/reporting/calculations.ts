@@ -29,6 +29,7 @@ export function buildTotals(days: DailySnapshot[]): ReportSnapshot["totals"] {
   const productionMt = sum(days.map((day) => day.production.mt));
   const dispatchMt = sum(days.map((day) => day.dispatch.totalMt));
   const dieselLitres = sum(days.map((day) => day.loader.dieselLitres));
+  const productionUnits = sum(days.map((day) => day.electrical.productionUnits ?? day.electrical.kvah));
 
   return {
     targetMt: round(targetMt),
@@ -39,7 +40,7 @@ export function buildTotals(days: DailySnapshot[]): ReportSnapshot["totals"] {
     avgJawTph: round(average(days.map((day) => day.machine.jawTph))),
     avgConeTph: round(average(days.map((day) => day.machine.coneTph))),
     avgVsiTph: round(average(days.map((day) => day.machine.vsiTph))),
-    avgUnitsPerMt: round(average(days.map((day) => day.electrical.unitsPerMt))),
+    avgUnitsPerMt: round(ratio(productionUnits, productionMt), 3),
     dieselLitres: round(dieselLitres),
     loaderLitresPerMt: round(ratio(dieselLitres, sum(days.map((day) => day.loader.stockToCustomerMt))), 3),
     plantRunningHours: round(sum(days.map((day) => day.plantHours.productionHours))),

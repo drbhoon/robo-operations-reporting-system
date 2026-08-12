@@ -1,6 +1,7 @@
 export type ProductName =
   | "R Sand"
   | "20 MM"
+  | "40 MM"
   | "10 MM"
   | "P Sand"
   | "Plaster Pro"
@@ -29,6 +30,7 @@ export type DailySnapshot = {
   targetMt: number;
   production: {
     mt: number;
+    interCartingQuantityMt?: number;
     rawMaterialMt: number;
     products: Array<{ name: ProductName; mt: number; ratio?: number }>;
     overburden?: {
@@ -127,6 +129,7 @@ export type DailySnapshot = {
   };
   cop?: {
     costPerMt?: number;
+    forecastProductionMt?: number;
     totalCost?: number;
     fixedCostMonthly?: number;
     fixedCostDaily?: number;

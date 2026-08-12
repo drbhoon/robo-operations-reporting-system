@@ -1,5 +1,6 @@
 import { PLANT_CONFIGS } from "./types";
-import type { PlantOperationalConfig } from "./plant-config-client";
+import { mergeCostRates, type PlantCostRates, type PlantOperationalConfig } from "./plant-config-client";
+import type { AppSession } from "../auth/admin";
 import { getPrisma } from "../reporting/prisma";
 
 export async function listPlantOperationalConfigs(): Promise<PlantOperationalConfig[]> {
@@ -13,6 +14,7 @@ export async function listPlantOperationalConfigs(): Promise<PlantOperationalCon
       const row = byCode.get(plant.code);
       return {
         code: plant.code,
+        costRates: mergeCostRates(plant.code, row?.costRates as Partial<PlantCostRates> | null | undefined),
         electricLoaderEnabled: row?.electricLoaderEnabled ?? false,
         name: row?.name ?? plant.name,
       };
@@ -24,7 +26,9 @@ export async function listPlantOperationalConfigs(): Promise<PlantOperationalCon
 }
 
 export async function updatePlantOperationalConfig(input: {
-  electricLoaderEnabled: boolean;
+  actor?: AppSession;
+  costRates?: Partial<PlantCostRates>;
+  electricLoaderEnabled?: boolean;
   plantCode: string;
 }) {
   const prisma = getPrisma();
@@ -32,16 +36,34 @@ export async function updatePlantOperationalConfig(input: {
   const plant = PLANT_CONFIGS.find((config) => config.code === input.plantCode);
   if (!plant) throw new Error(`Invalid plant ${input.plantCode}.`);
 
+  const current = await prisma.plant.findUnique({ where: { code: plant.code } });
+  const currentRates = mergeCostRates(plant.code, current?.costRates as Partial<PlantCostRates> | null | undefined);
+  const nextRates = input.costRates ? mergeCostRates(plant.code, { ...currentRates, ...input.costRates }) : currentRates;
+  const nextElectricLoaderEnabled = typeof input.electricLoaderEnabled === "boolean"
+    ? input.electricLoaderEnabled
+    : current?.electricLoaderEnabled ?? false;
+
   await prisma.plant.upsert({
     where: { code: plant.code },
     update: {
-      electricLoaderEnabled: input.electricLoaderEnabled,
+      costRates: nextRates,
+      electricLoaderEnabled: nextElectricLoaderEnabled,
       name: plant.name,
     },
     create: {
       code: plant.code,
-      electricLoaderEnabled: input.electricLoaderEnabled,
+      costRates: nextRates,
+      electricLoaderEnabled: nextElectricLoaderEnabled,
       name: plant.name,
+    },
+  });
+
+  await prisma.accessAuditLog.create({
+    data: {
+      action: "PLANT_CONFIG_UPDATED",
+      actorUserId: input.actor?.userId,
+      plantCode: plant.code,
+      summary: `${input.actor?.username ?? "system"} updated configuration for ${plant.code}.`,
     },
   });
   return listPlantOperationalConfigs();
@@ -50,6 +72,7 @@ export async function updatePlantOperationalConfig(input: {
 function defaultPlantOperationalConfigs(): PlantOperationalConfig[] {
   return PLANT_CONFIGS.map((plant) => ({
     code: plant.code,
+    costRates: mergeCostRates(plant.code, undefined),
     electricLoaderEnabled: false,
     name: plant.name,
   }));

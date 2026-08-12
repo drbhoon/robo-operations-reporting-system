@@ -2,7 +2,8 @@ import crypto from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Prisma } from "@prisma/client";
-import { calculateDailyRecord, materializeCalculatedFields } from "./calculations";
+import { calculateDailyRecord, materializeCalculatedFields, payloadWithCostRates } from "./calculations";
+import { listPlantOperationalConfigs } from "./plant-config-store";
 import { CAPTURE_PRODUCTS } from "./types";
 import type { AuditEntry, CapturePayload, DailyPlantRecord, DailyRecordStatus } from "./types";
 import { validateCaptureRecord } from "./validation";
@@ -47,6 +48,7 @@ export async function listDailyRecords(filter?: {
   }
 
   return records.filter((record) => {
+    if (!filter?.status && record.status === "DELETED") return false;
     if (filter?.plantCode && record.plantCode !== filter.plantCode) return false;
     if (filter?.status && record.status !== filter.status) return false;
     if (filter?.startDate && record.date < filter.startDate) return false;
@@ -74,7 +76,8 @@ export async function saveDailyRecord(input: {
 }) {
   const now = new Date().toISOString();
   const payloadWithMonthlyParameters = await applyMonthlyParameters(input.payload);
-  const materializedPayload = materializeCalculatedFields(payloadWithMonthlyParameters);
+  const payloadWithConfiguredRates = await applyConfiguredCostRates(payloadWithMonthlyParameters);
+  const materializedPayload = materializeCalculatedFields(payloadWithConfiguredRates);
   const id = materializedPayload.id || recordId(materializedPayload.plantCode, materializedPayload.date);
   const before = await getDailyRecord(id);
 
@@ -201,6 +204,7 @@ function carryWeeklyCop(current: CapturePayload["cop"], source: CapturePayload["
 
 function weeklyCopFields(): Array<keyof CapturePayload["cop"]> {
   return [
+    "forecastProductionMt",
     "fixedCost",
     "rawMaterialCost",
     "rentPlantCost",
@@ -269,7 +273,7 @@ async function persistRecord(record: DailyPlantRecord, audit: AuditEntry) {
         actor: audit.actor,
         summary: audit.summary,
         before: audit.before ? (audit.before as unknown as Prisma.InputJsonValue) : undefined,
-        after: audit.after as unknown as Prisma.InputJsonValue,
+        after: audit.after ? (audit.after as unknown as Prisma.InputJsonValue) : undefined,
       },
     });
     return;
@@ -283,6 +287,66 @@ async function persistRecord(record: DailyPlantRecord, audit: AuditEntry) {
     store.records.push(record);
   }
   store.records.sort((a, b) => a.date.localeCompare(b.date));
+  store.audit.push(audit);
+  await writeLocalStore(store);
+}
+
+export async function deleteDailyRecord(input: {
+  actor?: string;
+  allowFinalDelete?: boolean;
+  id: string;
+}) {
+  const before = await getDailyRecord(input.id);
+  if (!before) throw new Error("Daily record was not found.");
+  if (before.status === "FINAL" && !input.allowFinalDelete) {
+    throw new Error("Final records can be deleted only by ROBOOPS.");
+  }
+
+  const audit: AuditEntry = {
+    id: crypto.randomUUID(),
+    recordId: before.id,
+    action: before.status === "FINAL" ? "FINAL_DELETED" : "DRAFT_DELETED",
+    actor: input.actor || DEFAULT_ACTOR,
+    summary: `Deleted ${before.status.toLowerCase()} record for ${before.plantCode} on ${before.date}.`,
+    before,
+    createdAt: new Date().toISOString(),
+  };
+  await removeRecord(before, audit);
+  return { audit, deleted: true, record: before };
+}
+
+async function applyConfiguredCostRates(payload: CapturePayload): Promise<CapturePayload> {
+  const configs = await listPlantOperationalConfigs();
+  const config = configs.find((item) => item.code === payload.plantCode);
+  return config ? payloadWithCostRates(payload, config.costRates) : payload;
+}
+
+async function removeRecord(record: DailyPlantRecord, audit: AuditEntry) {
+  const prisma = getPrisma();
+  const deletedRecord = { ...record, status: "DELETED" as const, updatedAt: audit.createdAt };
+  if (prisma) {
+    await prisma.dailyPlantRecord.update({
+      where: { id: record.id },
+      data: {
+        status: "DELETED",
+        payload: deletedRecord as unknown as Prisma.InputJsonValue,
+      },
+    });
+    await prisma.auditLog.create({
+      data: {
+        recordId: record.id,
+        action: audit.action,
+        actor: audit.actor,
+        summary: audit.summary,
+        before: audit.before ? (audit.before as unknown as Prisma.InputJsonValue) : undefined,
+        after: deletedRecord as unknown as Prisma.InputJsonValue,
+      },
+    });
+    return;
+  }
+
+  const store = await readLocalStore();
+  store.records = store.records.map((existing) => existing.id === record.id ? deletedRecord : existing);
   store.audit.push(audit);
   await writeLocalStore(store);
 }

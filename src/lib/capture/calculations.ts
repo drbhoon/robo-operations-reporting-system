@@ -1,4 +1,5 @@
 import type { CapturePayload, DailyPlantRecord } from "./types";
+import { defaultCostRatesFor, mergeCostRates, plantRateGroup as costRateGroup, type PlantCostRates } from "./plant-config-client";
 import {
   CAPTURE_PRODUCTS,
   LOSS_CATEGORIES,
@@ -18,6 +19,7 @@ type CalculationInput = Pick<
   | "productMixPercentages"
   | "productMix"
   | "overburden"
+  | "interCartingQuantityMt"
   | "dispatch"
   | "openingStock"
   | "stockAdjustments"
@@ -35,6 +37,8 @@ const DOMESTIC_MF = 50;
 
 type FrozenCostRates = {
   drillingBlasting: number;
+  electricityUnit: number;
+  interCarting: number;
   loadingTransport: number;
   diesel: number;
   dieselVariance: number;
@@ -42,14 +46,8 @@ type FrozenCostRates = {
   obHardRock: number;
 };
 
-const FROZEN_COST_RATES: Record<"Girmapur" | "Keesara" | "Lakadaram", FrozenCostRates> = {
-  Girmapur: { drillingBlasting: 53, loadingTransport: 70, diesel: 97, dieselVariance: 6.32, obSoftRock: 0, obHardRock: 117 },
-  Keesara: { drillingBlasting: 55, loadingTransport: 65, diesel: 97, dieselVariance: 6.32, obSoftRock: 35, obHardRock: 55 },
-  Lakadaram: { drillingBlasting: 125, loadingTransport: 0, diesel: 97, dieselVariance: 6.32, obSoftRock: 0, obHardRock: 133 },
-};
-
 export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord["calculations"] {
-  const rates = frozenCostRatesFor(input.plantCode || input.plantName);
+  const rates = frozenCostRatesFromPayload(input);
   const electricLoader = input.electricLoader ?? emptyElectricLoader();
   const productMixTotal = sum(CAPTURE_PRODUCTS.map((product) => input.productMix[product]));
   const productMixPercentageTotal = sum(CAPTURE_PRODUCTS.map((product) => input.productMixPercentages[product]));
@@ -115,12 +113,13 @@ export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord[
   const drillingBlastingCost = round(input.productionMt * rates.drillingBlasting, 2);
   const loadingTransportCost = round(input.productionMt * rates.loadingTransport, 2);
   const overburdenCost = round((input.overburden.softRockMt * rates.obSoftRock) + (input.overburden.hardRockMt * rates.obHardRock), 2);
-  const electricalCost = round(kvahUnitsConsumed * 7.71, 2);
+  const electricalCost = round(kvahUnitsConsumed * rates.electricityUnit, 2);
+  const interCartingCost = round(Math.max(0, input.interCartingQuantityMt ?? 0) * rates.interCarting, 2);
   const fixedCost = input.cop.fixedCost || input.cop.fixedCostMonthly;
   const overburdenRemovalCost = overburdenCost;
   const plantMaintenanceCost = input.cop.plantMaintenanceCost || input.cop.plantCost;
   const sparesConsumablesCost = input.cop.sparesConsumablesCost || input.cop.consumablesCost;
-  const loaderHandlingCost = loaderDieselCost + loaderDieselVarianceCost + input.cop.intercartingExpenses;
+  const loaderHandlingCost = loaderDieselCost + loaderDieselVarianceCost + interCartingCost;
   const totalCost =
     drillingBlastingCost +
     loadingTransportCost +
@@ -163,6 +162,7 @@ export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord[
     electricLoaderTph,
     loaderDieselCost,
     loaderDieselVarianceCost,
+    interCartingCost,
     drillingBlastingCost,
     loadingTransportCost,
     overburdenCost,
@@ -247,6 +247,8 @@ export function materializeCalculatedFields(payload: CapturePayload): CapturePay
       frozenObHardRockRate: payloadWithFrozenRates.cop.frozenObHardRockRate,
       frozenDieselRate: payloadWithFrozenRates.cop.frozenDieselRate,
       frozenDieselVarianceRate: payloadWithFrozenRates.cop.frozenDieselVarianceRate,
+      frozenElectricityUnitRate: payloadWithFrozenRates.cop.frozenElectricityUnitRate,
+      frozenInterCartingRate: payloadWithFrozenRates.cop.frozenInterCartingRate,
       electricalCost: calculations.electricalCost,
       loaderCost: calculations.loaderDieselCost + calculations.loaderDieselVarianceCost,
       powerCost: calculations.electricalCost,
@@ -255,6 +257,7 @@ export function materializeCalculatedFields(payload: CapturePayload): CapturePay
       drillingBlastingCost: calculations.drillingBlastingCost,
       internalTransportationCost: calculations.loadingTransportCost,
       overburdenRemovalCost: calculations.overburdenCost,
+      intercartingExpenses: calculations.interCartingCost,
       plantMaintenanceCost: payloadWithFrozenRates.cop.plantMaintenanceCost || payloadWithFrozenRates.cop.plantCost,
       sparesConsumablesCost: payloadWithFrozenRates.cop.sparesConsumablesCost || payloadWithFrozenRates.cop.consumablesCost,
     },
@@ -317,14 +320,21 @@ export function domesticMeterMfFor(codeOrName: string) {
 }
 
 export function frozenCostRatesFor(codeOrName: string) {
-  return FROZEN_COST_RATES[plantRateGroup(codeOrName)];
+  const rates = defaultCostRatesFor(codeOrName);
+  return {
+    diesel: rates.diesel,
+    dieselVariance: rates.dieselVariance,
+    drillingBlasting: rates.drillingBlasting,
+    electricityUnit: rates.electricityUnit,
+    interCarting: rates.interCarting,
+    loadingTransport: rates.loadingTransport,
+    obHardRock: rates.obHardRock,
+    obSoftRock: rates.obSoftRock,
+  };
 }
 
-export function plantRateGroup(codeOrName: string): keyof typeof FROZEN_COST_RATES {
-  const normalized = normalizePlant(codeOrName);
-  if (normalized.includes("KEESARA") || normalized.includes("KEESRA")) return "Keesara";
-  if (normalized.includes("LAKADARAM") || normalized.includes("LAK-")) return "Lakadaram";
-  return "Girmapur";
+export function plantRateGroup(codeOrName: string) {
+  return costRateGroup(codeOrName);
 }
 
 export function mirroredLoaderDispatchPlant(codeOrName: string) {
@@ -346,29 +356,38 @@ function materializeProductMix(payload: CapturePayload): CapturePayload {
 }
 
 function materializeFrozenRates(payload: CapturePayload): CapturePayload {
-  const rates = frozenCostRatesFor(payload.plantCode || payload.plantName);
+  const withRates = payloadWithCostRates(payload, frozenCostRatesFromPayload(payload));
   return {
-    ...payload,
+    ...withRates,
     electrical: {
-      ...payload.electrical,
+      ...withRates.electrical,
       domestic: {
-        ...payload.electrical.domestic,
+        ...withRates.electrical.domestic,
         multiplyingFactor: domesticMeterMfFor(payload.plantCode || payload.plantName),
       },
     },
+  };
+}
+
+export function payloadWithCostRates(payload: CapturePayload, rates: Partial<PlantCostRates>): CapturePayload {
+  const merged = mergeCostRates(payload.plantCode || payload.plantName, rates);
+  return {
+    ...payload,
     loader: {
       ...payload.loader,
-      dieselRate: rates.diesel,
-      dieselVarianceRate: rates.dieselVariance,
+      dieselRate: merged.diesel,
+      dieselVarianceRate: merged.dieselVariance,
     },
     cop: {
       ...payload.cop,
-      frozenDrillingBlastingRate: rates.drillingBlasting,
-      frozenLoadingTransportRate: rates.loadingTransport,
-      frozenObSoftRockRate: rates.obSoftRock,
-      frozenObHardRockRate: rates.obHardRock,
-      frozenDieselRate: rates.diesel,
-      frozenDieselVarianceRate: rates.dieselVariance,
+      frozenDieselRate: merged.diesel,
+      frozenDieselVarianceRate: merged.dieselVariance,
+      frozenDrillingBlastingRate: merged.drillingBlasting,
+      frozenElectricityUnitRate: merged.electricityUnit,
+      frozenInterCartingRate: merged.interCarting,
+      frozenLoadingTransportRate: merged.loadingTransport,
+      frozenObHardRockRate: merged.obHardRock,
+      frozenObSoftRockRate: merged.obSoftRock,
     },
   };
 }
@@ -435,6 +454,20 @@ export function dailyFixedCost(monthlyFixedCost: number, date: string) {
 
 function normalizePlant(value: string) {
   return value.trim().toUpperCase().replace(/\s+/g, "").replace(/_/g, "-");
+}
+
+export function frozenCostRatesFromPayload(input: Pick<DailyPlantRecord, "cop" | "plantCode" | "plantName">): FrozenCostRates {
+  const defaults = frozenCostRatesFor(input.plantCode || input.plantName);
+  return {
+    diesel: input.cop.frozenDieselRate || defaults.diesel,
+    dieselVariance: input.cop.frozenDieselVarianceRate || defaults.dieselVariance,
+    drillingBlasting: input.cop.frozenDrillingBlastingRate || defaults.drillingBlasting,
+    electricityUnit: input.cop.frozenElectricityUnitRate || defaults.electricityUnit,
+    interCarting: input.cop.frozenInterCartingRate || defaults.interCarting,
+    loadingTransport: input.cop.frozenLoadingTransportRate || defaults.loadingTransport,
+    obHardRock: input.cop.frozenObHardRockRate || defaults.obHardRock,
+    obSoftRock: input.cop.frozenObSoftRockRate || defaults.obSoftRock,
+  };
 }
 
 function emptyElectricLoader(): DailyPlantRecord["electricLoader"] {

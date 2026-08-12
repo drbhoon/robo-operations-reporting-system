@@ -212,6 +212,23 @@ h1 {
   color: var(--accent-2);
 }
 
+.icon-btn {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--foreground);
+}
+
+.icon-btn.danger {
+  border-color: rgba(209, 73, 91, 0.35);
+  color: var(--accent-2);
+}
+
 .btn:disabled {
   cursor: not-allowed;
   opacity: 0.5;
@@ -669,6 +686,13 @@ h1 {
   padding: 14px 16px 16px;
 }
 
+.record-pill-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
 .record-pill {
   display: grid;
   grid-template-columns: 1fr auto auto;
@@ -891,6 +915,18 @@ th {
 td {
   font-family: var(--font-mono), monospace;
   font-size: 12px;
+}
+
+.table-number-input {
+  width: 92px;
+  min-width: 78px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--navy);
+  font-family: var(--font-mono), Consolas, monospace;
+  font-size: 12px;
+  padding: 7px 8px;
 }
 
 .summary-row td {

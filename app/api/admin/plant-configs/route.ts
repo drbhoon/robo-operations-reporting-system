@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSuperAdminSession } from "@/src/lib/auth/admin";
+import type { PlantCostRates } from "@/src/lib/capture/plant-config-client";
 import { listPlantOperationalConfigs, updatePlantOperationalConfig } from "@/src/lib/capture/plant-config-store";
 
 export const runtime = "nodejs";
@@ -18,16 +19,19 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
-    await requireSuperAdminSession();
+    const actor = await requireSuperAdminSession();
     const body = (await request.json()) as {
+      costRates?: Partial<PlantCostRates>;
       electricLoaderEnabled?: boolean;
       plantCode?: string;
     };
-    if (!body.plantCode || typeof body.electricLoaderEnabled !== "boolean") {
-      return NextResponse.json({ error: "Plant and electric loader setting are required." }, { status: 400 });
+    if (!body.plantCode || (typeof body.electricLoaderEnabled !== "boolean" && !body.costRates)) {
+      return NextResponse.json({ error: "Plant and configuration changes are required." }, { status: 400 });
     }
     return NextResponse.json({
       plantConfigs: await updatePlantOperationalConfig({
+        actor,
+        costRates: body.costRates,
         electricLoaderEnabled: body.electricLoaderEnabled,
         plantCode: body.plantCode,
       }),

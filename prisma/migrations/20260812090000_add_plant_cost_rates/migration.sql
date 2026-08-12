@@ -1,0 +1,1 @@
+ALTER TABLE "Plant" ADD COLUMN "costRates" JSONB;
