@@ -25,6 +25,7 @@ const END_DATE = "2026-07-31";
 const PRODUCT_COLUMNS = [
   ["R Sand", "r_sand"],
   ["20 MM", "20_mm"],
+  ["40 MM", "40_mm"],
   ["10 MM", "10_mm"],
   ["P Sand", "p_sand"],
   ["Plaster Pro", "plaster_pro"],
@@ -50,6 +51,7 @@ export const BACKFILL_HEADERS = [
   "submitted_by",
   "target_mt",
   "production_mt",
+  "intercarting_quantity_mt",
   "ob_soft_rock_mt",
   "ob_hard_rock_mt",
   ...PRODUCT_COLUMNS.map(([, key]) => `mix_pct_${key}`),
@@ -83,12 +85,12 @@ export const BACKFILL_HEADERS = [
   "loader_dispatch_mt",
   "include_diesel_variance",
   "fixed_cost",
+  "forecast_production_mt",
   "raw_material_cost",
   "rent_plant_cost",
   "plant_maintenance_cost",
   "spares_consumables_cost",
   "wear_parts_cost",
-  "intercarting_expenses",
   "remarks",
 ] as const;
 
@@ -211,6 +213,7 @@ function rowToPayload(row: Record<string, unknown>): CapturePayload {
     date,
     targetMt: num(row.target_mt),
     productionMt: num(row.production_mt),
+    interCartingQuantityMt: num(row.intercarting_quantity_mt),
     productMixPercentages,
     productMix: emptyProducts(),
     overburden: {
@@ -300,6 +303,7 @@ function rowToPayload(row: Record<string, unknown>): CapturePayload {
       tph: 0,
     },
     cop: {
+      forecastProductionMt: num(row.forecast_production_mt),
       fixedCostMonthly: 0,
       fixedCostDaily: 0,
       fixedCost: num(row.fixed_cost),
@@ -323,7 +327,7 @@ function rowToPayload(row: Record<string, unknown>): CapturePayload {
       loaderCost: 0,
       sparesConsumablesCost: num(row.spares_consumables_cost),
       wearPartsCost: num(row.wear_parts_cost),
-      intercartingExpenses: num(row.intercarting_expenses),
+      intercartingExpenses: 0,
       powerCost: 0,
       dieselCost: 0,
       consumablesCost: 0,

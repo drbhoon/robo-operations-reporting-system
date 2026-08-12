@@ -5,6 +5,7 @@ export type CaptureProductName = Exclude<ProductName, "Natural Fines">;
 export const CAPTURE_PRODUCTS: CaptureProductName[] = [
   "R Sand",
   "20 MM",
+  "40 MM",
   "10 MM",
   "P Sand",
   "Plaster Pro",
@@ -54,7 +55,7 @@ export const PHOTO_CATEGORIES = [
   "loaderDiesel",
 ] as const;
 
-export type DailyRecordStatus = "DRAFT" | "FINAL";
+export type DailyRecordStatus = "DELETED" | "DRAFT" | "FINAL";
 export type ReviewStatus = "OPEN" | "REVIEW_REQUIRED" | "APPROVED";
 export type LossCategory = (typeof LOSS_CATEGORIES)[number];
 export type QuarryLossReason = (typeof QUARRY_LOSS_REASONS)[number];
@@ -96,6 +97,7 @@ export type DailyPlantRecord = {
   reviewStatus: ReviewStatus;
   targetMt: number;
   productionMt: number;
+  interCartingQuantityMt: number;
   productMixPercentages: MetricByProduct;
   productMix: MetricByProduct;
   overburden: {
@@ -186,6 +188,7 @@ export type DailyPlantRecord = {
     tph: number;
   };
   cop: {
+    forecastProductionMt: number;
     fixedCostMonthly: number;
     fixedCostDaily: number;
     fixedCost: number;
@@ -195,6 +198,8 @@ export type DailyPlantRecord = {
     frozenObHardRockRate: number;
     frozenDieselRate: number;
     frozenDieselVarianceRate: number;
+    frozenElectricityUnitRate: number;
+    frozenInterCartingRate: number;
     quarryObCost: number;
     quarryBlastingCost: number;
     quarryLtCost: number;
@@ -245,6 +250,7 @@ export type DailyPlantRecord = {
     electricLoaderTph: number;
     loaderDieselCost: number;
     loaderDieselVarianceCost: number;
+    interCartingCost: number;
     drillingBlastingCost: number;
     loadingTransportCost: number;
     overburdenCost: number;
@@ -272,11 +278,11 @@ export type CapturePayload = Omit<
 export type AuditEntry = {
   id: string;
   recordId: string;
-  action: "DRAFT_SAVED" | "FINAL_SUBMITTED" | "FINAL_EDITED";
+  action: "DRAFT_DELETED" | "DRAFT_SAVED" | "FINAL_DELETED" | "FINAL_SUBMITTED" | "FINAL_EDITED";
   actor: string;
   summary: string;
   before?: DailyPlantRecord;
-  after: DailyPlantRecord;
+  after?: DailyPlantRecord;
   createdAt: string;
 };
 

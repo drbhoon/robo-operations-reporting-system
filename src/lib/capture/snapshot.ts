@@ -69,6 +69,7 @@ function recordToDailySnapshot(record: DailyPlantRecord): DailySnapshot {
     targetMt: record.targetMt,
     production: {
       mt: record.productionMt,
+      interCartingQuantityMt: round(record.interCartingQuantityMt, 2),
       rawMaterialMt: record.productionMt,
       products: CAPTURE_PRODUCTS.map((name) => ({ name, mt: round(record.productMix[name]), ratio: round(record.productMixPercentages[name], 2) })),
       overburden: {
@@ -132,7 +133,7 @@ function recordToDailySnapshot(record: DailyPlantRecord): DailySnapshot {
       productionHours: round(record.calculations.loaderProductionHours, 2),
       otherWorksHours: round(record.loader.otherWorksHours, 2),
       tph: round(record.calculations.loaderTph, 2),
-      dieselLitres: round(record.loader.dieselLitres),
+      dieselLitres: round(record.loader.dieselLitres, 2),
       dieselRate: round(record.loader.dieselRate, 2),
       dieselCost: round(record.calculations.loaderDieselCost, 2),
       dieselVarianceRate: round(record.loader.dieselVarianceRate, 2),
@@ -156,6 +157,7 @@ function recordToDailySnapshot(record: DailyPlantRecord): DailySnapshot {
       : undefined,
     cop: {
       costPerMt: record.calculations.copPerMt,
+      forecastProductionMt: round(record.cop.forecastProductionMt, 2),
       totalCost: record.calculations.totalCopCost,
       fixedCostMonthly: round(record.cop.fixedCostMonthly, 2),
       fixedCostDaily: round(record.calculations.fixedCostDaily, 2),
@@ -175,7 +177,7 @@ function recordToDailySnapshot(record: DailyPlantRecord): DailySnapshot {
       dieselVarianceCost: round(record.calculations.loaderDieselVarianceCost, 2),
       sparesConsumablesCost: round(record.cop.sparesConsumablesCost || record.cop.consumablesCost, 2),
       wearPartsCost: round(record.cop.wearPartsCost, 2),
-      intercartingExpenses: round(record.cop.intercartingExpenses, 2),
+      intercartingExpenses: round(record.calculations.interCartingCost, 2),
       powerCostPerMt: round(record.calculations.electricalCost / (record.productionMt || 1), 2),
       dieselCostPerMt: round(record.calculations.loaderDieselCost / (record.productionMt || 1), 2),
     },

@@ -5,7 +5,7 @@ import type {
 import { CAPTURE_PRODUCTS, LOSS_CATEGORIES } from "./types";
 import { round, sum } from "../reporting/calculations";
 import type { ValidationIssue } from "../reporting/types";
-import { calculatedLossHours, domesticMeterMfFor, frozenCostRatesFor, plantElectricalMf } from "./calculations";
+import { calculatedLossHours, domesticMeterMfFor, frozenCostRatesFromPayload, plantElectricalMf } from "./calculations";
 
 export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidationResult {
   const issues: ValidationIssue[] = [];
@@ -18,7 +18,7 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
   const expectedUnits = record.calculations.electricalUnitsConsumed;
   const expectedKvahUnits = record.calculations.kvahUnitsConsumed;
   const expectedPlantMf = plantElectricalMf(record.plantCode);
-  const expectedRates = frozenCostRatesFor(record.plantCode || record.plantName);
+  const expectedRates = frozenCostRatesFromPayload(record);
 
   requireText(issues, record.date, "plantCode", record.plantCode, "Plant is mandatory.");
   requireText(issues, record.date, "date", record.date, "Date is mandatory.");
@@ -30,6 +30,7 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
   requireNonNegative(issues, record.date, "plantHours.loss", record.plantHours.loss);
   requireNonNegative(issues, record.date, "overburden.softRockMt", record.overburden.softRockMt);
   requireNonNegative(issues, record.date, "overburden.hardRockMt", record.overburden.hardRockMt);
+  requireNonNegative(issues, record.date, "interCartingQuantityMt", record.interCartingQuantityMt);
 
   for (const product of CAPTURE_PRODUCTS) {
     requireNonNegative(issues, record.date, `productMixPercentages.${product}`, record.productMixPercentages[product]);
@@ -413,6 +414,7 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
   }
 
   requireNonNegative(issues, record.date, "cop.fixedCostMonthly", record.cop.fixedCostMonthly);
+  requireNonNegative(issues, record.date, "cop.forecastProductionMt", record.cop.forecastProductionMt);
   requireNonNegative(issues, record.date, "cop.fixedCostDaily", record.cop.fixedCostDaily);
   requireNonNegative(issues, record.date, "cop.fixedCost", record.cop.fixedCost);
   requireNonNegative(issues, record.date, "cop.frozenDrillingBlastingRate", record.cop.frozenDrillingBlastingRate);
@@ -421,6 +423,8 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
   requireNonNegative(issues, record.date, "cop.frozenObHardRockRate", record.cop.frozenObHardRockRate);
   requireNonNegative(issues, record.date, "cop.frozenDieselRate", record.cop.frozenDieselRate);
   requireNonNegative(issues, record.date, "cop.frozenDieselVarianceRate", record.cop.frozenDieselVarianceRate);
+  requireNonNegative(issues, record.date, "cop.frozenElectricityUnitRate", record.cop.frozenElectricityUnitRate);
+  requireNonNegative(issues, record.date, "cop.frozenInterCartingRate", record.cop.frozenInterCartingRate);
   requireNonNegative(issues, record.date, "cop.quarryObCost", record.cop.quarryObCost);
   requireNonNegative(issues, record.date, "cop.quarryBlastingCost", record.cop.quarryBlastingCost);
   requireNonNegative(issues, record.date, "cop.quarryLtCost", record.cop.quarryLtCost);
@@ -443,6 +447,8 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
     ["cop.frozenObHardRockRate", record.cop.frozenObHardRockRate, expectedRates.obHardRock],
     ["cop.frozenDieselRate", record.cop.frozenDieselRate, expectedRates.diesel],
     ["cop.frozenDieselVarianceRate", record.cop.frozenDieselVarianceRate, expectedRates.dieselVariance],
+    ["cop.frozenElectricityUnitRate", record.cop.frozenElectricityUnitRate, expectedRates.electricityUnit],
+    ["cop.frozenInterCartingRate", record.cop.frozenInterCartingRate, expectedRates.interCarting],
   ];
   for (const [field, actual, expected] of frozenRateChecks) {
     if (Math.abs(actual - expected) > 0.001) {
@@ -461,7 +467,7 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
       code: "ELECTRICAL_COST_RECONCILIATION",
       date: record.date,
       field: "cop.electricalCost",
-      message: `Electrical cost should be Rs ${round(record.calculations.electricalCost, 2)} at Rs 7.71/KVAH unit.`,
+      message: `Electrical cost should be Rs ${round(record.calculations.electricalCost, 2)} at the configured unit rate.`,
     });
   }
   if (Math.abs(record.cop.drillingBlastingCost - record.calculations.drillingBlastingCost) > 1) {
@@ -500,6 +506,15 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
       message: "Loader COP cost should equal base diesel cost plus selected diesel variance.",
     });
   }
+  if (Math.abs(record.cop.intercartingExpenses - record.calculations.interCartingCost) > 1) {
+    issues.push({
+      severity: "ERROR",
+      code: "INTERCARTING_COST_RECONCILIATION",
+      date: record.date,
+      field: "cop.intercartingExpenses",
+      message: `Inter-carting expense should be Rs ${round(record.calculations.interCartingCost, 2)} based on quantity and configured Rs/MT rate.`,
+    });
+  }
 
   if (dispatchTotal > record.productionMt * 1.25 && record.productionMt > 0) {
     issues.push({
@@ -527,7 +542,7 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
       code: "HIGH_UNITS_PER_MT",
       date: record.date,
       field: "electrical.unitsPerMt",
-      message: "KVAH/MT is above the configured review threshold.",
+      message: "Unit/MT is above the configured review threshold.",
     });
   }
 

@@ -23,6 +23,7 @@ export async function generatePowerPoint(snapshot: ReportSnapshot) {
   addTitle(pptx, snapshot);
   addTargetActual(pptx, snapshot);
   addProductRatiosAndBasis(pptx, snapshot);
+  addProductionDispatchComparison(pptx, snapshot);
   addPlantHours(pptx, snapshot);
   addLossHours(pptx, snapshot);
   addTph(pptx, snapshot, "jawTph", "Jaw TPH");
@@ -33,6 +34,8 @@ export async function generatePowerPoint(snapshot: ReportSnapshot) {
   addLoader(pptx, snapshot);
   addLoaderMonitoring(pptx, snapshot);
   addElectricLoader(pptx, snapshot);
+  addLoaderAnalysis(pptx, snapshot);
+  addProductEfficiencyAnalysis(pptx, snapshot);
   addCopStructure(pptx, snapshot);
   addCopProjection(pptx, snapshot);
   addCommentary(pptx, snapshot);
@@ -111,7 +114,7 @@ function addProductRatiosAndBasis(pptx: PptxGenJS, snapshot: ReportSnapshot) {
   addTable(slide, ["Product", "Production", "Ratio"], productRows, 0.9, 5.55);
   addTable(
     slide,
-    ["Basis", "Production", "Jaw TPH", "Cone TPH", "VSI TPH", "KVAH/MT"],
+    ["Basis", "Production", "Jaw TPH", "Cone TPH", "VSI TPH", "Unit/MT"],
     basisRows(snapshot).map((row) => [
       row.label,
       inrNumber(row.production),
@@ -122,6 +125,23 @@ function addProductRatiosAndBasis(pptx: PptxGenJS, snapshot: ReportSnapshot) {
     ]),
     3.5,
     5.55,
+  );
+}
+
+function addProductionDispatchComparison(pptx: PptxGenJS, snapshot: ReportSnapshot) {
+  const slide = contentSlide(pptx, snapshot, "Production Vs Dispatch");
+  addTable(
+    slide,
+    ["Product", "Prod. MT", "Prod. Ratio", "Dispatch MT", "Dispatch Ratio", "Variance"],
+    productionDispatchRows(snapshot).map((row) => [
+      row.name,
+      inrNumber(row.productionMt),
+      `${row.productionRatio.toFixed(1)}%`,
+      inrNumber(row.dispatchMt),
+      `${row.dispatchRatio.toFixed(1)}%`,
+      inrNumber(row.varianceMt),
+    ]),
+    1.05,
   );
 }
 
@@ -167,7 +187,7 @@ function addUtilisation(pptx: PptxGenJS, snapshot: ReportSnapshot) {
       ["Dispatch to production", `${snapshot.totals.dispatchToProductionPct}%`],
       ["Production hours", `${inrNumber(snapshot.totals.plantRunningHours)} hr`],
       ["Stoppage hours", `${inrNumber(snapshot.totals.stoppageHours)} hr`],
-      ["Avg KVAH/MT", `${snapshot.totals.avgUnitsPerMt}`],
+      ["Avg Unit/MT", `${snapshot.totals.avgUnitsPerMt}`],
     ],
     1.05,
   );
@@ -179,7 +199,7 @@ function addMtdTrends(pptx: PptxGenJS, snapshot: ReportSnapshot) {
   addMetricTiles(slide, [
     ["MTD Production", `${inrNumber(rows.at(-1)?.production ?? 0)} MT`],
     ["MTD Dispatch", `${inrNumber(rows.at(-1)?.dispatch ?? 0)} MT`],
-    ["Avg KVAH/MT", `${snapshot.totals.avgUnitsPerMt}`],
+    ["Avg Unit/MT", `${snapshot.totals.avgUnitsPerMt}`],
     ["Loader L/MT", `${snapshot.totals.loaderLitresPerMt}`],
   ]);
   addSimpleBars(
@@ -194,15 +214,15 @@ function addMtdTrends(pptx: PptxGenJS, snapshot: ReportSnapshot) {
 }
 
 function addElectrical(pptx: PptxGenJS, snapshot: ReportSnapshot) {
-  const slide = contentSlide(pptx, snapshot, "Electricity - KVAH / MT");
+  const slide = contentSlide(pptx, snapshot, "Electricity - Unit / MT");
   addMetricTiles(slide, [
-    ["Avg KVAH/MT", `${snapshot.totals.avgUnitsPerMt}`],
+    ["Avg Unit/MT", `${snapshot.totals.avgUnitsPerMt}`],
     ["Best Day", `${Math.min(...snapshot.daily.filter((d) => d.electrical.unitsPerMt > 0).map((d) => d.electrical.unitsPerMt))}`],
     ["Avg PF", `${avg(snapshot.daily.map((d) => d.electrical.powerFactor)).toFixed(2)}`],
     ["KVAH", `${inrNumber(sum(snapshot.daily.map((d) => d.electrical.kvah)))}`],
   ]);
   addSimpleBars(slide, snapshot.daily.map((d) => d.label), [
-    { name: "KVAH/MT", values: snapshot.daily.map((d) => d.electrical.unitsPerMt), color: "F3A712" },
+    { name: "Unit/MT", values: snapshot.daily.map((d) => d.electrical.unitsPerMt), color: "F3A712" },
   ]);
 }
 
@@ -255,12 +275,12 @@ function addElectricLoader(pptx: PptxGenJS, snapshot: ReportSnapshot) {
   addMetricTiles(slide, [
     ["Dispatch", `${inrNumber(sum(electricLoaderDays.map((d) => d.electricLoader?.dispatchMt ?? 0)))} MT`],
     ["KVAH", `${inrNumber(sum(electricLoaderDays.map((d) => d.electricLoader?.kvahUnits ?? 0)))}`],
-    ["KVAH/MT", `${electricLoaderSummary(snapshot, "MTD").unitsPerMt.toFixed(3)}`],
+    ["Unit/MT", `${electricLoaderSummary(snapshot, "MTD").unitsPerMt.toFixed(3)}`],
     ["Avg TPH", `${avg(electricLoaderDays.map((d) => d.electricLoader?.tph ?? 0)).toFixed(1)}`],
   ]);
   addTable(
     slide,
-    ["Basis", "Running Hrs", "KWH", "KVAH", "KVAH/MT", "TPH", "Dispatch Qty"],
+    ["Basis", "Running Hrs", "KWH", "KVAH", "Unit/MT", "TPH", "Dispatch Qty"],
     electricLoaderRows(snapshot).map((row) => [
       row.label,
       inrNumber(row.runningHours),
@@ -276,7 +296,7 @@ function addElectricLoader(pptx: PptxGenJS, snapshot: ReportSnapshot) {
     slide,
     electricLoaderDays.map((d) => d.label),
     [
-      { name: "KVAH/MT", values: electricLoaderDays.map((d) => d.electricLoader?.unitsPerMt ?? 0), color: "F3A712" },
+      { name: "Unit/MT", values: electricLoaderDays.map((d) => d.electricLoader?.unitsPerMt ?? 0), color: "F3A712" },
       { name: "TPH", values: electricLoaderDays.map((d) => d.electricLoader?.tph ?? 0), color: "183153" },
     ],
     true,
@@ -285,11 +305,55 @@ function addElectricLoader(pptx: PptxGenJS, snapshot: ReportSnapshot) {
   );
 }
 
+function addLoaderAnalysis(pptx: PptxGenJS, snapshot: ReportSnapshot) {
+  const slide = contentSlide(pptx, snapshot, "Dispatch Vs Loader Diesel Vs TPH");
+  addSimpleBars(
+    slide,
+    snapshot.daily.map((d) => d.label),
+    [
+      { name: "Dispatch MT", values: snapshot.daily.map((d) => d.loader.dispatchMt), color: "087F8C" },
+      { name: "Diesel L", values: snapshot.daily.map((d) => d.loader.dieselLitres), color: "D1495B" },
+      { name: "Loader TPH", values: snapshot.daily.map((d) => d.loader.tph), color: "183153" },
+    ],
+    true,
+  );
+}
+
+function addProductEfficiencyAnalysis(pptx: PptxGenJS, snapshot: ReportSnapshot) {
+  const slide = contentSlide(pptx, snapshot, "Product Ratio Vs Unit/MT Vs VSI TPH");
+  const rows = productEfficiencyRows(snapshot);
+  addTable(
+    slide,
+    ["Date", "Top product", "Ratio", "Unit/MT", "VSI TPH"],
+    rows.map((row) => [
+      row.label,
+      row.productName,
+      `${row.productRatio.toFixed(1)}%`,
+      row.unitsPerMt.toFixed(2),
+      row.vsiTph.toFixed(1),
+    ]),
+    0.9,
+    5.7,
+  );
+  addSimpleBars(
+    slide,
+    rows.map((row) => row.label),
+    [
+      { name: "Top product ratio %", values: rows.map((row) => row.productRatio), color: "087F8C" },
+      { name: "Unit/MT", values: rows.map((row) => row.unitsPerMt), color: "F3A712" },
+      { name: "VSI TPH", values: rows.map((row) => row.vsiTph), color: "183153" },
+    ],
+    true,
+    3.15,
+    3.35,
+  );
+}
+
 function addCopStructure(pptx: PptxGenJS, snapshot: ReportSnapshot) {
   const slide = contentSlide(pptx, snapshot, "COP Structure");
   slide.addText(`Location: ${snapshot.plantName}`, { x: 0.75, y: 0.82, w: 3.5, h: 0.25, fontSize: 11, bold: true, color: "183153" });
   slide.addText(`Month: ${snapshot.period.start.slice(0, 7)}`, { x: 4.3, y: 0.82, w: 2.4, h: 0.25, fontSize: 11, bold: true, color: "183153" });
-  addTable(slide, ["Quantitative Information", "Actuals", "Rs./Mt"], copRows(snapshot), 1.15);
+  addTable(slide, ["Quantitative Information", "Actuals", "Rs./Mt", "Forecast"], copRows(snapshot), 1.15);
 }
 
 function addCopProjection(pptx: PptxGenJS, snapshot: ReportSnapshot) {
@@ -330,7 +394,7 @@ function addNextWeek(pptx: PptxGenJS, snapshot: ReportSnapshot) {
     [
       ["Confirm daily production target before shift plan freeze", "Plant Head", `${inrNumber(dailyTarget)} MT/day`],
       ["Review Jaw/VSI TPH days below average", "Maintenance", "Daily morning meeting"],
-      ["Track KVAH/MT and loader litres/MT exceptions", "Electrical / Stores", "Exception log"],
+      ["Track Unit/MT and loader litres/MT exceptions", "Electrical / Stores", "Exception log"],
       ["Close data gaps before report lock", "Operations MIS", "Same day"],
     ],
     1.05,
@@ -423,7 +487,7 @@ function addSimpleBars(
   const w = 11.8;
   const max = Math.max(...series.flatMap((item) => item.values), 1);
   const groupWidth = w / labels.length;
-  const barWidth = Math.min(0.13, groupWidth / (series.length + 1));
+  const barWidth = Math.min(0.22, groupWidth / (series.length + 1));
 
   slide.addShape("rect", { x, y, w, h, fill: { color: "FFFFFF" }, line: { color: "D9E4DF" } });
   series.forEach((item, seriesIndex) => {
@@ -440,7 +504,7 @@ function addSimpleBars(
       if (showValues && labels.length <= 18 && value > 0) {
         slide.addText(compactNumber(value), {
           x: x + index * groupWidth + 0.02,
-          y: y + h - 0.48 - barHeight - 0.13,
+          y: y + h - 0.48 - barHeight - 0.05,
           w: Math.max(0.28, groupWidth),
           h: 0.12,
           fontSize: 5.8,
@@ -553,8 +617,65 @@ function lossRows(snapshot: ReportSnapshot) {
   ]);
 }
 
+function productionDispatchRows(snapshot: ReportSnapshot) {
+  const productionTotals = new Map<string, number>();
+  const dispatchTotals = new Map<string, number>();
+
+  snapshot.daily.forEach((day) => {
+    day.production.products.forEach((product) => {
+      productionTotals.set(product.name, (productionTotals.get(product.name) ?? 0) + product.mt);
+    });
+    day.dispatch.products.forEach((product) => {
+      dispatchTotals.set(product.name, (dispatchTotals.get(product.name) ?? 0) + product.mt);
+    });
+  });
+
+  const productionTotal = sum([...productionTotals.values()]);
+  const dispatchTotal = sum([...dispatchTotals.values()]);
+  const rows = [...new Set([...productionTotals.keys(), ...dispatchTotals.keys()])]
+    .map((name) => {
+      const productionMt = productionTotals.get(name) ?? 0;
+      const dispatchMt = dispatchTotals.get(name) ?? 0;
+      return {
+        dispatchMt,
+        dispatchRatio: dispatchTotal ? (dispatchMt / dispatchTotal) * 100 : 0,
+        name,
+        productionMt,
+        productionRatio: productionTotal ? (productionMt / productionTotal) * 100 : 0,
+        varianceMt: productionMt - dispatchMt,
+      };
+    })
+    .filter((row) => row.productionMt || row.dispatchMt)
+    .sort((a, b) => b.productionMt + b.dispatchMt - (a.productionMt + a.dispatchMt));
+
+  rows.push({
+    dispatchMt: dispatchTotal,
+    dispatchRatio: dispatchTotal ? 100 : 0,
+    name: "Total",
+    productionMt: productionTotal,
+    productionRatio: productionTotal ? 100 : 0,
+    varianceMt: productionTotal - dispatchTotal,
+  });
+
+  return rows;
+}
+
+function productEfficiencyRows(snapshot: ReportSnapshot) {
+  return [...snapshot.daily].sort((a, b) => a.date.localeCompare(b.date)).map((day) => {
+    const topProduct = [...day.production.products].sort((a, b) => b.mt - a.mt)[0];
+    return {
+      label: day.label,
+      productName: topProduct?.name ?? "-",
+      productRatio: day.production.mt && topProduct ? (topProduct.mt / day.production.mt) * 100 : 0,
+      unitsPerMt: day.electrical.unitsPerMt,
+      vsiTph: day.machine.vsiTph,
+    };
+  });
+}
+
 function copRows(snapshot: ReportSnapshot) {
   const production = snapshot.totals.productionMt;
+  const forecastProduction = latestForecastProduction(snapshot);
   const totals = {
     drillingBlasting: sum(snapshot.daily.map((day) => day.cop?.drillingBlastingCost ?? day.cop?.quarryBlastingCost ?? 0)),
     internalTransport: sum(snapshot.daily.map((day) => day.cop?.internalTransportationCost ?? day.cop?.quarryLtCost ?? 0)),
@@ -575,28 +696,45 @@ function copRows(snapshot: ReportSnapshot) {
   const loading = totals.loaderDiesel + totals.intercarting;
   const totalVariable = variableExcavation + rawMaterialSourcing + crushing + loading;
   const totalCop = totalVariable + totals.fixed;
+  const row = (labelText: string, actuals: number) => {
+    const unitRate = production ? actuals / production : 0;
+    return [
+      labelText,
+      wholeNumber(actuals),
+      unitRate ? wholeNumber(unitRate) : "-",
+      forecastProduction && unitRate ? wholeNumber(unitRate * forecastProduction) : "-",
+    ];
+  };
+
   return [
-    ["Production", inrNumber(production), ""],
-    ["Drilling & Blasting", currency(totals.drillingBlasting), perMt(totals.drillingBlasting, production)],
-    ["Internal Transportation", currency(totals.internalTransport), perMt(totals.internalTransport, production)],
-    ["Overburden Removal", currency(totals.overburden), perMt(totals.overburden, production)],
-    ["Variable Excavation Cost", currency(variableExcavation), perMt(variableExcavation, production)],
-    ["Raw materials", currency(totals.rawMaterial), perMt(totals.rawMaterial, production)],
-    ["Rent- Plant", currency(totals.rentPlant), perMt(totals.rentPlant, production)],
-    ["Raw Material - Boulder Sourcing", currency(rawMaterialSourcing), perMt(rawMaterialSourcing, production)],
-    ["Diesel - Plant", "-", "-"],
-    ["Electricity - Variable", currency(totals.electricity), perMt(totals.electricity, production)],
-    ["Plant Maintenance", currency(totals.plantMaintenance), perMt(totals.plantMaintenance, production)],
-    ["Spares & consumables", currency(totals.spares), perMt(totals.spares, production)],
-    ["Wear Parts", currency(totals.wearParts), perMt(totals.wearParts, production)],
-    ["Variable Crushing & Screening Costs", currency(crushing), perMt(crushing, production)],
-    ["Diesel - loader", currency(totals.loaderDiesel), perMt(totals.loaderDiesel, production)],
-    ["Intercarting Expenses", currency(totals.intercarting), perMt(totals.intercarting, production)],
-    ["Variable Material loading & handling", currency(loading), perMt(loading, production)],
-    ["Total Variable mfg costs", currency(totalVariable), perMt(totalVariable, production)],
-    ["Fixed cost", currency(totals.fixed), perMt(totals.fixed, production)],
-    ["Total COP", currency(totalCop), perMt(totalCop, production)],
+    ["Production", wholeNumber(production), "-", forecastProduction ? wholeNumber(forecastProduction) : "-"],
+    row("Drilling & Blasting", totals.drillingBlasting),
+    row("Internal Transportation", totals.internalTransport),
+    row("Overburden Removal", totals.overburden),
+    row("Variable Excavation Cost", variableExcavation),
+    row("Raw materials", totals.rawMaterial),
+    row("Rent- Plant", totals.rentPlant),
+    row("Raw Material - Boulder Sourcing", rawMaterialSourcing),
+    ["Diesel - Plant", "-", "-", "-"],
+    row("Electricity - Variable", totals.electricity),
+    row("Plant Maintenance", totals.plantMaintenance),
+    row("Spares & consumables", totals.spares),
+    row("Wear Parts", totals.wearParts),
+    row("Variable Crushing & Screening Costs", crushing),
+    row("Diesel - loader", totals.loaderDiesel),
+    row("Intercarting Expenses", totals.intercarting),
+    row("Variable Material loading & handling", loading),
+    row("Total Variable mfg costs", totalVariable),
+    row("Fixed cost", totals.fixed),
+    row("Total COP", totalCop),
   ];
+}
+
+function latestForecastProduction(snapshot: ReportSnapshot) {
+  return [...snapshot.daily]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .reverse()
+    .find((day) => (day.cop?.forecastProductionMt ?? 0) > 0)?.cop?.forecastProductionMt ?? 0;
 }
 
 function copProjectionRows(snapshot: ReportSnapshot) {
@@ -717,6 +855,10 @@ function currency(value: number) {
 
 function perMt(value: number, production: number) {
   return value && production ? inrNumber(value / production) : "-";
+}
+
+function wholeNumber(value: number) {
+  return value ? new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(value) : "-";
 }
 
 function formatHours(value: number) {

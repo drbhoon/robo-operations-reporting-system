@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { canAccessPlant, requireAdminSession } from "@/src/lib/auth/admin";
-import { listDailyRecords, saveDailyRecord } from "@/src/lib/capture/store";
+import { deleteDailyRecord, getDailyRecord, listDailyRecords, saveDailyRecord } from "@/src/lib/capture/store";
 import type { CapturePayload } from "@/src/lib/capture/types";
 
 export const runtime = "nodejs";
@@ -18,6 +18,39 @@ export async function GET(request: Request) {
   });
 
   return NextResponse.json({ records });
+}
+
+export async function DELETE(request: Request) {
+  const session = await requireAdminSession();
+  const body = (await request.json()) as { id?: string };
+  if (!body.id) {
+    return NextResponse.json({ error: "Daily record id is required." }, { status: 400 });
+  }
+
+  const record = await getDailyRecord(body.id);
+  if (!record) {
+    return NextResponse.json({ error: "Daily record was not found." }, { status: 404 });
+  }
+  if (!canAccessPlant(session, record.plantCode)) {
+    return NextResponse.json({ error: `Access denied for plant ${record.plantCode}.` }, { status: 403 });
+  }
+  if (record.status === "FINAL" && session.role !== "SUPER_ADMIN") {
+    return NextResponse.json({ error: "Final records can be deleted only by ROBOOPS." }, { status: 403 });
+  }
+
+  try {
+    const result = await deleteDailyRecord({
+      actor: session.username,
+      allowFinalDelete: session.role === "SUPER_ADMIN",
+      id: body.id,
+    });
+    return NextResponse.json(result);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Daily record delete failed." },
+      { status: 409 },
+    );
+  }
 }
 
 export async function POST(request: Request) {

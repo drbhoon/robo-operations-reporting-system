@@ -34,8 +34,8 @@ import {
 } from "lucide-react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import type { AppSession, PlantUserSummary, UserRole } from "@/src/lib/auth/admin";
-import { electricLoaderEnabledFor, type PlantOperationalConfig } from "@/src/lib/capture/plant-config-client";
-import { calculateDailyRecord, domesticMeterMfFor, materializeCalculatedFields, mirroredLoaderDispatchPlant } from "@/src/lib/capture/calculations";
+import { defaultCostRatesFor, electricLoaderEnabledFor, type PlantCostRates, type PlantOperationalConfig } from "@/src/lib/capture/plant-config-client";
+import { calculateDailyRecord, domesticMeterMfFor, materializeCalculatedFields, mirroredLoaderDispatchPlant, payloadWithCostRates } from "@/src/lib/capture/calculations";
 import {
   CAPTURE_PRODUCTS,
   LOSS_CATEGORIES,
@@ -74,7 +74,7 @@ const valueLabelPlugin = {
         const value = typeof raw === "number" ? raw : Number(raw);
         if (!Number.isFinite(value) || value === 0) return;
         const position = element.tooltipPosition(true);
-        ctx.fillText(chartCompactNumber(value), position.x, position.y - 4);
+        ctx.fillText(chartCompactNumber(value), position.x, position.y - 1);
       });
     });
     ctx.restore();
@@ -129,6 +129,29 @@ type ElectricLoaderBasisRow = {
   tph: number;
   unitsPerMt: number;
 };
+type ProductionDispatchRow = {
+  dispatchMt: number;
+  dispatchRatio: number;
+  name: string;
+  productionMt: number;
+  productionRatio: number;
+  varianceMt: number;
+};
+type ProductEfficiencyRow = {
+  date: string;
+  label: string;
+  productName: string;
+  productRatio: number;
+  unitsPerMt: number;
+  vsiTph: number;
+};
+type CopRow = {
+  actuals: number;
+  forecast: number;
+  label: string;
+  perMt: number;
+  strong?: boolean;
+};
 type PeriodSummaryRow = {
   achievementPct: number;
   dispatch: number;
@@ -180,6 +203,7 @@ type BackfillRejectedRow = {
 };
 
 const fmt = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
+const fmt0 = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 const pct = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1, style: "percent" });
 
 export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initialPlantUsers, initialSnapshot, initialRecords, session }: Props) {
@@ -205,9 +229,12 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
   const [reportType, setReportType] = useState<"DAILY" | "WEEKLY" | "MONTHLY">("WEEKLY");
   const fileRef = useRef<HTMLInputElement>(null);
   const backfillFileRef = useRef<HTMLInputElement>(null);
+  const currentPlantConfig = plantConfigs.find((config) => config.code === form.plantCode);
+  const selectedRecord = form.id ? records.find((record) => record.id === form.id) : undefined;
 
   const previewRecord = useMemo(() => {
-    const materializedForm = materializeCalculatedFields(form);
+    const rateStampedForm = payloadWithCostRates(form, currentPlantConfig?.costRates ?? defaultCostRatesFor(form.plantCode || form.plantName));
+    const materializedForm = materializeCalculatedFields(rateStampedForm);
     const calculations = calculateDailyRecord(materializedForm);
     const draft: DailyPlantRecord = {
       ...materializedForm,
@@ -225,7 +252,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
       validation: { valid: validation.valid, issues: validation.issues },
       reviewStatus: validation.exceptionWarnings.length ? "REVIEW_REQUIRED" : "OPEN",
     };
-  }, [form]);
+  }, [currentPlantConfig?.costRates, form]);
 
   const exceptionRecords = records.filter((record) => record.validation.issues.length > 0 || record.reviewStatus === "REVIEW_REQUIRED");
 
@@ -245,7 +272,8 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
     const diesel = sum(visibleDays.map((d) => d.loader.dieselLitres));
     const jawTph = average(visibleDays.map((d) => d.machine.jawTph));
     const vsiTph = average(visibleDays.map((d) => d.machine.vsiTph));
-    const unitsMt = average(visibleDays.map((d) => d.electrical.unitsPerMt));
+    const productionUnits = sum(visibleDays.map((d) => d.electrical.productionUnits ?? d.electrical.kvah));
+    const unitsMt = production ? productionUnits / production : 0;
 
     return {
       production,
@@ -268,7 +296,11 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
       const response = await fetch("/api/daily-records", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, record: { ...form, submittedBy: session.username } }),
+        body: JSON.stringify({
+          action,
+          allowFinalEdit: session.role === "SUPER_ADMIN" && selectedRecord?.status === "FINAL",
+          record: { ...form, submittedBy: session.username },
+        }),
       });
       const body = (await response.json()) as {
         record?: DailyPlantRecord;
@@ -288,6 +320,32 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
       );
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Record save failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteRecord(record: DailyPlantRecord) {
+    const allowed = record.status === "DRAFT" || session.role === "SUPER_ADMIN";
+    if (!allowed) {
+      setStatus("Final records can be deleted only by ROBOOPS.");
+      return;
+    }
+    setBusy(true);
+    setStatus(`Deleting ${record.status.toLowerCase()} record for ${record.plantCode} on ${formatDisplayDate(record.date)}...`);
+    try {
+      const response = await fetch("/api/daily-records", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: record.id }),
+      });
+      const body = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(body.error ?? "Record delete failed");
+      setRecords((current) => current.filter((item) => item.id !== record.id));
+      if (form.id === record.id) setForm(initialPayload(records.filter((item) => item.id !== record.id), plantOptions[0]?.code));
+      setStatus("Record deleted with audit trail.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Record delete failed");
     } finally {
       setBusy(false);
     }
@@ -484,19 +542,19 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
     }
   }
 
-  async function updatePlantElectricLoader(plantCode: string, electricLoaderEnabled: boolean) {
+  async function updatePlantConfig(plantCode: string, changes: { costRates?: Partial<PlantCostRates>; electricLoaderEnabled?: boolean }) {
     setBusy(true);
     setStatus("Updating plant configuration...");
     try {
       const response = await fetch("/api/admin/plant-configs", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ electricLoaderEnabled, plantCode }),
+        body: JSON.stringify({ ...changes, plantCode }),
       });
       const body = (await response.json()) as { error?: string; plantConfigs?: PlantOperationalConfig[] };
       if (!response.ok) throw new Error(body.error ?? "Plant configuration update failed");
       if (body.plantConfigs) setPlantConfigs(body.plantConfigs);
-      setStatus("Plant electric loader configuration updated.");
+      setStatus("Plant configuration updated with audit trail.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Plant configuration update failed");
     } finally {
@@ -556,6 +614,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
       {activeTab === "capture" ? (
         <CaptureWorkspace
           busy={busy}
+          deleteRecord={deleteRecord}
           electricLoaderEnabled={electricLoaderEnabledFor(plantConfigs, form.plantCode) || form.electricLoader.enabled}
           form={form}
           plantOptions={plantOptions}
@@ -564,6 +623,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
           setForm={setForm}
           session={session}
           saveDraft={() => saveRecord("DRAFT")}
+          selectedRecord={selectedRecord}
           submitFinal={() => saveRecord("SUBMIT")}
         />
       ) : null}
@@ -617,7 +677,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
         <AccessWorkspace
           busy={busy}
           onAssign={assignPlantAccess}
-          onConfigChange={updatePlantElectricLoader}
+          onConfigChange={updatePlantConfig}
           onRevoke={revokePlantAccess}
           plantConfigs={plantConfigs}
           plantUsers={plantUsers}
@@ -632,6 +692,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
 
 function CaptureWorkspace({
   busy,
+  deleteRecord,
   electricLoaderEnabled,
   form,
   plantOptions,
@@ -640,9 +701,11 @@ function CaptureWorkspace({
   setForm,
   session,
   saveDraft,
+  selectedRecord,
   submitFinal,
 }: {
   busy: boolean;
+  deleteRecord: (record: DailyPlantRecord) => void;
   electricLoaderEnabled: boolean;
   form: CapturePayload;
   plantOptions: Array<(typeof PLANT_CONFIGS)[number]>;
@@ -651,8 +714,11 @@ function CaptureWorkspace({
   setForm: (updater: CapturePayload | ((current: CapturePayload) => CapturePayload)) => void;
   session: AppSession;
   saveDraft: () => void;
+  selectedRecord?: DailyPlantRecord;
   submitFinal: () => void;
 }) {
+  const finalEdit = selectedRecord?.status === "FINAL" && session.role === "SUPER_ADMIN";
+  const canDeleteSelected = Boolean(selectedRecord && (selectedRecord.status === "DRAFT" || session.role === "SUPER_ADMIN"));
   return (
     <section className="capture-layout">
       <div className="capture-form">
@@ -696,6 +762,7 @@ function CaptureWorkspace({
         <Section title="Production and product mix" meta="Production must equal mix total">
           <div className="form-grid four">
             <NumberField label="Production MT" value={form.productionMt} onChange={(value) => setField(setForm, "productionMt", value)} />
+            <NumberField label="Inter-carting quantity MT" value={form.interCartingQuantityMt} onChange={(value) => setField(setForm, "interCartingQuantityMt", value)} />
             <NumberField label="OB soft rock MT" value={form.overburden.softRockMt} onChange={(value) => setOverburden(setForm, "softRockMt", value)} />
             <NumberField label="OB hard rock MT" value={form.overburden.hardRockMt} onChange={(value) => setOverburden(setForm, "hardRockMt", value)} />
             <ReadOnlyMetric label="Product mix total" value={previewRecord.calculations.productMixTotal} suffix="MT" />
@@ -750,7 +817,7 @@ function CaptureWorkspace({
           <LossDetailGrid form={form} setForm={setForm} />
         </Section>
 
-        <Section title="Electrical readings and units" meta="KVAH/MT auto-calculated">
+        <Section title="Electrical readings and units" meta="Unit/MT auto-calculated">
           <div className="form-grid four">
             <NumberField label="CMD" value={form.electrical.cmd} onChange={(value) => setNested(setForm, "electrical", "cmd", value)} />
             <NumberField label="Closing kWh" value={form.electrical.closingKwh} onChange={(value) => setNested(setForm, "electrical", "closingKwh", value)} />
@@ -762,7 +829,7 @@ function CaptureWorkspace({
             <ReadOnlyMetric format="powerFactor" label="Power factor" value={previewRecord.calculations.powerFactor} />
             <ReadOnlyMetric label="Electricity cost on KVAH" value={previewRecord.calculations.electricalCost} prefix="Rs" />
             <ReadOnlyMetric label="Production KVAH units" value={previewRecord.calculations.productionPowerUnits} />
-            <ReadOnlyMetric label="Production KVAH / MT" value={previewRecord.calculations.unitsPerMt} />
+            <ReadOnlyMetric label="Production Unit / MT" value={previewRecord.calculations.unitsPerMt} />
           </div>
           <h3 className="section-subtitle">Domestic power consumption</h3>
           <div className="form-grid four">
@@ -771,7 +838,7 @@ function CaptureWorkspace({
             <ReadOnlyMetric label="Domestic units" value={previewRecord.calculations.domesticPowerUnits} />
             <ReadOnlyMetric label="Domestic units / MT" value={previewRecord.calculations.domesticUnitsPerMt} />
             <ReadOnlyMetric label="Combined KVAH units" value={previewRecord.calculations.combinedPowerUnits} />
-            <ReadOnlyMetric label="Combined KVAH / MT" value={previewRecord.calculations.combinedUnitsPerMt} />
+            <ReadOnlyMetric label="Combined Unit / MT" value={previewRecord.calculations.combinedUnitsPerMt} />
           </div>
         </Section>
 
@@ -808,7 +875,7 @@ function CaptureWorkspace({
               <NumberField label="Closing KVAH reading" value={form.electricLoader.kvah.closing} onChange={(value) => setElectricLoaderReading(setForm, "kvah", "closing", value)} />
               <ReadOnlyMetric label="KVAH units" value={previewRecord.calculations.electricLoaderKvahUnits} />
               <NumberField label="Total dispatch quantity MT" value={form.electricLoader.dispatchMt} onChange={(value) => setElectricLoaderValue(setForm, "dispatchMt", value)} />
-              <ReadOnlyMetric label="KVAH / MT" value={previewRecord.calculations.electricLoaderUnitsPerMt} />
+              <ReadOnlyMetric label="Unit / MT" value={previewRecord.calculations.electricLoaderUnitsPerMt} />
               <ReadOnlyMetric label="Electric loader TPH" value={previewRecord.calculations.electricLoaderTph} />
             </div>
           </Section>
@@ -816,6 +883,7 @@ function CaptureWorkspace({
 
         <Section title="COP inputs" meta="Update weekly; Rs/MT calculated from production">
           <div className="form-grid four">
+            <NumberField label="Forecast production MT" value={form.cop.forecastProductionMt} onChange={(value) => setNested(setForm, "cop", "forecastProductionMt", value)} />
             <ReadOnlyMetric label="Drilling & blasting rate" value={previewRecord.cop.frozenDrillingBlastingRate} prefix="Rs" />
             <ReadOnlyMetric label="Drilling & blasting" value={previewRecord.calculations.drillingBlastingCost} prefix="Rs" />
             <ReadOnlyMetric label="Loading & transport rate" value={previewRecord.cop.frozenLoadingTransportRate} prefix="Rs" />
@@ -828,7 +896,8 @@ function CaptureWorkspace({
             <NumberField label="Plant maintenance" value={form.cop.plantMaintenanceCost} onChange={(value) => setNested(setForm, "cop", "plantMaintenanceCost", value)} />
             <NumberField label="Spares & consumables" value={form.cop.sparesConsumablesCost} onChange={(value) => setNested(setForm, "cop", "sparesConsumablesCost", value)} />
             <NumberField label="Wear parts" value={form.cop.wearPartsCost} onChange={(value) => setNested(setForm, "cop", "wearPartsCost", value)} />
-            <NumberField label="Intercarting expenses" value={form.cop.intercartingExpenses} onChange={(value) => setNested(setForm, "cop", "intercartingExpenses", value)} />
+            <ReadOnlyMetric label="Inter-carting rate" value={previewRecord.cop.frozenInterCartingRate} prefix="Rs" />
+            <ReadOnlyMetric label="Inter-carting expense" value={previewRecord.calculations.interCartingCost} prefix="Rs" />
             <NumberField label="Weekly fixed cost" value={form.cop.fixedCost} onChange={(value) => setNested(setForm, "cop", "fixedCost", value)} />
             <ReadOnlyMetric label="Electrical cost on KVAH" value={previewRecord.calculations.electricalCost} prefix="Rs" />
             <ReadOnlyMetric label="Diesel - loader" value={previewRecord.calculations.loaderDieselCost} prefix="Rs" />
@@ -867,8 +936,14 @@ function CaptureWorkspace({
           </button>
           <button className="btn primary" disabled={busy} onClick={submitFinal}>
             <Send size={16} />
-            Submit final
+            {finalEdit ? "Save final correction" : "Submit final"}
           </button>
+          {selectedRecord && canDeleteSelected ? (
+            <button className="btn danger" disabled={busy} onClick={() => deleteRecord(selectedRecord)}>
+              <Trash2 size={16} />
+              Delete record
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -879,7 +954,7 @@ function CaptureWorkspace({
               ["Product mix", `${fmt.format(previewRecord.calculations.productMixTotal)} MT`],
               ["Dispatch", `${fmt.format(previewRecord.calculations.dispatchTotal)} MT`],
               ["Achievement", `${fmt.format(previewRecord.calculations.achievementPct)}%`],
-              ["KVAH/MT", fmt.format(previewRecord.calculations.unitsPerMt)],
+              ["Unit/MT", fmt.format(previewRecord.calculations.unitsPerMt)],
               ["Loader L/MT", fmt.format(previewRecord.calculations.loaderLitresPerMt)],
               ["COP/MT", fmt.format(previewRecord.calculations.copPerMt)],
             ]}
@@ -891,11 +966,18 @@ function CaptureWorkspace({
         <Panel title="Drafts and final records" meta={`${records.length} records`}>
           <div className="record-list">
             {records.slice(-8).reverse().map((record) => (
-              <button className="record-pill" key={record.id} onClick={() => setForm(recordToPayload(record))}>
-                <span>{formatDisplayDate(record.date)}</span>
-                <strong>{record.status}</strong>
-                <small>{record.validation.valid ? "Valid" : `${record.validation.issues.length} issues`}</small>
-              </button>
+              <div className="record-pill-row" key={record.id}>
+                <button className="record-pill" onClick={() => setForm(recordToPayload(record))}>
+                  <span>{formatDisplayDate(record.date)}</span>
+                  <strong>{record.status}</strong>
+                  <small>{record.validation.valid ? "Valid" : `${record.validation.issues.length} issues`}</small>
+                </button>
+                {(record.status === "DRAFT" || session.role === "SUPER_ADMIN") ? (
+                  <button className="icon-btn danger" disabled={busy} title="Delete record" onClick={() => deleteRecord(record)}>
+                    <Trash2 size={14} />
+                  </button>
+                ) : null}
+              </div>
             ))}
             {!records.length ? <p className="muted">No records captured yet.</p> : null}
           </div>
@@ -997,6 +1079,8 @@ function DashboardWorkspace({
   const electricLoaderDays = visibleDays.filter((day): day is SnapshotDay & { electricLoader: NonNullable<SnapshotDay["electricLoader"]> } => Boolean(day.electricLoader));
   const copRows = buildCopRows(visibleDays);
   const copProjectionRows = buildCopProjectionRows(visibleDays);
+  const productionDispatchRows = buildProductionDispatchRows(visibleDays);
+  const productEfficiencyRows = buildProductEfficiencyRows(visibleDays);
   const weeklyRows = buildPeriodSummaryRows(visibleDays, "week");
   const monthlyRows = buildPeriodSummaryRows(visibleDays, "month");
   const topProduct = productRatios[0];
@@ -1016,7 +1100,7 @@ function DashboardWorkspace({
         <Kpi title="Dispatch" value={`${fmt.format(totals.dispatch)} MT`} detail={`${pct.format(totals.dispatchRatio)} of production`} />
         <Kpi title="Top product" value={topProduct ? topProduct.name : "-"} detail={topProduct ? `${fmt.format(topProduct.ratio)}% of production` : "No mix"} />
         <Kpi title="Avg TPH" value={fmt.format((totals.jawTph + totals.vsiTph) / 2)} detail={`Jaw ${fmt.format(totals.jawTph)} | VSI ${fmt.format(totals.vsiTph)}`} />
-        <Kpi title="KVAH / MT" value={fmt.format(totals.unitsMt)} detail="Auto-calculated" />
+        <Kpi title="Unit / MT" value={fmt.format(totals.unitsMt)} detail="Auto-calculated" />
         <Kpi title="Loader L / MT" value={fmt.format(loaderRows[0]?.litresPerMt ?? 0)} detail={`${fmt.format(totals.diesel)} L diesel`} />
       </section>
 
@@ -1030,6 +1114,7 @@ function DashboardWorkspace({
           labels={labels}
           loaderRows={loaderRows}
           mtdRows={mtdRows}
+          productEfficiencyRows={productEfficiencyRows}
           visibleDays={visibleDays}
         />
       ) : null}
@@ -1041,8 +1126,11 @@ function DashboardWorkspace({
         <Panel title="Production and product ratios" meta="Linked to total production">
           <RatioTable rows={productRatios} />
         </Panel>
-        <Panel title="Daily / Weekly / MTD KPI basis" meta="TPH and KVAH/MT">
+        <Panel title="Daily / Weekly / MTD KPI basis" meta="TPH and Unit/MT">
           <BasisTable rows={basisRows} />
+        </Panel>
+        <Panel title="Production vs dispatch" meta="Quantity and ratio by product">
+          <ProductionDispatchTable rows={productionDispatchRows} />
         </Panel>
       </section>
 
@@ -1113,12 +1201,12 @@ function DashboardWorkspace({
                   options={chartOptions}
                 />
               </Panel>
-              <Panel title="Electrical efficiency" meta="KVAH / MT">
+              <Panel title="Electrical efficiency" meta="Unit / MT">
                 <Line
                   data={{
                     labels,
                     datasets: [
-                      dataset("KVAH / MT", visibleDays.map((d) => d.electrical.unitsPerMt), "#f3a712"),
+                      dataset("Unit / MT", visibleDays.map((d) => d.electrical.unitsPerMt), "#f3a712"),
                       dataset("Power factor", visibleDays.map((d) => d.electrical.powerFactor), "#2f855a"),
                     ],
                   }}
@@ -1152,13 +1240,39 @@ function DashboardWorkspace({
                   options={labelledBarOptions}
                 />
               </Panel>
+              <Panel title="Dispatch vs loader diesel vs loader TPH" meta="Daily operating relationship">
+                <Line
+                  data={{
+                    labels,
+                    datasets: [
+                      dataset("Dispatch MT", visibleDays.map((d) => d.loader.dispatchMt), "#087f8c"),
+                      dataset("Diesel L", visibleDays.map((d) => d.loader.dieselLitres), "#d1495b"),
+                      dataset("Loader TPH", visibleDays.map((d) => d.loader.tph), "#183153"),
+                    ],
+                  }}
+                  options={chartOptions}
+                />
+              </Panel>
+              <Panel title="Product ratio vs Unit/MT vs VSI TPH" meta="Top product ratio by day">
+                <Line
+                  data={{
+                    labels: productEfficiencyRows.map((row) => row.label),
+                    datasets: [
+                      dataset("Top product ratio %", productEfficiencyRows.map((row) => row.productRatio), "#087f8c"),
+                      dataset("Unit / MT", productEfficiencyRows.map((row) => row.unitsPerMt), "#f3a712"),
+                      dataset("VSI TPH", productEfficiencyRows.map((row) => row.vsiTph), "#183153"),
+                    ],
+                  }}
+                  options={chartOptions}
+                />
+              </Panel>
               {electricLoaderDays.length ? (
-                <Panel title="Electric loader KVAH/MT and TPH" meta="Daily trend">
+                <Panel title="Electric loader Unit/MT and TPH" meta="Daily trend">
                   <Line
                     data={{
                       labels: electricLoaderDays.map((day) => day.label),
                       datasets: [
-                        dataset("KVAH/MT", electricLoaderDays.map((day) => day.electricLoader.unitsPerMt), "#f3a712"),
+                        dataset("Unit/MT", electricLoaderDays.map((day) => day.electricLoader.unitsPerMt), "#f3a712"),
                         dataset("TPH", electricLoaderDays.map((day) => day.electricLoader.tph), "#183153"),
                       ],
                     }}
@@ -1172,7 +1286,7 @@ function DashboardWorkspace({
             </Panel>
             {electricLoaderDays.length ? (
               <>
-                <Panel title="Electric loader Daily / Weekly / MTD" meta="Running hours, KVAH/MT, TPH and dispatch">
+                <Panel title="Electric loader Daily / Weekly / MTD" meta="Running hours, Unit/MT, TPH and dispatch">
                   <ElectricLoaderTable rows={electricLoaderRows} />
                 </Panel>
                 <Panel title="Electric loader reading log" meta="Opening and closing readings">
@@ -1180,7 +1294,7 @@ function DashboardWorkspace({
                 </Panel>
               </>
             ) : null}
-            <Panel title="COP structure" meta="Actuals and Rs./MT">
+            <Panel title="COP structure" meta="Actuals, Rs./MT and forecast">
               <CopTable rows={copRows} />
             </Panel>
             <Panel title="MTD and extrapolated COP" meta="Projected from MTD production average">
@@ -1248,12 +1362,12 @@ function PeriodDashboard({
             options={labelledBarOptions}
           />
         </Panel>
-        <Panel title={`${period} efficiency`} meta="KVAH/MT and loader L/MT">
+        <Panel title={`${period} efficiency`} meta="Unit/MT and loader L/MT">
           <Line
             data={{
               labels: rows.map((row) => row.label),
               datasets: [
-                dataset("KVAH / MT", rows.map((row) => row.kvahPerMt), "#f3a712"),
+                dataset("Unit / MT", rows.map((row) => row.kvahPerMt), "#f3a712"),
                 dataset("Loader L / MT", rows.map((row) => row.loaderLitresPerMt), "#183153"),
               ],
             }}
@@ -1262,7 +1376,7 @@ function PeriodDashboard({
         </Panel>
       </div>
       {electricLoaderRows.some((row) => row.dispatchMt > 0 || row.runningHours > 0 || row.kvahUnits > 0) ? (
-        <Panel title="Electric loader Daily / Weekly / MTD" meta="Running hours, KVAH/MT, TPH and dispatch">
+        <Panel title="Electric loader Daily / Weekly / MTD" meta="Running hours, Unit/MT, TPH and dispatch">
           <ElectricLoaderTable rows={electricLoaderRows} />
         </Panel>
       ) : null}
@@ -1277,6 +1391,7 @@ function TrendDashboard({
   labels,
   loaderRows,
   mtdRows,
+  productEfficiencyRows,
   visibleDays,
 }: {
   copProjectionRows: CopProjectionRow[];
@@ -1285,6 +1400,7 @@ function TrendDashboard({
   labels: string[];
   loaderRows: LoaderBasisRow[];
   mtdRows: ReturnType<typeof buildMtdRows>;
+  productEfficiencyRows: ProductEfficiencyRow[];
   visibleDays: ReportSnapshot["daily"];
 }) {
   const electricLoaderDays = visibleDays.filter((day): day is SnapshotDay & { electricLoader: NonNullable<SnapshotDay["electricLoader"]> } => Boolean(day.electricLoader));
@@ -1304,12 +1420,12 @@ function TrendDashboard({
             options={labelledBarOptions}
           />
         </Panel>
-        <Panel title="Electrical efficiency trend" meta="KVAH/MT and PF">
+        <Panel title="Electrical efficiency trend" meta="Unit/MT and PF">
           <Line
             data={{
               labels,
               datasets: [
-                dataset("KVAH / MT", visibleDays.map((day) => day.electrical.unitsPerMt), "#f3a712"),
+                dataset("Unit / MT", visibleDays.map((day) => day.electrical.unitsPerMt), "#f3a712"),
                 dataset("Power factor", visibleDays.map((day) => day.electrical.powerFactor), "#2f855a"),
               ],
             }}
@@ -1337,13 +1453,39 @@ function TrendDashboard({
             options={labelledBarOptions}
           />
         </Panel>
+        <Panel title="Dispatch vs loader diesel vs loader TPH" meta="Daily operating relationship">
+          <Line
+            data={{
+              labels,
+              datasets: [
+                dataset("Dispatch MT", visibleDays.map((day) => day.loader.dispatchMt), "#087f8c"),
+                dataset("Diesel L", visibleDays.map((day) => day.loader.dieselLitres), "#d1495b"),
+                dataset("Loader TPH", visibleDays.map((day) => day.loader.tph), "#183153"),
+              ],
+            }}
+            options={chartOptions}
+          />
+        </Panel>
+        <Panel title="Product ratio vs Unit/MT vs VSI TPH" meta="Top product ratio by day">
+          <Line
+            data={{
+              labels: productEfficiencyRows.map((row) => row.label),
+              datasets: [
+                dataset("Top product ratio %", productEfficiencyRows.map((row) => row.productRatio), "#087f8c"),
+                dataset("Unit / MT", productEfficiencyRows.map((row) => row.unitsPerMt), "#f3a712"),
+                dataset("VSI TPH", productEfficiencyRows.map((row) => row.vsiTph), "#183153"),
+              ],
+            }}
+            options={chartOptions}
+          />
+        </Panel>
         {electricLoaderDays.length ? (
-          <Panel title="Electric loader KVAH/MT and TPH trend" meta="Daily values">
+          <Panel title="Electric loader Unit/MT and TPH trend" meta="Daily values">
             <Line
               data={{
                 labels: electricLoaderDays.map((day) => day.label),
                 datasets: [
-                  dataset("KVAH/MT", electricLoaderDays.map((day) => day.electricLoader.unitsPerMt), "#f3a712"),
+                  dataset("Unit/MT", electricLoaderDays.map((day) => day.electricLoader.unitsPerMt), "#f3a712"),
                   dataset("TPH", electricLoaderDays.map((day) => day.electricLoader.tph), "#183153"),
                 ],
               }}
@@ -1356,11 +1498,11 @@ function TrendDashboard({
         <LoaderTable rows={loaderRows} />
       </Panel>
       {electricLoaderRows.some((row) => row.dispatchMt > 0 || row.runningHours > 0 || row.kvahUnits > 0) ? (
-        <Panel title="Electric loader Daily / Weekly / MTD" meta="Running hours, KVAH/MT, TPH and dispatch">
+        <Panel title="Electric loader Daily / Weekly / MTD" meta="Running hours, Unit/MT, TPH and dispatch">
           <ElectricLoaderTable rows={electricLoaderRows} />
         </Panel>
       ) : null}
-      <Panel title="COP structure" meta="Actuals and Rs./MT">
+      <Panel title="COP structure" meta="Actuals, Rs./MT and forecast">
         <CopTable rows={copRows} />
       </Panel>
       <Panel title="MTD and extrapolated COP" meta="Projected from MTD production average">
@@ -1415,7 +1557,7 @@ function AccessWorkspace({
 }: {
   busy: boolean;
   onAssign: (input: { email: string; name: string; plantCode: string }) => void;
-  onConfigChange: (plantCode: string, electricLoaderEnabled: boolean) => void;
+  onConfigChange: (plantCode: string, changes: { costRates?: Partial<PlantCostRates>; electricLoaderEnabled?: boolean }) => void;
   onRevoke: (accessId: string) => void;
   plantConfigs: PlantOperationalConfig[];
   plantUsers: PlantUserSummary[];
@@ -1486,7 +1628,7 @@ function AccessWorkspace({
                       <CheckboxField
                         checked={config?.electricLoaderEnabled ?? false}
                         label="Enabled"
-                        onChange={(value) => onConfigChange(plant.code, value)}
+                        onChange={(value) => onConfigChange(plant.code, { electricLoaderEnabled: value })}
                       />
                     </td>
                     <td>{access?.assignedAt ? formatDisplayDate(access.assignedAt.slice(0, 10)) : "-"}</td>
@@ -1507,7 +1649,93 @@ function AccessWorkspace({
           </table>
         </div>
       </Panel>
+
+      <Panel title="Editable frozen cost rates" meta="ROBOOPS audited settings">
+        <RateConfigTable busy={busy} onConfigChange={onConfigChange} plantConfigs={plantConfigs} />
+      </Panel>
     </section>
+  );
+}
+
+function RateConfigTable({
+  busy,
+  onConfigChange,
+  plantConfigs,
+}: {
+  busy: boolean;
+  onConfigChange: (plantCode: string, changes: { costRates?: Partial<PlantCostRates>; electricLoaderEnabled?: boolean }) => void;
+  plantConfigs: PlantOperationalConfig[];
+}) {
+  const [draftRates, setDraftRates] = useState<Record<string, PlantCostRates>>(
+    Object.fromEntries(plantConfigs.map((config) => [config.code, config.costRates])),
+  );
+  const ratesFor = (config: PlantOperationalConfig) => draftRates[config.code] ?? config.costRates;
+
+  return (
+    <div className="table-shell">
+      <table>
+        <thead>
+          <tr>
+            <th>Plant</th>
+            <th>Drill/Blast</th>
+            <th>Load/Transport</th>
+            <th>OB Soft</th>
+            <th>OB Hard</th>
+            <th>Diesel</th>
+            <th>Diesel Var.</th>
+            <th>Power Unit</th>
+            <th>Inter-carting</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {plantConfigs.map((config) => {
+            const rates = ratesFor(config);
+            return (
+              <tr key={config.code}>
+                <td>{config.name}</td>
+                {([
+                  ["drillingBlasting", "Drill/Blast"],
+                  ["loadingTransport", "Load/Transport"],
+                  ["obSoftRock", "OB Soft"],
+                  ["obHardRock", "OB Hard"],
+                  ["diesel", "Diesel"],
+                  ["dieselVariance", "Diesel Var."],
+                  ["electricityUnit", "Power Unit"],
+                  ["interCarting", "Inter-carting"],
+                ] as Array<[keyof PlantCostRates, string]>).map(([field, label]) => (
+                  <td key={field}>
+                    <input
+                      aria-label={`${config.name} ${label}`}
+                      className="table-number-input"
+                      min={0}
+                      step="0.001"
+                      type="number"
+                      value={rates[field]}
+                      onChange={(event) => {
+                        const value = Number(event.target.value);
+                        setDraftRates((current) => ({
+                          ...current,
+                          [config.code]: {
+                            ...rates,
+                            [field]: Number.isFinite(value) ? value : 0,
+                          },
+                        }));
+                      }}
+                    />
+                  </td>
+                ))}
+                <td>
+                  <button className="btn" disabled={busy} onClick={() => onConfigChange(config.code, { costRates: rates })}>
+                    Save rates
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -2156,7 +2384,7 @@ function DailyTable({ days }: { days: ReportSnapshot["daily"] }) {
             <th>VSI TPH</th>
             <th>Run Hrs</th>
             <th>Loss Hrs</th>
-            <th>KVAH/MT</th>
+            <th>Unit/MT</th>
             <th>Loader L/MT</th>
           </tr>
         </thead>
@@ -2195,7 +2423,7 @@ function PeriodSummaryTable({ rows }: { rows: PeriodSummaryRow[] }) {
             <th>Achievement</th>
             <th>Jaw TPH</th>
             <th>VSI TPH</th>
-            <th>KVAH/MT</th>
+            <th>Unit/MT</th>
             <th>Loader L/MT</th>
             <th>Loss Hrs</th>
           </tr>
@@ -2252,6 +2480,37 @@ function RatioTable({ rows }: { rows: Array<{ name: string; mt: number; ratio: n
   );
 }
 
+function ProductionDispatchTable({ rows }: { rows: ProductionDispatchRow[] }) {
+  return (
+    <div className="table-shell mini-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Prod. MT</th>
+            <th>Prod. Ratio</th>
+            <th>Dispatch MT</th>
+            <th>Dispatch Ratio</th>
+            <th>Variance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.name} className={row.name === "Total" ? "summary-row" : undefined}>
+              <td>{row.name}</td>
+              <td>{fmt.format(row.productionMt)}</td>
+              <td>{fmt.format(row.productionRatio)}%</td>
+              <td>{fmt.format(row.dispatchMt)}</td>
+              <td>{fmt.format(row.dispatchRatio)}%</td>
+              <td>{fmt.format(row.varianceMt)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function BasisTable({ rows }: { rows: BasisRow[] }) {
   return (
     <div className="table-shell mini-table">
@@ -2263,7 +2522,7 @@ function BasisTable({ rows }: { rows: BasisRow[] }) {
             <th>Jaw TPH</th>
             <th>Cone TPH</th>
             <th>VSI TPH</th>
-            <th>KVAH/MT</th>
+            <th>Unit/MT</th>
           </tr>
         </thead>
         <tbody>
@@ -2322,7 +2581,7 @@ function ElectricLoaderTable({ rows }: { rows: ElectricLoaderBasisRow[] }) {
             <th>Running Hrs</th>
             <th>KWH</th>
             <th>KVAH</th>
-            <th>KVAH/MT</th>
+            <th>Unit/MT</th>
             <th>TPH</th>
             <th>Dispatch Qty</th>
           </tr>
@@ -2360,7 +2619,7 @@ function ElectricLoaderDailyTable({ days }: { days: Array<SnapshotDay & { electr
             <th>Opening KVAH</th>
             <th>Closing KVAH</th>
             <th>Dispatch MT</th>
-            <th>KVAH/MT</th>
+            <th>Unit/MT</th>
             <th>TPH</th>
           </tr>
         </thead>
@@ -2386,7 +2645,7 @@ function ElectricLoaderDailyTable({ days }: { days: Array<SnapshotDay & { electr
   );
 }
 
-function CopTable({ rows }: { rows: Array<{ label: string; actuals: number; perMt: number; strong?: boolean }> }) {
+function CopTable({ rows }: { rows: CopRow[] }) {
   return (
     <div className="table-shell mini-table">
       <table>
@@ -2395,14 +2654,16 @@ function CopTable({ rows }: { rows: Array<{ label: string; actuals: number; perM
             <th>Quantitative Information</th>
             <th>Actuals</th>
             <th>Rs./Mt</th>
+            <th>Forecast</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.label} className={row.strong ? "summary-row" : undefined}>
               <td>{row.label}</td>
-              <td>{row.actuals ? fmt.format(row.actuals) : "-"}</td>
-              <td>{row.perMt ? fmt.format(row.perMt) : "-"}</td>
+              <td>{row.actuals ? fmt0.format(row.actuals) : "-"}</td>
+              <td>{row.perMt ? fmt0.format(row.perMt) : "-"}</td>
+              <td>{row.forecast ? fmt0.format(row.forecast) : "-"}</td>
             </tr>
           ))}
         </tbody>
@@ -2430,12 +2691,14 @@ function CopProjectionTable({ rows }: { rows: CopProjectionRow[] }) {
 
 function defaultPayload(): CapturePayload {
   const defaultPlant = PLANT_CONFIGS[0];
+  const defaultRates = defaultCostRatesFor(defaultPlant.code);
   return {
     plantCode: defaultPlant.code,
     plantName: defaultPlant.name,
     date: todayIso(),
     targetMt: 1700,
     productionMt: 0,
+    interCartingQuantityMt: 0,
     productMixPercentages: emptyProducts(),
     productMix: emptyProducts(),
     overburden: { softRockMt: 0, hardRockMt: 0 },
@@ -2503,6 +2766,7 @@ function defaultPayload(): CapturePayload {
       tph: 0,
     },
     cop: {
+      forecastProductionMt: 0,
       fixedCostMonthly: 0,
       fixedCostDaily: 0,
       fixedCost: 0,
@@ -2512,6 +2776,8 @@ function defaultPayload(): CapturePayload {
       frozenObHardRockRate: 0,
       frozenDieselRate: 0,
       frozenDieselVarianceRate: 0,
+      frozenElectricityUnitRate: defaultRates.electricityUnit,
+      frozenInterCartingRate: defaultRates.interCarting,
       quarryObCost: 0,
       quarryBlastingCost: 0,
       quarryLtCost: 0,
@@ -2611,6 +2877,7 @@ function recordToPayload(record: DailyPlantRecord): CapturePayload {
     date,
     targetMt,
     productionMt,
+    interCartingQuantityMt: record.interCartingQuantityMt ?? 0,
     productMixPercentages: { ...fallback.productMixPercentages, ...(record.productMixPercentages ?? {}) },
     productMix: { ...fallback.productMix, ...productMix },
     overburden: { ...fallback.overburden, ...(record.overburden ?? {}) },
@@ -3084,6 +3351,64 @@ function buildProductRatios(products: Array<{ name: string; value: number }>, pr
     .sort((a, b) => b.mt - a.mt);
 }
 
+function buildProductionDispatchRows(days: SnapshotDay[]): ProductionDispatchRow[] {
+  const productionTotals = new Map<string, number>();
+  const dispatchTotals = new Map<string, number>();
+
+  days.forEach((day) => {
+    day.production.products.forEach((product) => {
+      productionTotals.set(product.name, (productionTotals.get(product.name) ?? 0) + product.mt);
+    });
+    day.dispatch.products.forEach((product) => {
+      dispatchTotals.set(product.name, (dispatchTotals.get(product.name) ?? 0) + product.mt);
+    });
+  });
+
+  const productionTotal = sum([...productionTotals.values()]);
+  const dispatchTotal = sum([...dispatchTotals.values()]);
+  const productNames = [...new Set([...productionTotals.keys(), ...dispatchTotals.keys()])];
+  const rows = productNames
+    .map((name) => {
+      const productionMt = productionTotals.get(name) ?? 0;
+      const dispatchMt = dispatchTotals.get(name) ?? 0;
+      return {
+        dispatchMt: roundDisplay(dispatchMt),
+        dispatchRatio: roundDisplay(dispatchTotal ? (dispatchMt / dispatchTotal) * 100 : 0),
+        name,
+        productionMt: roundDisplay(productionMt),
+        productionRatio: roundDisplay(productionTotal ? (productionMt / productionTotal) * 100 : 0),
+        varianceMt: roundDisplay(productionMt - dispatchMt),
+      };
+    })
+    .filter((row) => row.productionMt || row.dispatchMt)
+    .sort((a, b) => b.productionMt + b.dispatchMt - (a.productionMt + a.dispatchMt));
+
+  rows.push({
+    dispatchMt: roundDisplay(dispatchTotal),
+    dispatchRatio: dispatchTotal ? 100 : 0,
+    name: "Total",
+    productionMt: roundDisplay(productionTotal),
+    productionRatio: productionTotal ? 100 : 0,
+    varianceMt: roundDisplay(productionTotal - dispatchTotal),
+  });
+
+  return rows;
+}
+
+function buildProductEfficiencyRows(days: SnapshotDay[]): ProductEfficiencyRow[] {
+  return [...days].sort((a, b) => a.date.localeCompare(b.date)).map((day) => {
+    const topProduct = [...day.production.products].sort((a, b) => b.mt - a.mt)[0];
+    return {
+      date: day.date,
+      label: day.label,
+      productName: topProduct?.name ?? "-",
+      productRatio: roundDisplay(day.production.mt && topProduct ? (topProduct.mt / day.production.mt) * 100 : 0),
+      unitsPerMt: roundDisplay(day.electrical.unitsPerMt),
+      vsiTph: roundDisplay(day.machine.vsiTph),
+    };
+  });
+}
+
 function buildBasisRows(days: SnapshotDay[]): BasisRow[] {
   return [
     summarizeBasis("Daily", latestDays(days, 1)),
@@ -3100,8 +3425,9 @@ function buildLoaderRows(days: SnapshotDay[]): LoaderBasisRow[] {
   ];
 }
 
-function buildCopRows(days: SnapshotDay[]) {
+function buildCopRows(days: SnapshotDay[]): CopRow[] {
   const production = sum(days.map((day) => day.production.mt));
+  const forecastProduction = latestForecastProduction(days);
   const totals = {
     drillingBlasting: sum(days.map((day) => day.cop?.drillingBlastingCost ?? day.cop?.quarryBlastingCost ?? 0)),
     internalTransport: sum(days.map((day) => day.cop?.internalTransportationCost ?? day.cop?.quarryLtCost ?? 0)),
@@ -3122,10 +3448,19 @@ function buildCopRows(days: SnapshotDay[]) {
   const loading = totals.loaderDiesel + totals.intercarting;
   const totalVariable = variableExcavation + rawMaterialSourcing + crushing + loading;
   const totalCop = totalVariable + totals.fixed;
-  const row = (label: string, actuals: number, strong = false) => ({ label, actuals: roundDisplay(actuals), perMt: roundDisplay(production ? actuals / production : 0), strong });
+  const row = (label: string, actuals: number, strong = false) => {
+    const perMt = production ? actuals / production : 0;
+    return {
+      actuals: roundDisplay(actuals, 0),
+      forecast: roundDisplay(forecastProduction && perMt ? perMt * forecastProduction : 0, 0),
+      label,
+      perMt: roundDisplay(perMt, 0),
+      strong,
+    };
+  };
 
   return [
-    row("Production", production),
+    { actuals: roundDisplay(production, 0), forecast: roundDisplay(forecastProduction, 0), label: "Production", perMt: 0 },
     row("Drilling & Blasting", totals.drillingBlasting),
     row("Internal Transportation", totals.internalTransport),
     row("Overburden Removal", totals.overburden),
@@ -3146,6 +3481,13 @@ function buildCopRows(days: SnapshotDay[]) {
     row("Fixed cost", totals.fixed, true),
     row("Total COP", totalCop, true),
   ];
+}
+
+function latestForecastProduction(days: SnapshotDay[]) {
+  return [...days]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .reverse()
+    .find((day) => (day.cop?.forecastProductionMt ?? 0) > 0)?.cop?.forecastProductionMt ?? 0;
 }
 
 function buildCopProjectionRows(days: SnapshotDay[]): CopProjectionRow[] {
@@ -3375,6 +3717,9 @@ function dataset(label: string, data: number[], color: string) {
     borderColor: color,
     backgroundColor: color,
     borderWidth: 2,
+    barPercentage: 0.9,
+    categoryPercentage: 0.8,
+    maxBarThickness: 34,
     tension: 0.25,
     pointRadius: 2,
   };
@@ -3408,6 +3753,13 @@ const chartOptions = {
   maintainAspectRatio: false,
   plugins: { legend: { position: "bottom" as const } },
   scales: { x: { grid: { display: false } }, y: { beginAtZero: true } },
+  datasets: {
+    bar: {
+      barPercentage: 0.9,
+      categoryPercentage: 0.8,
+      maxBarThickness: 34,
+    },
+  },
 };
 
 const labelledBarOptions = {
