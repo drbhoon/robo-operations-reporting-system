@@ -470,6 +470,7 @@ function addSimpleBars(
   series.forEach((item, seriesIndex) => {
     item.values.forEach((value, index) => {
       const barHeight = (Math.max(value, 0) / max) * (h - 0.72);
+      if (barHeight <= 0.01) return;
       slide.addShape("rect", {
         x: x + index * groupWidth + 0.12 + seriesIndex * (barWidth + 0.03),
         y: y + h - 0.42 - barHeight,
@@ -539,6 +540,7 @@ function addComboChart(
   barSeries.forEach((item, seriesIndex) => {
     item.values.forEach((value, index) => {
       const barHeight = (Math.max(value, 0) / barMax) * plotHeight;
+      if (barHeight <= 0.01) return;
       const barX = x + index * groupWidth + 0.18 + seriesIndex * (barWidth + 0.04);
       const barY = plotBottom - barHeight;
       slide.addShape("rect", {
@@ -574,13 +576,7 @@ function addComboChart(
     points.forEach((point, index) => {
       if (index > 0) {
         const previous = points[index - 1];
-        slide.addShape("line", {
-          x: previous.x,
-          y: previous.y,
-          w: point.x - previous.x,
-          h: point.y - previous.y,
-          line: { color: item.color, width: 1.35 },
-        });
+        addSafeLine(slide, previous.x, previous.y, point.x, point.y, item.color);
       }
       slide.addShape("ellipse", {
         x: point.x - 0.035,
@@ -633,10 +629,26 @@ function addComboChart(
 }
 
 function addChartAxes(slide: PptxGenJS.Slide, x: number, y: number, w: number, h: number, max: number) {
-  slide.addShape("line", { x: x + 0.1, y: y + 0.35, w: 0, h: h - 0.72, line: { color: "8DA19A", width: 0.75 } });
-  slide.addShape("line", { x: x + 0.1, y: y + h - 0.37, w: w - 0.2, h: 0, line: { color: "8DA19A", width: 0.75 } });
+  slide.addShape("rect", { x: x + 0.1, y: y + 0.35, w: 0.01, h: h - 0.72, fill: { color: "8DA19A" }, line: { color: "8DA19A", transparency: 100 } });
+  slide.addShape("rect", { x: x + 0.1, y: y + h - 0.37, w: w - 0.2, h: 0.01, fill: { color: "8DA19A" }, line: { color: "8DA19A", transparency: 100 } });
   slide.addText("0", { x: x + 0.03, y: y + h - 0.52, w: 0.35, h: 0.12, fontSize: 6, color: "63716D" });
   slide.addText(chartValue(max), { x: x + 0.03, y: y + 0.29, w: 0.55, h: 0.12, fontSize: 6, color: "63716D" });
+}
+
+function addSafeLine(slide: PptxGenJS.Slide, x1: number, y1: number, x2: number, y2: number, color: string) {
+  const x = Math.min(x1, x2);
+  const y = Math.min(y1, y2);
+  const w = Math.max(Math.abs(x2 - x1), 0.01);
+  const h = Math.max(Math.abs(y2 - y1), 0.01);
+  slide.addShape("line", {
+    flipH: x2 < x1,
+    flipV: y2 < y1,
+    h,
+    line: { color, width: 1.35 },
+    w,
+    x,
+    y,
+  });
 }
 
 function addTable(slide: PptxGenJS.Slide, headers: string[], rows: string[][], y: number, w = 11.8) {
