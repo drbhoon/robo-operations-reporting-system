@@ -270,6 +270,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
     const target = sum(visibleDays.map((d) => d.targetMt));
     const dispatch = sum(visibleDays.map((d) => d.dispatch.totalMt));
     const diesel = sum(visibleDays.map((d) => d.loader.dieselLitres));
+    const loaderDispatch = sum(visibleDays.map((d) => d.loader.dispatchMt));
     const jawTph = average(visibleDays.map((d) => d.machine.jawTph));
     const vsiTph = average(visibleDays.map((d) => d.machine.vsiTph));
     const productionUnits = sum(visibleDays.map((d) => d.electrical.productionUnits ?? d.electrical.kvah));
@@ -283,6 +284,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
       achievement: target ? production / target : 0,
       dispatchRatio: production ? dispatch / production : 0,
       jawTph,
+      loaderLitresPerMt: loaderDispatch ? diesel / loaderDispatch : 0,
       vsiTph,
       unitsMt,
     };
@@ -422,26 +424,31 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
     }
   }
 
+  async function requestSnapshotFromSelection() {
+    const response = await fetch("/api/snapshots/build", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        plantCode: reportPlantCode,
+        startDate,
+        endDate,
+        reportType,
+        requiredPhotoCategories: PHOTO_CATEGORIES,
+      }),
+    });
+    const body = (await response.json()) as { snapshot?: ReportSnapshot; error?: string };
+    if (!response.ok || !body.snapshot) throw new Error(body.error ?? "Snapshot build failed");
+    setSnapshot(body.snapshot);
+    return body.snapshot;
+  }
+
   async function buildSnapshot() {
     setBusy(true);
     setStatus("Building locked report snapshot from validated daily records...");
 
     try {
-      const response = await fetch("/api/snapshots/build", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plantCode: reportPlantCode,
-          startDate,
-          endDate,
-          reportType,
-          requiredPhotoCategories: PHOTO_CATEGORIES,
-        }),
-      });
-      const body = (await response.json()) as { snapshot?: ReportSnapshot; error?: string };
-      if (!response.ok || !body.snapshot) throw new Error(body.error ?? "Snapshot build failed");
-      setSnapshot(body.snapshot);
-      setStatus(`Locked snapshot ${body.snapshot.version} is ready for dashboard and PPT.`);
+      const nextSnapshot = await requestSnapshotFromSelection();
+      setStatus(`Locked snapshot ${nextSnapshot.version} is ready for dashboard and PPT.`);
       setActiveTab("dashboard");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Snapshot build failed");
@@ -451,12 +458,13 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
   }
 
   async function generatePpt() {
-    if (!snapshot) return;
     setBusy(true);
-    setStatus("Generating PowerPoint from locked snapshot...");
+    setStatus("Building a fresh locked snapshot from the selected plant and dates...");
 
     try {
-      const response = await fetch(`/api/reports/${snapshot.id}`, { method: "POST" });
+      const nextSnapshot = await requestSnapshotFromSelection();
+      setStatus("Generating PowerPoint from the selected locked snapshot...");
+      const response = await fetch(`/api/reports/${nextSnapshot.id}`, { method: "POST" });
       if (!response.ok) {
         const body = (await response.json()) as { error?: string };
         throw new Error(body.error ?? "Report generation failed");
@@ -465,10 +473,10 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${snapshot.plantCode}-${snapshot.period.start}-${snapshot.period.end}.pptx`;
+      link.download = `${nextSnapshot.plantCode}-${nextSnapshot.period.start}-${nextSnapshot.period.end}.pptx`;
       link.click();
       URL.revokeObjectURL(url);
-      setStatus("PowerPoint generated from the locked snapshot.");
+      setStatus("PowerPoint generated from the selected plant and dates.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Report generation failed");
     } finally {
@@ -906,11 +914,22 @@ function CaptureWorkspace({
           </div>
         </Section>
 
-        <Section title="Remarks and evidence photos" meta="Photos optional">
+        <Section title="Variation remarks and evidence photos" meta="Explain unit, diesel, production, or dispatch variations; photos optional">
           <label className="text-area-field">
-            <span>Remarks</span>
-            <textarea value={form.remarks} onChange={(event) => setField(setForm, "remarks", event.target.value)} />
+            <span>Remarks / reasons for variation</span>
+            <textarea
+              placeholder="Enter reasons for unit, diesel, production, dispatch, loss, or stock variations before final submission."
+              value={form.remarks}
+              onChange={(event) => setField(setForm, "remarks", event.target.value)}
+            />
           </label>
+          {previewRecord.validation.issues.some((issue) => issue.severity === "WARNING") ? (
+            <div className="variation-warning-list">
+              {previewRecord.validation.issues.filter((issue) => issue.severity === "WARNING").map((issue) => (
+                <span key={`${issue.code}-${issue.field}`}>{issue.message}</span>
+              ))}
+            </div>
+          ) : null}
           <div className="photo-grid">
             {PHOTO_CATEGORIES.map((category) => (
               <label className="photo-upload" key={category}>
@@ -1056,6 +1075,7 @@ function DashboardWorkspace({
     achievement: number;
     dispatchRatio: number;
     jawTph: number;
+    loaderLitresPerMt: number;
     vsiTph: number;
     unitsMt: number;
   };
@@ -1101,7 +1121,7 @@ function DashboardWorkspace({
         <Kpi title="Top product" value={topProduct ? topProduct.name : "-"} detail={topProduct ? `${fmt.format(topProduct.ratio)}% of production` : "No mix"} />
         <Kpi title="Avg TPH" value={fmt.format((totals.jawTph + totals.vsiTph) / 2)} detail={`Jaw ${fmt.format(totals.jawTph)} | VSI ${fmt.format(totals.vsiTph)}`} />
         <Kpi title="Unit / MT" value={fmt.format(totals.unitsMt)} detail="Auto-calculated" />
-        <Kpi title="Loader L / MT" value={fmt.format(loaderRows[0]?.litresPerMt ?? 0)} detail={`${fmt.format(totals.diesel)} L diesel`} />
+        <Kpi title="Loader L / MT" value={fmt.format(totals.loaderLitresPerMt)} detail={`${fmt.format(totals.diesel)} L diesel`} />
       </section>
 
       {dashboardView === "weekly" ? <PeriodDashboard electricLoaderRows={electricLoaderRows} period="Weekly" rows={weeklyRows} /> : null}
@@ -1819,7 +1839,7 @@ function ReportsWorkspace({
             <Lock size={16} />
             Generate snapshot
           </button>
-          <button className="btn" disabled={busy || !snapshot || !snapshot.validation.valid} onClick={generatePpt}>
+          <button className="btn" disabled={busy} onClick={generatePpt}>
             <Presentation size={16} />
             Generate PPT
           </button>

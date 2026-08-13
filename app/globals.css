@@ -579,6 +579,17 @@ h1 {
   color: var(--foreground);
 }
 
+.variation-warning-list {
+  display: grid;
+  gap: 6px;
+  border-left: 3px solid var(--accent-3);
+  background: #fff8e6;
+  color: var(--navy);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 10px 12px;
+}
+
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -42,7 +42,7 @@ export function buildTotals(days: DailySnapshot[]): ReportSnapshot["totals"] {
     avgVsiTph: round(average(days.map((day) => day.machine.vsiTph))),
     avgUnitsPerMt: round(ratio(productionUnits, productionMt), 3),
     dieselLitres: round(dieselLitres),
-    loaderLitresPerMt: round(ratio(dieselLitres, sum(days.map((day) => day.loader.stockToCustomerMt))), 3),
+    loaderLitresPerMt: round(ratio(dieselLitres, sum(days.map((day) => day.loader.dispatchMt))), 3),
     plantRunningHours: round(sum(days.map((day) => day.plantHours.productionHours))),
     stoppageHours: round(sum(days.map((day) => day.plantHours.lossHours))),
   };
