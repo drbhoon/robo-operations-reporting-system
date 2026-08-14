@@ -47,6 +47,7 @@ import {
   type LossCategory,
   type LossReason,
   type PhotoCategory,
+  type VariationReasonKey,
 } from "@/src/lib/capture/types";
 import { validateCaptureRecord } from "@/src/lib/capture/validation";
 import type { ReportSnapshot } from "@/src/lib/reporting/types";
@@ -205,6 +206,13 @@ type BackfillRejectedRow = {
 const fmt = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const fmt0 = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 const pct = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1, style: "percent" });
+
+const VARIATION_WARNING_CODES: Record<VariationReasonKey, string[]> = {
+  production: ["LOW_TARGET_ACHIEVEMENT", "HIGH_TARGET_ACHIEVEMENT"],
+  dispatch: ["DISPATCH_ABOVE_PRODUCTION", "DISPATCH_BELOW_PRODUCTION"],
+  units: ["HIGH_UNITS_PER_MT", "LOW_UNITS_PER_MT", "POWER_FACTOR_OUT_OF_RANGE"],
+  diesel: ["HIGH_LOADER_DIESEL", "LOW_LOADER_DIESEL"],
+};
 
 export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initialPlantUsers, initialSnapshot, initialRecords, session }: Props) {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("capture");
@@ -915,10 +923,36 @@ function CaptureWorkspace({
         </Section>
 
         <Section title="Variation remarks and evidence photos" meta="Explain unit, diesel, production, or dispatch variations; photos optional">
+          <div className="variation-reason-grid">
+            <VariationReasonField
+              active={hasVariationWarning(previewRecord, "production")}
+              label="Production variation reason"
+              value={form.variationReasons.production}
+              onChange={(value) => setVariationReason(setForm, "production", value)}
+            />
+            <VariationReasonField
+              active={hasVariationWarning(previewRecord, "dispatch")}
+              label="Dispatch variation reason"
+              value={form.variationReasons.dispatch}
+              onChange={(value) => setVariationReason(setForm, "dispatch", value)}
+            />
+            <VariationReasonField
+              active={hasVariationWarning(previewRecord, "units")}
+              label="Units variation reason"
+              value={form.variationReasons.units}
+              onChange={(value) => setVariationReason(setForm, "units", value)}
+            />
+            <VariationReasonField
+              active={hasVariationWarning(previewRecord, "diesel")}
+              label="Diesel variation reason"
+              value={form.variationReasons.diesel}
+              onChange={(value) => setVariationReason(setForm, "diesel", value)}
+            />
+          </div>
           <label className="text-area-field">
-            <span>Remarks / reasons for variation</span>
+            <span>General remarks</span>
             <textarea
-              placeholder="Enter reasons for unit, diesel, production, dispatch, loss, or stock variations before final submission."
+              placeholder="Enter other operational remarks, loss explanation, stock movement note, or management comment."
               value={form.remarks}
               onChange={(event) => setField(setForm, "remarks", event.target.value)}
             />
@@ -2033,6 +2067,7 @@ function correctionHint(code: string) {
     PRODUCTION_PRODUCT_MIX_RECONCILIATION: "Product mix quantities must equal total production. If using percentages, ensure percentages total 100.",
     PRODUCT_MIX_PERCENT_TOTAL: "Product mix percentages must total 100 percent.",
     REMARKS_REQUIRED: "Add meaningful remarks for major deviations or warnings.",
+    VARIATION_REASON_REQUIRED: "Enter the specific reason for the highlighted production, dispatch, units, or diesel variation.",
     STOCK_RECONCILIATION: "Closing stock must match opening stock plus production minus dispatch plus stock adjustment.",
     BOOK_STOCK_RECONCILIATION: "Book stock must follow monthly opening plus production minus dispatch plus stock movement.",
     MANDATORY_FIELD: "Fill the required field in the upload template.",
@@ -2135,6 +2170,29 @@ function TextField({
     <label className="field">
       <span>{label}</span>
       <input disabled={disabled} type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  );
+}
+
+function VariationReasonField({
+  active,
+  label,
+  onChange,
+  value,
+}: {
+  active: boolean;
+  label: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <label className={active ? "variation-reason-field active" : "variation-reason-field"}>
+      <span>{label}</span>
+      <textarea
+        placeholder={active ? "Required for this variation before final submission." : "Optional"}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
     </label>
   );
 }
@@ -2819,6 +2877,7 @@ function defaultPayload(): CapturePayload {
       maintenanceCost: 0,
     },
     remarks: "",
+    variationReasons: emptyVariationReasons(),
     evidencePhotos: [],
     submittedBy: "operations-head",
   };
@@ -2844,6 +2903,15 @@ function emptyLosses() {
 
 function emptyLossDetails() {
   return Object.fromEntries(LOSS_CATEGORIES.map((category) => [category, { hours: 0, comments: "" }])) as CapturePayload["lossDetails"];
+}
+
+function emptyVariationReasons() {
+  return {
+    units: "",
+    diesel: "",
+    production: "",
+    dispatch: "",
+  } satisfies CapturePayload["variationReasons"];
 }
 
 function lossEventFromLegacyLossHours(lossHours: CapturePayload["lossHours"], totalHours: number): CapturePayload["lossEvent"] {
@@ -2947,6 +3015,7 @@ function recordToPayload(record: DailyPlantRecord): CapturePayload {
     },
     cop: mergedCop,
     remarks,
+    variationReasons: { ...fallback.variationReasons, ...(record.variationReasons ?? {}) },
     evidencePhotos,
     submittedBy,
   };
@@ -2964,6 +3033,25 @@ function setField<K extends keyof CapturePayload>(
   value: CapturePayload[K],
 ) {
   setForm((current) => ({ ...current, [field]: value }));
+}
+
+function setVariationReason(
+  setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
+  field: VariationReasonKey,
+  value: string,
+) {
+  setForm((current) => ({
+    ...current,
+    variationReasons: {
+      ...current.variationReasons,
+      [field]: value,
+    },
+  }));
+}
+
+function hasVariationWarning(record: DailyPlantRecord, field: VariationReasonKey) {
+  const codes = new Set(VARIATION_WARNING_CODES[field]);
+  return record.validation.issues.some((issue) => issue.severity === "WARNING" && codes.has(issue.code));
 }
 
 function setPlant(

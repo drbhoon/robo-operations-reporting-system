@@ -181,6 +181,7 @@ function recordToDailySnapshot(record: DailyPlantRecord): DailySnapshot {
       powerCostPerMt: round(record.calculations.electricalCost / (record.productionMt || 1), 2),
       dieselCostPerMt: round(record.calculations.loaderDieselCost / (record.productionMt || 1), 2),
     },
+    variationReasons: record.variationReasons,
     sourceRows: {
       dailyRecord: 0,
     },

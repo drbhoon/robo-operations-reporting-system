@@ -69,6 +69,8 @@ export type LossDetailByCategory = Record<LossCategory, { hours: number; comment
 export type EquipmentKey = "jaw" | "cone" | "vsi";
 
 export type EquipmentMetrics = Record<EquipmentKey, number>;
+export type VariationReasonKey = "units" | "diesel" | "production" | "dispatch";
+export type VariationReasons = Record<VariationReasonKey, string>;
 
 export type EquipmentHourMeters = Record<
   EquipmentKey,
@@ -221,6 +223,7 @@ export type DailyPlantRecord = {
     maintenanceCost: number;
   };
   remarks: string;
+  variationReasons: VariationReasons;
   evidencePhotos: EvidencePhoto[];
   calculations: {
     productMixTotal: number;

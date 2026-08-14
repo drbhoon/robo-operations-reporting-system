@@ -592,8 +592,52 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
     });
   }
 
-  const hasDeviation = issues.some((issue) => issue.severity === "WARNING");
-  if (hasDeviation && record.remarks.trim().length < 12) {
+  const warningCodes = new Set(issues.filter((issue) => issue.severity === "WARNING").map((issue) => issue.code));
+  const explainedVariationCodes = new Set<string>();
+  const variationReasonChecks: Array<{
+    codes: string[];
+    field: keyof DailyPlantRecord["variationReasons"];
+    message: string;
+  }> = [
+    {
+      codes: ["LOW_TARGET_ACHIEVEMENT", "HIGH_TARGET_ACHIEVEMENT"],
+      field: "production",
+      message: "Production variation requires a reason before final submission.",
+    },
+    {
+      codes: ["DISPATCH_ABOVE_PRODUCTION", "DISPATCH_BELOW_PRODUCTION"],
+      field: "dispatch",
+      message: "Dispatch variation requires a reason before final submission.",
+    },
+    {
+      codes: ["HIGH_UNITS_PER_MT", "LOW_UNITS_PER_MT", "POWER_FACTOR_OUT_OF_RANGE"],
+      field: "units",
+      message: "Units / power variation requires a reason before final submission.",
+    },
+    {
+      codes: ["HIGH_LOADER_DIESEL", "LOW_LOADER_DIESEL"],
+      field: "diesel",
+      message: "Loader diesel variation requires a reason before final submission.",
+    },
+  ];
+
+  for (const check of variationReasonChecks) {
+    const hasVariation = check.codes.some((code) => warningCodes.has(code));
+    if (!hasVariation) continue;
+    check.codes.forEach((code) => explainedVariationCodes.add(code));
+    if ((record.variationReasons?.[check.field] ?? "").trim().length < 6) {
+      issues.push({
+        severity: "ERROR",
+        code: "VARIATION_REASON_REQUIRED",
+        date: record.date,
+        field: `variationReasons.${check.field}`,
+        message: check.message,
+      });
+    }
+  }
+
+  const hasUnexplainedDeviation = issues.some((issue) => issue.severity === "WARNING" && !explainedVariationCodes.has(issue.code));
+  if (hasUnexplainedDeviation && record.remarks.trim().length < 12) {
     issues.push({
       severity: "ERROR",
       code: "REMARKS_REQUIRED",
