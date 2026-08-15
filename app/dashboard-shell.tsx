@@ -47,6 +47,7 @@ import {
   type LossCategory,
   type LossReason,
   type PhotoCategory,
+  type VariationReasonKey,
 } from "@/src/lib/capture/types";
 import { validateCaptureRecord } from "@/src/lib/capture/validation";
 import type { ReportSnapshot } from "@/src/lib/reporting/types";
@@ -206,6 +207,13 @@ const fmt = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const fmt0 = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 const pct = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1, style: "percent" });
 
+const VARIATION_WARNING_CODES: Record<VariationReasonKey, string[]> = {
+  production: ["LOW_TARGET_ACHIEVEMENT", "HIGH_TARGET_ACHIEVEMENT"],
+  dispatch: ["DISPATCH_ABOVE_PRODUCTION", "DISPATCH_BELOW_PRODUCTION"],
+  units: ["HIGH_UNITS_PER_MT", "LOW_UNITS_PER_MT", "POWER_FACTOR_OUT_OF_RANGE"],
+  diesel: ["HIGH_LOADER_DIESEL", "LOW_LOADER_DIESEL"],
+};
+
 export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initialPlantUsers, initialSnapshot, initialRecords, session }: Props) {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("capture");
   const [dashboardView, setDashboardView] = useState<DashboardView>("daily");
@@ -218,11 +226,11 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
   const [form, setForm] = useState<CapturePayload>(() => initialPayload(initialRecords, plantOptions[0]?.code));
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [backfillFileName, setBackfillFileName] = useState("");
-  const [backfillResult, setBackfillResult] = useState<BackfillUploadResult | null>(null);
   const [plantConfigs, setPlantConfigs] = useState(initialPlantConfigs);
   const [plantUsers, setPlantUsers] = useState(initialPlantUsers);
   const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
+  const [backfillFileName, setBackfillFileName] = useState("");
+  const [backfillResult, setBackfillResult] = useState<BackfillUploadResult | null>(null);
   const [startDate, setStartDate] = useState(initialSnapshot?.period.start ?? todayIso());
   const [endDate, setEndDate] = useState(initialSnapshot?.period.end ?? todayIso());
   const [reportPlantCode, setReportPlantCode] = useState(initialSnapshot?.plantCode ?? plantOptions[0]?.code ?? initialPayload(initialRecords, plantOptions[0]?.code).plantCode);
@@ -270,6 +278,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
     const target = sum(visibleDays.map((d) => d.targetMt));
     const dispatch = sum(visibleDays.map((d) => d.dispatch.totalMt));
     const diesel = sum(visibleDays.map((d) => d.loader.dieselLitres));
+    const loaderDispatch = sum(visibleDays.map((d) => d.loader.dispatchMt));
     const jawTph = average(visibleDays.map((d) => d.machine.jawTph));
     const vsiTph = average(visibleDays.map((d) => d.machine.vsiTph));
     const productionUnits = sum(visibleDays.map((d) => d.electrical.productionUnits ?? d.electrical.kvah));
@@ -283,6 +292,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
       achievement: target ? production / target : 0,
       dispatchRatio: production ? dispatch / production : 0,
       jawTph,
+      loaderLitresPerMt: loaderDispatch ? diesel / loaderDispatch : 0,
       vsiTph,
       unitsMt,
     };
@@ -422,26 +432,31 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
     }
   }
 
+  async function requestSnapshotFromSelection() {
+    const response = await fetch("/api/snapshots/build", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        plantCode: reportPlantCode,
+        startDate,
+        endDate,
+        reportType,
+        requiredPhotoCategories: PHOTO_CATEGORIES,
+      }),
+    });
+    const body = (await response.json()) as { snapshot?: ReportSnapshot; error?: string };
+    if (!response.ok || !body.snapshot) throw new Error(body.error ?? "Snapshot build failed");
+    setSnapshot(body.snapshot);
+    return body.snapshot;
+  }
+
   async function buildSnapshot() {
     setBusy(true);
     setStatus("Building locked report snapshot from validated daily records...");
 
     try {
-      const response = await fetch("/api/snapshots/build", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plantCode: reportPlantCode,
-          startDate,
-          endDate,
-          reportType,
-          requiredPhotoCategories: PHOTO_CATEGORIES,
-        }),
-      });
-      const body = (await response.json()) as { snapshot?: ReportSnapshot; error?: string };
-      if (!response.ok || !body.snapshot) throw new Error(body.error ?? "Snapshot build failed");
-      setSnapshot(body.snapshot);
-      setStatus(`Locked snapshot ${body.snapshot.version} is ready for dashboard and PPT.`);
+      const nextSnapshot = await requestSnapshotFromSelection();
+      setStatus(`Locked snapshot ${nextSnapshot.version} is ready for dashboard and PPT.`);
       setActiveTab("dashboard");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Snapshot build failed");
@@ -451,12 +466,13 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
   }
 
   async function generatePpt() {
-    if (!snapshot) return;
     setBusy(true);
-    setStatus("Generating PowerPoint from locked snapshot...");
+    setStatus("Building a fresh locked snapshot from the selected plant and dates...");
 
     try {
-      const response = await fetch(`/api/reports/${snapshot.id}`, { method: "POST" });
+      const nextSnapshot = await requestSnapshotFromSelection();
+      setStatus("Generating PowerPoint from the selected locked snapshot...");
+      const response = await fetch(`/api/reports/${nextSnapshot.id}`, { method: "POST" });
       if (!response.ok) {
         const body = (await response.json()) as { error?: string };
         throw new Error(body.error ?? "Report generation failed");
@@ -465,10 +481,10 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${snapshot.plantCode}-${snapshot.period.start}-${snapshot.period.end}.pptx`;
+      link.download = `${nextSnapshot.plantCode}-${nextSnapshot.period.start}-${nextSnapshot.period.end}.pptx`;
       link.click();
       URL.revokeObjectURL(url);
-      setStatus("PowerPoint generated from the locked snapshot.");
+      setStatus("PowerPoint generated from the selected plant and dates.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Report generation failed");
     } finally {
@@ -906,11 +922,48 @@ function CaptureWorkspace({
           </div>
         </Section>
 
-        <Section title="Remarks and evidence photos" meta="Photos optional">
+        <Section title="Variation remarks and evidence photos" meta="Explain unit, diesel, production, or dispatch variations; photos optional">
+          <div className="variation-reason-grid">
+            <VariationReasonField
+              active={hasVariationWarning(previewRecord, "production")}
+              label="Production variation reason"
+              value={form.variationReasons.production}
+              onChange={(value) => setVariationReason(setForm, "production", value)}
+            />
+            <VariationReasonField
+              active={hasVariationWarning(previewRecord, "dispatch")}
+              label="Dispatch variation reason"
+              value={form.variationReasons.dispatch}
+              onChange={(value) => setVariationReason(setForm, "dispatch", value)}
+            />
+            <VariationReasonField
+              active={hasVariationWarning(previewRecord, "units")}
+              label="Units variation reason"
+              value={form.variationReasons.units}
+              onChange={(value) => setVariationReason(setForm, "units", value)}
+            />
+            <VariationReasonField
+              active={hasVariationWarning(previewRecord, "diesel")}
+              label="Diesel variation reason"
+              value={form.variationReasons.diesel}
+              onChange={(value) => setVariationReason(setForm, "diesel", value)}
+            />
+          </div>
           <label className="text-area-field">
-            <span>Remarks</span>
-            <textarea value={form.remarks} onChange={(event) => setField(setForm, "remarks", event.target.value)} />
+            <span>General remarks</span>
+            <textarea
+              placeholder="Enter other operational remarks, loss explanation, stock movement note, or management comment."
+              value={form.remarks}
+              onChange={(event) => setField(setForm, "remarks", event.target.value)}
+            />
           </label>
+          {previewRecord.validation.issues.some((issue) => issue.severity === "WARNING") ? (
+            <div className="variation-warning-list">
+              {previewRecord.validation.issues.filter((issue) => issue.severity === "WARNING").map((issue) => (
+                <span key={`${issue.code}-${issue.field}`}>{issue.message}</span>
+              ))}
+            </div>
+          ) : null}
           <div className="photo-grid">
             {PHOTO_CATEGORIES.map((category) => (
               <label className="photo-upload" key={category}>
@@ -1056,6 +1109,7 @@ function DashboardWorkspace({
     achievement: number;
     dispatchRatio: number;
     jawTph: number;
+    loaderLitresPerMt: number;
     vsiTph: number;
     unitsMt: number;
   };
@@ -1101,7 +1155,7 @@ function DashboardWorkspace({
         <Kpi title="Top product" value={topProduct ? topProduct.name : "-"} detail={topProduct ? `${fmt.format(topProduct.ratio)}% of production` : "No mix"} />
         <Kpi title="Avg TPH" value={fmt.format((totals.jawTph + totals.vsiTph) / 2)} detail={`Jaw ${fmt.format(totals.jawTph)} | VSI ${fmt.format(totals.vsiTph)}`} />
         <Kpi title="Unit / MT" value={fmt.format(totals.unitsMt)} detail="Auto-calculated" />
-        <Kpi title="Loader L / MT" value={fmt.format(loaderRows[0]?.litresPerMt ?? 0)} detail={`${fmt.format(totals.diesel)} L diesel`} />
+        <Kpi title="Loader L / MT" value={fmt.format(totals.loaderLitresPerMt)} detail={`${fmt.format(totals.diesel)} L diesel`} />
       </section>
 
       {dashboardView === "weekly" ? <PeriodDashboard electricLoaderRows={electricLoaderRows} period="Weekly" rows={weeklyRows} /> : null}
@@ -1819,7 +1873,7 @@ function ReportsWorkspace({
             <Lock size={16} />
             Generate snapshot
           </button>
-          <button className="btn" disabled={busy || !snapshot || !snapshot.validation.valid} onClick={generatePpt}>
+          <button className="btn" disabled={busy} onClick={generatePpt}>
             <Presentation size={16} />
             Generate PPT
           </button>
@@ -2013,6 +2067,7 @@ function correctionHint(code: string) {
     PRODUCTION_PRODUCT_MIX_RECONCILIATION: "Product mix quantities must equal total production. If using percentages, ensure percentages total 100.",
     PRODUCT_MIX_PERCENT_TOTAL: "Product mix percentages must total 100 percent.",
     REMARKS_REQUIRED: "Add meaningful remarks for major deviations or warnings.",
+    VARIATION_REASON_REQUIRED: "Enter the specific reason for the highlighted production, dispatch, units, or diesel variation.",
     STOCK_RECONCILIATION: "Closing stock must match opening stock plus production minus dispatch plus stock adjustment.",
     BOOK_STOCK_RECONCILIATION: "Book stock must follow monthly opening plus production minus dispatch plus stock movement.",
     MANDATORY_FIELD: "Fill the required field in the upload template.",
@@ -2115,6 +2170,29 @@ function TextField({
     <label className="field">
       <span>{label}</span>
       <input disabled={disabled} type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  );
+}
+
+function VariationReasonField({
+  active,
+  label,
+  onChange,
+  value,
+}: {
+  active: boolean;
+  label: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <label className={active ? "variation-reason-field active" : "variation-reason-field"}>
+      <span>{label}</span>
+      <textarea
+        placeholder={active ? "Required for this variation before final submission." : "Optional"}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
     </label>
   );
 }
@@ -2799,6 +2877,7 @@ function defaultPayload(): CapturePayload {
       maintenanceCost: 0,
     },
     remarks: "",
+    variationReasons: emptyVariationReasons(),
     evidencePhotos: [],
     submittedBy: "operations-head",
   };
@@ -2824,6 +2903,15 @@ function emptyLosses() {
 
 function emptyLossDetails() {
   return Object.fromEntries(LOSS_CATEGORIES.map((category) => [category, { hours: 0, comments: "" }])) as CapturePayload["lossDetails"];
+}
+
+function emptyVariationReasons() {
+  return {
+    units: "",
+    diesel: "",
+    production: "",
+    dispatch: "",
+  } satisfies CapturePayload["variationReasons"];
 }
 
 function lossEventFromLegacyLossHours(lossHours: CapturePayload["lossHours"], totalHours: number): CapturePayload["lossEvent"] {
@@ -2927,6 +3015,7 @@ function recordToPayload(record: DailyPlantRecord): CapturePayload {
     },
     cop: mergedCop,
     remarks,
+    variationReasons: { ...fallback.variationReasons, ...(record.variationReasons ?? {}) },
     evidencePhotos,
     submittedBy,
   };
@@ -2944,6 +3033,25 @@ function setField<K extends keyof CapturePayload>(
   value: CapturePayload[K],
 ) {
   setForm((current) => ({ ...current, [field]: value }));
+}
+
+function setVariationReason(
+  setForm: (updater: (current: CapturePayload) => CapturePayload) => void,
+  field: VariationReasonKey,
+  value: string,
+) {
+  setForm((current) => ({
+    ...current,
+    variationReasons: {
+      ...current.variationReasons,
+      [field]: value,
+    },
+  }));
+}
+
+function hasVariationWarning(record: DailyPlantRecord, field: VariationReasonKey) {
+  const codes = new Set(VARIATION_WARNING_CODES[field]);
+  return record.validation.issues.some((issue) => issue.severity === "WARNING" && codes.has(issue.code));
 }
 
 function setPlant(

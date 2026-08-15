@@ -334,6 +334,12 @@ function rowToPayload(row: Record<string, unknown>): CapturePayload {
       maintenanceCost: 0,
     },
     remarks: text(row.remarks),
+    variationReasons: {
+      units: "",
+      diesel: "",
+      production: "",
+      dispatch: "",
+    },
     evidencePhotos: [],
     submittedBy: text(row.submitted_by) || "backfill-upload",
   };

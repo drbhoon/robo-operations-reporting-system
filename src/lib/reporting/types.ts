@@ -24,6 +24,13 @@ export type ValidationResult = {
   issues: ValidationIssue[];
 };
 
+export type VariationReasons = {
+  units: string;
+  diesel: string;
+  production: string;
+  dispatch: string;
+};
+
 export type DailySnapshot = {
   date: string;
   label: string;
@@ -153,6 +160,7 @@ export type DailySnapshot = {
     powerCostPerMt?: number;
     dieselCostPerMt?: number;
   };
+  variationReasons?: VariationReasons;
   sourceRows: Record<string, number>;
 };
 

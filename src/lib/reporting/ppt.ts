@@ -30,8 +30,6 @@ export async function generatePowerPoint(snapshot: ReportSnapshot) {
   addUtilisation(pptx, snapshot);
   addMtdTrends(pptx, snapshot);
   addTph(pptx, snapshot, "vsiTph", "VSI TPH");
-  addElectrical(pptx, snapshot);
-  addLoader(pptx, snapshot);
   addLoaderMonitoring(pptx, snapshot);
   addElectricLoader(pptx, snapshot);
   addLoaderAnalysis(pptx, snapshot);
@@ -90,7 +88,7 @@ function addTargetActual(pptx: PptxGenJS, snapshot: ReportSnapshot) {
     { name: "Target", values: snapshot.daily.map((d) => d.targetMt), color: "183153" },
     { name: "Production", values: snapshot.daily.map((d) => d.production.mt), color: "087F8C" },
     { name: "Dispatch", values: snapshot.daily.map((d) => d.dispatch.totalMt), color: "D1495B" },
-  ]);
+  ], true);
 }
 
 function addProductRatiosAndBasis(pptx: PptxGenJS, snapshot: ReportSnapshot) {
@@ -112,6 +110,7 @@ function addProductRatiosAndBasis(pptx: PptxGenJS, snapshot: ReportSnapshot) {
   productRows.push(["Total", `${inrNumber(snapshot.totals.productionMt)} MT`, "100.0%"]);
 
   addTable(slide, ["Product", "Production", "Ratio"], productRows, 0.9, 5.55);
+  addProductPieChart(pptx, slide, [...productTotals.entries()].filter((entry) => entry[1] > 0).sort((a, b) => b[1] - a[1]));
   addTable(
     slide,
     ["Basis", "Production", "Jaw TPH", "Cone TPH", "VSI TPH", "Unit/MT"],
@@ -172,9 +171,26 @@ function addTph(pptx: PptxGenJS, snapshot: ReportSnapshot, key: "jawTph" | "vsiT
     ["Minimum", `${Math.min(...snapshot.daily.filter((d) => d.machine[key] > 0).map((d) => d.machine[key]))}`],
     ["Days tracked", `${snapshot.daily.filter((d) => d.machine[key] > 0).length}`],
   ]);
-  addSimpleBars(slide, snapshot.daily.map((d) => d.label), [
-    { name: title, values: snapshot.daily.map((d) => d.machine[key]), color: "087F8C" },
-  ]);
+  if (key === "jawTph") {
+    addComboChart(
+      slide,
+      snapshot.daily.map((d) => d.label),
+      [{ name: "Production MT", values: snapshot.daily.map((d) => d.production.mt), color: "087F8C" }],
+      [{ name: "Jaw TPH", values: snapshot.daily.map((d) => d.machine.jawTph), color: "183153" }],
+    );
+    return;
+  }
+
+  const rows = productEfficiencyRows(snapshot);
+  addComboChart(
+    slide,
+    rows.map((row) => row.label),
+    [{ name: "Top product ratio %", values: rows.map((row) => row.productRatio), color: "087F8C" }],
+    [
+      { name: "VSI TPH", values: rows.map((row) => row.vsiTph), color: "183153" },
+      { name: "Unit/MT", values: rows.map((row) => row.unitsPerMt), color: "F3A712" },
+    ],
+  );
 }
 
 function addUtilisation(pptx: PptxGenJS, snapshot: ReportSnapshot) {
@@ -213,34 +229,14 @@ function addMtdTrends(pptx: PptxGenJS, snapshot: ReportSnapshot) {
   );
 }
 
-function addElectrical(pptx: PptxGenJS, snapshot: ReportSnapshot) {
-  const slide = contentSlide(pptx, snapshot, "Electricity - Unit / MT");
-  addMetricTiles(slide, [
-    ["Avg Unit/MT", `${snapshot.totals.avgUnitsPerMt}`],
-    ["Best Day", `${Math.min(...snapshot.daily.filter((d) => d.electrical.unitsPerMt > 0).map((d) => d.electrical.unitsPerMt))}`],
-    ["Avg PF", `${avg(snapshot.daily.map((d) => d.electrical.powerFactor)).toFixed(2)}`],
-    ["KVAH", `${inrNumber(sum(snapshot.daily.map((d) => d.electrical.kvah)))}`],
-  ]);
-  addSimpleBars(slide, snapshot.daily.map((d) => d.label), [
-    { name: "Unit/MT", values: snapshot.daily.map((d) => d.electrical.unitsPerMt), color: "F3A712" },
-  ]);
-}
-
-function addLoader(pptx: PptxGenJS, snapshot: ReportSnapshot) {
-  const slide = contentSlide(pptx, snapshot, "Loader");
+function addLoaderMonitoring(pptx: PptxGenJS, snapshot: ReportSnapshot) {
+  const slide = contentSlide(pptx, snapshot, "Loader Performance");
   addMetricTiles(slide, [
     ["Diesel", `${inrNumber(snapshot.totals.dieselLitres)} L`],
     ["L/MT", `${snapshot.totals.loaderLitresPerMt}`],
     ["Avg TPH", `${avg(snapshot.daily.map((d) => d.loader.tph)).toFixed(1)}`],
     ["Loader Hrs", `${inrNumber(sum(snapshot.daily.map((d) => d.loader.hours)))}`],
   ]);
-  addSimpleBars(slide, snapshot.daily.map((d) => d.label), [
-    { name: "L/MT", values: snapshot.daily.map((d) => d.loader.litresPerMt), color: "D1495B" },
-  ]);
-}
-
-function addLoaderMonitoring(pptx: PptxGenJS, snapshot: ReportSnapshot) {
-  const slide = contentSlide(pptx, snapshot, "Loader Daily / Weekly / MTD");
   addTable(
     slide,
     ["Basis", "Running Hrs", "Ltr/MT", "TPH", "Dispatch Qty"],
@@ -253,15 +249,14 @@ function addLoaderMonitoring(pptx: PptxGenJS, snapshot: ReportSnapshot) {
     ]),
     0.95,
   );
-  addSimpleBars(
+  addComboChart(
     slide,
     snapshot.daily.map((d) => d.label),
+    [{ name: "Dispatch MT", values: snapshot.daily.map((d) => d.loader.dispatchMt), color: "087F8C" }],
     [
-      { name: "Dispatch MT", values: snapshot.daily.map((d) => d.loader.dispatchMt), color: "087F8C" },
       { name: "Loader TPH", values: snapshot.daily.map((d) => d.loader.tph), color: "183153" },
       { name: "Ltr/MT", values: snapshot.daily.map((d) => d.loader.litresPerMt), color: "F3A712" },
     ],
-    true,
     2.8,
     3.65,
   );
@@ -475,6 +470,33 @@ function addMetricTiles(slide: PptxGenJS.Slide, tiles: Array<[string, string]>) 
   });
 }
 
+function addProductPieChart(pptx: PptxGenJS, slide: PptxGenJS.Slide, products: Array<[string, number]>) {
+  if (!products.length) return;
+  slide.addChart(
+    pptx.ChartType.pie,
+    [
+      {
+        labels: products.map(([name]) => name),
+        name: "Product mix",
+        values: products.map(([, value]) => value),
+      },
+    ],
+    {
+      x: 6.55,
+      y: 0.9,
+      w: 5.95,
+      h: 2.5,
+      chartColors: ["087F8C", "F3A712", "2F855A", "D1495B", "183153", "7A5195", "5B8DEF", "6B7280"],
+      dataLabelFormatCode: "0.0%",
+      dataLabelPosition: "bestFit",
+      showLegend: true,
+      showPercent: true,
+      showTitle: false,
+      showValue: false,
+    },
+  );
+}
+
 function addSimpleBars(
   slide: PptxGenJS.Slide,
   labels: string[],
@@ -490,9 +512,11 @@ function addSimpleBars(
   const barWidth = Math.min(0.22, groupWidth / (series.length + 1));
 
   slide.addShape("rect", { x, y, w, h, fill: { color: "FFFFFF" }, line: { color: "D9E4DF" } });
+  addChartAxes(slide, x, y, w, h, max);
   series.forEach((item, seriesIndex) => {
     item.values.forEach((value, index) => {
       const barHeight = (Math.max(value, 0) / max) * (h - 0.72);
+      if (barHeight <= 0.01) return;
       slide.addShape("rect", {
         x: x + index * groupWidth + 0.12 + seriesIndex * (barWidth + 0.03),
         y: y + h - 0.42 - barHeight,
@@ -502,7 +526,7 @@ function addSimpleBars(
         line: { color: item.color },
       });
       if (showValues && labels.length <= 18 && value > 0) {
-        slide.addText(compactNumber(value), {
+        slide.addText(chartValue(value), {
           x: x + index * groupWidth + 0.02,
           y: y + h - 0.48 - barHeight - 0.05,
           w: Math.max(0.28, groupWidth),
@@ -536,6 +560,140 @@ function addSimpleBars(
         align: "center",
       });
     }
+  });
+}
+
+function addComboChart(
+  slide: PptxGenJS.Slide,
+  labels: string[],
+  barSeries: Array<{ name: string; values: number[]; color: string }>,
+  lineSeries: Array<{ name: string; values: number[]; color: string }>,
+  y = 2.05,
+  h = 4.5,
+) {
+  const x = 0.7;
+  const w = 11.8;
+  const barMax = Math.max(...barSeries.flatMap((item) => item.values), 1);
+  const groupWidth = w / Math.max(labels.length, 1);
+  const barWidth = Math.min(0.28, groupWidth / Math.max(barSeries.length + 1.4, 1));
+  const plotTop = y + 0.42;
+  const plotBottom = y + h - 0.42;
+  const plotHeight = plotBottom - plotTop;
+
+  slide.addShape("rect", { x, y, w, h, fill: { color: "FFFFFF" }, line: { color: "D9E4DF" } });
+  addChartAxes(slide, x, y, w, h, barMax);
+
+  barSeries.forEach((item, seriesIndex) => {
+    item.values.forEach((value, index) => {
+      const barHeight = (Math.max(value, 0) / barMax) * plotHeight;
+      if (barHeight <= 0.01) return;
+      const barX = x + index * groupWidth + 0.18 + seriesIndex * (barWidth + 0.04);
+      const barY = plotBottom - barHeight;
+      slide.addShape("rect", {
+        x: barX,
+        y: barY,
+        w: barWidth,
+        h: barHeight,
+        fill: { color: item.color },
+        line: { color: item.color },
+      });
+      if (labels.length <= 18 && value > 0) {
+        slide.addText(chartValue(value), {
+          x: x + index * groupWidth,
+          y: Math.max(plotTop - 0.02, barY - 0.08),
+          w: groupWidth,
+          h: 0.12,
+          fontSize: 5.8,
+          color: "183153",
+          align: "center",
+          fit: "shrink",
+        });
+      }
+    });
+  });
+
+  lineSeries.forEach((item, seriesIndex) => {
+    const lineMax = Math.max(...item.values, 1);
+    const points = item.values.map((value, index) => ({
+      x: x + index * groupWidth + groupWidth / 2,
+      y: plotBottom - (Math.max(value, 0) / lineMax) * plotHeight,
+      value,
+    }));
+    points.forEach((point, index) => {
+      if (index > 0) {
+        const previous = points[index - 1];
+        addSafeLine(slide, previous.x, previous.y, point.x, point.y, item.color);
+      }
+      slide.addShape("ellipse", {
+        x: point.x - 0.035,
+        y: point.y - 0.035,
+        w: 0.07,
+        h: 0.07,
+        fill: { color: item.color },
+        line: { color: item.color },
+      });
+      if (labels.length <= 18 && point.value > 0) {
+        slide.addText(chartValue(point.value), {
+          x: point.x - 0.22,
+          y: Math.max(plotTop - 0.02, point.y - 0.17 - seriesIndex * 0.13),
+          w: 0.44,
+          h: 0.12,
+          fontSize: 5.8,
+          color: item.color,
+          align: "center",
+          fit: "shrink",
+        });
+      }
+    });
+  });
+
+  [...barSeries, ...lineSeries].forEach((item, index) => {
+    slide.addText(item.name, {
+      x: x + 0.2 + (index % 4) * 2.55,
+      y: y + 0.16 + Math.floor(index / 4) * 0.2,
+      w: 2.35,
+      h: 0.2,
+      fontSize: 9,
+      color: item.color,
+      bold: true,
+    });
+  });
+
+  labels.forEach((labelText, index) => {
+    if (index % 2 === 0) {
+      slide.addText(labelText, {
+        x: x + index * groupWidth,
+        y: y + h - 0.28,
+        w: groupWidth,
+        h: 0.16,
+        fontSize: 6.5,
+        color: "63716D",
+        align: "center",
+      });
+    }
+  });
+}
+
+function addChartAxes(slide: PptxGenJS.Slide, x: number, y: number, w: number, h: number, max: number) {
+  slide.addShape("rect", { x: x + 0.1, y: y + 0.35, w: 0.01, h: h - 0.72, fill: { color: "8DA19A" }, line: { color: "8DA19A", transparency: 100 } });
+  slide.addShape("rect", { x: x + 0.1, y: y + h - 0.37, w: w - 0.2, h: 0.01, fill: { color: "8DA19A" }, line: { color: "8DA19A", transparency: 100 } });
+  slide.addText("0", { x: x + 0.03, y: y + h - 0.52, w: 0.35, h: 0.12, fontSize: 6, color: "63716D" });
+  slide.addText(chartValue(max), { x: x + 0.03, y: y + 0.29, w: 0.55, h: 0.12, fontSize: 6, color: "63716D" });
+}
+
+function addSafeLine(slide: PptxGenJS.Slide, x1: number, y1: number, x2: number, y2: number, color: string) {
+  const x = Math.min(x1, x2);
+  const y = Math.min(y1, y2);
+  const w = Math.max(Math.abs(x2 - x1), 0.01);
+  const h = Math.max(Math.abs(y2 - y1), 0.01);
+  slide.addShape("line", {
+    flipH: x2 < x1,
+    flipV: y2 < y1,
+    h,
+    line: { color, width: 1.35 },
+    w,
+    x,
+    y,
   });
 }
 
@@ -842,10 +1000,7 @@ function weightedAverage(values: number[][]) {
   return weightTotal ? weightedTotal / weightTotal : 0;
 }
 
-function compactNumber(value: number) {
-  if (Math.abs(value) >= 100000) return `${Math.round(value / 1000)}k`;
-  if (Math.abs(value) >= 10000) return `${Math.round(value / 1000)}k`;
-  if (Math.abs(value) >= 1000) return `${Math.round(value / 100) / 10}k`;
+function chartValue(value: number) {
   return inrNumber(value);
 }
 

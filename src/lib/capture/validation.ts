@@ -525,6 +525,15 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
       message: "Dispatch is materially higher than production; confirm stock drawdown is intentional.",
     });
   }
+  if (dispatchTotal < record.productionMt * 0.75 && record.productionMt > 0) {
+    issues.push({
+      severity: "WARNING",
+      code: "DISPATCH_BELOW_PRODUCTION",
+      date: record.date,
+      field: "dispatch",
+      message: "Dispatch is materially lower than production; confirm stock build-up or dispatch constraint.",
+    });
+  }
 
   if (record.calculations.achievementPct < 80) {
     issues.push({
@@ -533,6 +542,15 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
       date: record.date,
       field: "productionMt",
       message: "Production is below 80% of target and requires management remarks.",
+    });
+  }
+  if (record.calculations.achievementPct > 120) {
+    issues.push({
+      severity: "WARNING",
+      code: "HIGH_TARGET_ACHIEVEMENT",
+      date: record.date,
+      field: "productionMt",
+      message: "Production is above 120% of target; confirm the production variation in remarks.",
     });
   }
 
@@ -545,6 +563,15 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
       message: "Unit/MT is above the configured review threshold.",
     });
   }
+  if (record.calculations.unitsPerMt > 0 && record.calculations.unitsPerMt < 1) {
+    issues.push({
+      severity: "WARNING",
+      code: "LOW_UNITS_PER_MT",
+      date: record.date,
+      field: "electrical.unitsPerMt",
+      message: "Unit/MT is unusually low; confirm meter readings and production basis in remarks.",
+    });
+  }
 
   if (record.calculations.loaderLitresPerMt > 0.12) {
     issues.push({
@@ -555,9 +582,62 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
       message: "Loader litres/MT is above the configured review threshold.",
     });
   }
+  if (record.calculations.loaderLitresPerMt > 0 && record.calculations.loaderLitresPerMt < 0.03) {
+    issues.push({
+      severity: "WARNING",
+      code: "LOW_LOADER_DIESEL",
+      date: record.date,
+      field: "loader.litresPerMt",
+      message: "Loader litres/MT is unusually low; confirm diesel entry and loader dispatch basis in remarks.",
+    });
+  }
 
-  const hasDeviation = issues.some((issue) => issue.severity === "WARNING");
-  if (hasDeviation && record.remarks.trim().length < 12) {
+  const warningCodes = new Set(issues.filter((issue) => issue.severity === "WARNING").map((issue) => issue.code));
+  const explainedVariationCodes = new Set<string>();
+  const variationReasonChecks: Array<{
+    codes: string[];
+    field: keyof DailyPlantRecord["variationReasons"];
+    message: string;
+  }> = [
+    {
+      codes: ["LOW_TARGET_ACHIEVEMENT", "HIGH_TARGET_ACHIEVEMENT"],
+      field: "production",
+      message: "Production variation requires a reason before final submission.",
+    },
+    {
+      codes: ["DISPATCH_ABOVE_PRODUCTION", "DISPATCH_BELOW_PRODUCTION"],
+      field: "dispatch",
+      message: "Dispatch variation requires a reason before final submission.",
+    },
+    {
+      codes: ["HIGH_UNITS_PER_MT", "LOW_UNITS_PER_MT", "POWER_FACTOR_OUT_OF_RANGE"],
+      field: "units",
+      message: "Units / power variation requires a reason before final submission.",
+    },
+    {
+      codes: ["HIGH_LOADER_DIESEL", "LOW_LOADER_DIESEL"],
+      field: "diesel",
+      message: "Loader diesel variation requires a reason before final submission.",
+    },
+  ];
+
+  for (const check of variationReasonChecks) {
+    const hasVariation = check.codes.some((code) => warningCodes.has(code));
+    if (!hasVariation) continue;
+    check.codes.forEach((code) => explainedVariationCodes.add(code));
+    if ((record.variationReasons?.[check.field] ?? "").trim().length < 6) {
+      issues.push({
+        severity: "ERROR",
+        code: "VARIATION_REASON_REQUIRED",
+        date: record.date,
+        field: `variationReasons.${check.field}`,
+        message: check.message,
+      });
+    }
+  }
+
+  const hasUnexplainedDeviation = issues.some((issue) => issue.severity === "WARNING" && !explainedVariationCodes.has(issue.code));
+  if (hasUnexplainedDeviation && record.remarks.trim().length < 12) {
     issues.push({
       severity: "ERROR",
       code: "REMARKS_REQUIRED",

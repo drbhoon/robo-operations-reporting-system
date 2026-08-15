@@ -177,10 +177,10 @@ export async function getAdminSession(): Promise<AppSession | null> {
   return null;
 }
 
-export async function requireAdminSession(): Promise<AppSession> {
+export async function requireAdminSession(returnTo = "/operations"): Promise<AppSession> {
   const session = await getAdminSession();
   if (session) return session;
-  redirect("/login");
+  redirect(`/login?return_to=${encodeURIComponent(safeRelativeReturnPath(returnTo))}`);
 }
 
 export async function requireSuperAdminSession(): Promise<AppSession> {
@@ -460,6 +460,17 @@ function verifyToken(token: string): SessionPayload | null {
 
 function sessionSecret() {
   return process.env.ROBOOPS_SESSION_SECRET || process.env[ADMIN_PASSWORD_ENV] || "local-dev-session-secret";
+}
+
+function safeRelativeReturnPath(value: string) {
+  if (!value.startsWith("/") || value.startsWith("//")) return "/operations";
+  try {
+    const url = new URL(value, "https://robo.rdcc.ai");
+    if (url.origin !== "https://robo.rdcc.ai") return "/operations";
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return "/operations";
+  }
 }
 
 function secureEqual(left: string, right: string) {
