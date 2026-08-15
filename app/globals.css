@@ -661,6 +661,16 @@ h1 {
   padding: 4px 0;
 }
 
+.locked-final-note {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff8e6;
+  color: var(--navy);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 10px 12px;
+}
+
 .review-rail,
 .reports-grid {
   display: grid;

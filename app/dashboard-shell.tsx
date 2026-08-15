@@ -318,8 +318,12 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
         error?: string;
         validation?: { issues: Array<{ message: string }> };
       };
+      if (!response.ok) {
+        if (body.record) setForm(recordToPayload(body.record));
+        throw new Error(body.validation?.issues?.[0]?.message ?? body.error ?? "Record save failed");
+      }
       if (!response.ok || !body.record) {
-        throw new Error(body.error ?? body.validation?.issues?.[0]?.message ?? "Record save failed");
+        throw new Error(body.error ?? "Record save failed");
       }
       setRecords((current) => upsertRecord(current, body.record!));
       setForm(recordToPayload(body.record));
@@ -734,6 +738,7 @@ function CaptureWorkspace({
   submitFinal: () => void;
 }) {
   const finalEdit = selectedRecord?.status === "FINAL" && session.role === "SUPER_ADMIN";
+  const finalLocked = selectedRecord?.status === "FINAL" && session.role !== "SUPER_ADMIN";
   const canDeleteSelected = Boolean(selectedRecord && (selectedRecord.status === "DRAFT" || session.role === "SUPER_ADMIN"));
   return (
     <section className="capture-layout">
@@ -983,13 +988,14 @@ function CaptureWorkspace({
         </Section>
 
         <div className="form-actions">
-          <button className="btn" disabled={busy} onClick={saveDraft}>
+          {finalLocked ? <span className="locked-final-note">Final record is locked. Contact ROBOOPS for correction.</span> : null}
+          <button className="btn" disabled={busy || finalLocked} onClick={saveDraft}>
             <Save size={16} />
             Save draft
           </button>
-          <button className="btn primary" disabled={busy} onClick={submitFinal}>
+          <button className="btn primary" disabled={busy || finalLocked} onClick={submitFinal}>
             <Send size={16} />
-            {finalEdit ? "Save final correction" : "Submit final"}
+            {finalLocked ? "Final locked" : finalEdit ? "Save final correction" : "Submit final"}
           </button>
           {selectedRecord && canDeleteSelected ? (
             <button className="btn danger" disabled={busy} onClick={() => deleteRecord(selectedRecord)}>
