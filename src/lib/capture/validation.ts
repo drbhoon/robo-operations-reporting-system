@@ -23,7 +23,7 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
   requireText(issues, record.date, "plantCode", record.plantCode, "Plant is mandatory.");
   requireText(issues, record.date, "date", record.date, "Date is mandatory.");
   requirePositive(issues, record.date, "targetMt", record.targetMt);
-  requirePositive(issues, record.date, "productionMt", record.productionMt);
+  requireNonNegative(issues, record.date, "productionMt", record.productionMt);
   requireNonNegative(issues, record.date, "plantHours.available", record.plantHours.available);
   requireNonNegative(issues, record.date, "plantHours.production", record.plantHours.production);
   requireNonNegative(issues, record.date, "plantHours.scheduledStoppage", record.plantHours.scheduledStoppage);
@@ -65,7 +65,7 @@ export function validateCaptureRecord(record: DailyPlantRecord): CaptureValidati
     }
   }
 
-  if (Math.abs(productMixPercentageTotal - 100) > 0.25) {
+  if (record.productionMt > 0 && Math.abs(productMixPercentageTotal - 100) > 0.25) {
     issues.push({
       severity: "ERROR",
       code: "PRODUCT_MIX_PERCENT_TOTAL",

@@ -30,6 +30,9 @@ export function buildTotals(days: DailySnapshot[]): ReportSnapshot["totals"] {
   const dispatchMt = sum(days.map((day) => day.dispatch.totalMt));
   const dieselLitres = sum(days.map((day) => day.loader.dieselLitres));
   const productionUnits = sum(days.map((day) => day.electrical.productionUnits ?? day.electrical.kvah));
+  const jawHours = sum(days.map((day) => day.machine.jawHours));
+  const coneHours = sum(days.map((day) => day.machine.coneHours));
+  const vsiHours = sum(days.map((day) => day.machine.vsiHours));
 
   return {
     targetMt: round(targetMt),
@@ -37,9 +40,9 @@ export function buildTotals(days: DailySnapshot[]): ReportSnapshot["totals"] {
     dispatchMt: round(dispatchMt),
     achievementPct: round(ratio(productionMt, targetMt) * 100),
     dispatchToProductionPct: round(ratio(dispatchMt, productionMt) * 100),
-    avgJawTph: round(average(days.map((day) => day.machine.jawTph))),
-    avgConeTph: round(average(days.map((day) => day.machine.coneTph))),
-    avgVsiTph: round(average(days.map((day) => day.machine.vsiTph))),
+    avgJawTph: round(ratio(productionMt, jawHours)),
+    avgConeTph: round(ratio(productionMt, coneHours)),
+    avgVsiTph: round(ratio(productionMt, vsiHours)),
     avgUnitsPerMt: round(ratio(productionUnits, productionMt), 3),
     dieselLitres: round(dieselLitres),
     loaderLitresPerMt: round(ratio(dieselLitres, sum(days.map((day) => day.loader.dispatchMt))), 3),
