@@ -3211,7 +3211,7 @@ function carryForwardFromPreviousRecord(base: CapturePayload, previous: DailyPla
     ...base.openingStock,
     ...previousCalculations.calculatedClosingStock,
   };
-  const bookOpening = { ...base.bookStock.monthlyOpening, ...previousCalculations.calculatedBookStock };
+  const bookOpening = normalizeOptionalProductQuantities({ ...base.bookStock.monthlyOpening, ...previousCalculations.calculatedBookStock });
   const equipmentHourMeters = {
     jaw: carryEquipmentMeter(previousPayload, "jaw"),
     cone: carryEquipmentMeter(previousPayload, "cone"),
@@ -3230,8 +3230,8 @@ function carryForwardFromPreviousRecord(base: CapturePayload, previous: DailyPla
     plantName: previousPayload.plantName,
     date,
     targetMt: previousPayload.targetMt,
-    openingStock: closingStock,
-    closingStock,
+    openingStock: normalizeOptionalProductQuantities(closingStock),
+    closingStock: normalizeOptionalProductQuantities(closingStock),
     bookStock: {
       monthlyOpening: bookOpening,
       calculatedClosing: bookOpening,
@@ -3535,6 +3535,12 @@ function productTotal(values: CapturePayload["productMix"]) {
 function displayProductQuantity(productName: string, value: number) {
   if (productName === "40 MM" && value < 0) return 0;
   return value;
+}
+
+function normalizeOptionalProductQuantities<T extends Partial<Record<CaptureProductName, number>>>(values: T): T {
+  return Object.fromEntries(
+    CAPTURE_PRODUCTS.map((product) => [product, displayProductQuantity(product, values[product] ?? 0)]),
+  ) as T;
 }
 
 function aggregateLosses(days: ReportSnapshot["daily"]) {

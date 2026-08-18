@@ -156,6 +156,20 @@ assert.equal(
   `zero-production maintenance day should be valid: ${zeroProductionValidation.issues.map((issue) => `${issue.code}:${issue.message}`).join(" | ")}`,
 );
 
+const negativeFortyMmBookOpening = recordFromPayload(payload({
+  bookStock: {
+    monthlyOpening: { ...zeroProducts(), "40 MM": -25 },
+    calculatedClosing: zeroProducts(),
+  },
+}));
+assert.equal(negativeFortyMmBookOpening.bookStock.monthlyOpening["40 MM"], 0, "Negative 40 MM book opening should be normalized to zero.");
+assert.equal(negativeFortyMmBookOpening.calculations.calculatedBookStock["40 MM"], 0, "Negative 40 MM calculated book stock should be normalized to zero.");
+assert.equal(
+  validateCaptureRecord(negativeFortyMmBookOpening).valid,
+  true,
+  "Normalized 40 MM book stock should not block final validation.",
+);
+
 const kvahPayload = payload({
   productionMt: 100,
   productMixPercentages: { ...zeroProducts(), "R Sand": 100 },
