@@ -167,6 +167,34 @@ type PeriodSummaryRow = {
   target: number;
   vsiTph: number;
 };
+type MonthlyCumulativeRow = {
+  dispatch: number;
+  dieselLitres: number;
+  electricityUnits: number;
+  jawRunningHours: number;
+  jawTph: number;
+  label: string;
+  loaderHours: number;
+  plantHours: number;
+  production: number;
+  runningHours: number;
+  vsiRunningHours: number;
+  vsiTph: number;
+};
+type CopTotals = {
+  drillingBlasting: number;
+  electricity: number;
+  fixed: number;
+  internalTransport: number;
+  intercarting: number;
+  loaderDiesel: number;
+  overburden: number;
+  plantMaintenance: number;
+  rawMaterial: number;
+  rentPlant: number;
+  spares: number;
+  wearParts: number;
+};
 type CopProjectionRow = {
   label: string;
   value: number;
@@ -279,8 +307,10 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
     const dispatch = sum(visibleDays.map((d) => d.dispatch.totalMt));
     const diesel = sum(visibleDays.map((d) => d.loader.dieselLitres));
     const loaderDispatch = sum(visibleDays.map((d) => d.loader.dispatchMt));
-    const jawTph = average(visibleDays.map((d) => d.machine.jawTph));
-    const vsiTph = average(visibleDays.map((d) => d.machine.vsiTph));
+    const jawHours = sum(visibleDays.map((d) => d.machine.jawHours));
+    const vsiHours = sum(visibleDays.map((d) => d.machine.vsiHours));
+    const jawTph = jawHours ? production / jawHours : 0;
+    const vsiTph = vsiHours ? production / vsiHours : 0;
     const productionUnits = sum(visibleDays.map((d) => d.electrical.productionUnits ?? d.electrical.kvah));
     const unitsMt = production ? productionUnits / production : 0;
 
@@ -1143,6 +1173,7 @@ function DashboardWorkspace({
   const productEfficiencyRows = buildProductEfficiencyRows(visibleDays);
   const weeklyRows = buildPeriodSummaryRows(visibleDays, "week");
   const monthlyRows = buildPeriodSummaryRows(visibleDays, "month");
+  const monthlyCumulativeRows = buildMonthlyCumulativeRows(visibleDays);
   const topProduct = productRatios[0];
 
   return (
@@ -1159,13 +1190,14 @@ function DashboardWorkspace({
         <Kpi title="Production" value={`${fmt.format(totals.production)} MT`} detail={`${pct.format(totals.achievement)} of target`} />
         <Kpi title="Dispatch" value={`${fmt.format(totals.dispatch)} MT`} detail={`${pct.format(totals.dispatchRatio)} of production`} />
         <Kpi title="Top product" value={topProduct ? topProduct.name : "-"} detail={topProduct ? `${fmt.format(topProduct.ratio)}% of production` : "No mix"} />
-        <Kpi title="Avg TPH" value={fmt.format((totals.jawTph + totals.vsiTph) / 2)} detail={`Jaw ${fmt.format(totals.jawTph)} | VSI ${fmt.format(totals.vsiTph)}`} />
+        <Kpi title="Jaw Avg TPH" value={fmt.format(totals.jawTph)} detail="Selected period" />
+        <Kpi title="VSI Avg TPH" value={fmt.format(totals.vsiTph)} detail="Selected period" />
         <Kpi title="Unit / MT" value={fmt.format(totals.unitsMt)} detail="Auto-calculated" />
         <Kpi title="Loader L / MT" value={fmt.format(totals.loaderLitresPerMt)} detail={`${fmt.format(totals.diesel)} L diesel`} />
       </section>
 
       {dashboardView === "weekly" ? <PeriodDashboard electricLoaderRows={electricLoaderRows} period="Weekly" rows={weeklyRows} /> : null}
-      {dashboardView === "monthly" ? <PeriodDashboard electricLoaderRows={electricLoaderRows} period="Monthly" rows={monthlyRows} /> : null}
+      {dashboardView === "monthly" ? <PeriodDashboard electricLoaderRows={electricLoaderRows} monthlyCumulativeRows={monthlyCumulativeRows} period="Monthly" rows={monthlyRows} /> : null}
       {dashboardView === "trends" ? (
         <TrendDashboard
           copProjectionRows={copProjectionRows}
@@ -1397,10 +1429,12 @@ function DashboardWorkspace({
 
 function PeriodDashboard({
   electricLoaderRows,
+  monthlyCumulativeRows = [],
   period,
   rows,
 }: {
   electricLoaderRows: ElectricLoaderBasisRow[];
+  monthlyCumulativeRows?: MonthlyCumulativeRow[];
   period: "Weekly" | "Monthly";
   rows: PeriodSummaryRow[];
 }) {
@@ -1438,6 +1472,11 @@ function PeriodDashboard({
       {electricLoaderRows.some((row) => row.dispatchMt > 0 || row.runningHours > 0 || row.kvahUnits > 0) ? (
         <Panel title="Electric loader Daily / Weekly / MTD" meta="Running hours, Unit/MT, TPH and dispatch">
           <ElectricLoaderTable rows={electricLoaderRows} />
+        </Panel>
+      ) : null}
+      {period === "Monthly" ? (
+        <Panel title="Monthly cumulative operating data" meta="Production, dispatch, hours, diesel, electricity and TPH">
+          <MonthlyCumulativeTable rows={monthlyCumulativeRows} />
         </Panel>
       ) : null}
     </section>
@@ -2334,7 +2373,7 @@ function ProductReadOnlyGrid({
   return (
     <div className="form-grid product-grid">
       {CAPTURE_PRODUCTS.map((product) => (
-        <ReadOnlyMetric key={product} label={product} value={values[product]} suffix={suffix} />
+        <ReadOnlyMetric key={product} label={product} value={displayProductQuantity(product, values[product])} suffix={suffix} />
       ))}
     </div>
   );
@@ -2531,6 +2570,54 @@ function PeriodSummaryTable({ rows }: { rows: PeriodSummaryRow[] }) {
           {!rows.length ? (
             <tr>
               <td colSpan={11}>No records available for this period.</td>
+            </tr>
+          ) : null}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function MonthlyCumulativeTable({ rows }: { rows: MonthlyCumulativeRow[] }) {
+  return (
+    <div className="table-shell">
+      <table>
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Production</th>
+            <th>Dispatch</th>
+            <th>Loader Hrs</th>
+            <th>Diesel L</th>
+            <th>Electricity Units</th>
+            <th>Plant Hrs</th>
+            <th>Running Hrs</th>
+            <th>Jaw Hrs</th>
+            <th>Jaw Avg TPH</th>
+            <th>VSI Hrs</th>
+            <th>VSI Avg TPH</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.label}>
+              <td>{row.label}</td>
+              <td>{fmt.format(row.production)}</td>
+              <td>{fmt.format(row.dispatch)}</td>
+              <td>{formatHours(row.loaderHours)}</td>
+              <td>{fmt.format(row.dieselLitres)}</td>
+              <td>{fmt.format(row.electricityUnits)}</td>
+              <td>{formatHours(row.plantHours)}</td>
+              <td>{formatHours(row.runningHours)}</td>
+              <td>{formatHours(row.jawRunningHours)}</td>
+              <td>{fmt.format(row.jawTph)}</td>
+              <td>{formatHours(row.vsiRunningHours)}</td>
+              <td>{fmt.format(row.vsiTph)}</td>
+            </tr>
+          ))}
+          {!rows.length ? (
+            <tr>
+              <td colSpan={12}>No monthly data available.</td>
             </tr>
           ) : null}
         </tbody>
@@ -3435,7 +3522,7 @@ function aggregateProducts(days: ReportSnapshot["daily"]) {
   const buckets = new Map<string, number>();
   days.forEach((day) => {
     day.production.products.forEach((product) => {
-      buckets.set(product.name, (buckets.get(product.name) ?? 0) + product.mt);
+      buckets.set(product.name, (buckets.get(product.name) ?? 0) + displayProductQuantity(product.name, product.mt));
     });
   });
   return [...buckets].map(([name, value]) => ({ name, value }));
@@ -3443,6 +3530,11 @@ function aggregateProducts(days: ReportSnapshot["daily"]) {
 
 function productTotal(values: CapturePayload["productMix"]) {
   return roundDisplay(sum(CAPTURE_PRODUCTS.map((product) => values[product])));
+}
+
+function displayProductQuantity(productName: string, value: number) {
+  if (productName === "40 MM" && value < 0) return 0;
+  return value;
 }
 
 function aggregateLosses(days: ReportSnapshot["daily"]) {
@@ -3471,10 +3563,10 @@ function buildProductionDispatchRows(days: SnapshotDay[]): ProductionDispatchRow
 
   days.forEach((day) => {
     day.production.products.forEach((product) => {
-      productionTotals.set(product.name, (productionTotals.get(product.name) ?? 0) + product.mt);
+      productionTotals.set(product.name, (productionTotals.get(product.name) ?? 0) + displayProductQuantity(product.name, product.mt));
     });
     day.dispatch.products.forEach((product) => {
-      dispatchTotals.set(product.name, (dispatchTotals.get(product.name) ?? 0) + product.mt);
+      dispatchTotals.set(product.name, (dispatchTotals.get(product.name) ?? 0) + displayProductQuantity(product.name, product.mt));
     });
   });
 
@@ -3542,20 +3634,7 @@ function buildLoaderRows(days: SnapshotDay[]): LoaderBasisRow[] {
 function buildCopRows(days: SnapshotDay[]): CopRow[] {
   const production = sum(days.map((day) => day.production.mt));
   const forecastProduction = latestForecastProduction(days);
-  const totals = {
-    drillingBlasting: sum(days.map((day) => day.cop?.drillingBlastingCost ?? day.cop?.quarryBlastingCost ?? 0)),
-    internalTransport: sum(days.map((day) => day.cop?.internalTransportationCost ?? day.cop?.quarryLtCost ?? 0)),
-    overburden: sum(days.map((day) => day.cop?.overburdenRemovalCost ?? day.cop?.quarryObCost ?? 0)),
-    rawMaterial: sum(days.map((day) => day.cop?.rawMaterialCost ?? 0)),
-    rentPlant: sum(days.map((day) => day.cop?.rentPlantCost ?? 0)),
-    electricity: sum(days.map((day) => day.cop?.electricalCost ?? 0)),
-    plantMaintenance: sum(days.map((day) => day.cop?.plantMaintenanceCost ?? day.cop?.plantCost ?? 0)),
-    spares: sum(days.map((day) => day.cop?.sparesConsumablesCost ?? 0)),
-    wearParts: sum(days.map((day) => day.cop?.wearPartsCost ?? 0)),
-    loaderDiesel: sum(days.map((day) => day.cop?.loaderCost ?? day.loader.dieselCost ?? 0)),
-    intercarting: sum(days.map((day) => day.cop?.intercartingExpenses ?? 0)),
-    fixed: sum(days.map((day) => day.cop?.fixedCost ?? day.cop?.fixedCostMonthly ?? 0)),
-  };
+  const totals = buildCopTotals(days);
   const variableExcavation = totals.drillingBlasting + totals.internalTransport + totals.overburden;
   const rawMaterialSourcing = totals.rawMaterial + totals.rentPlant;
   const crushing = totals.electricity + totals.plantMaintenance + totals.spares + totals.wearParts;
@@ -3635,20 +3714,7 @@ function buildCopProjectionRows(days: SnapshotDay[]): CopProjectionRow[] {
 }
 
 function totalCopCost(days: SnapshotDay[]) {
-  const totals = {
-    drillingBlasting: sum(days.map((day) => day.cop?.drillingBlastingCost ?? day.cop?.quarryBlastingCost ?? 0)),
-    internalTransport: sum(days.map((day) => day.cop?.internalTransportationCost ?? day.cop?.quarryLtCost ?? 0)),
-    overburden: sum(days.map((day) => day.cop?.overburdenRemovalCost ?? day.cop?.quarryObCost ?? 0)),
-    rawMaterial: sum(days.map((day) => day.cop?.rawMaterialCost ?? 0)),
-    rentPlant: sum(days.map((day) => day.cop?.rentPlantCost ?? 0)),
-    electricity: sum(days.map((day) => day.cop?.electricalCost ?? 0)),
-    plantMaintenance: sum(days.map((day) => day.cop?.plantMaintenanceCost ?? day.cop?.plantCost ?? 0)),
-    spares: sum(days.map((day) => day.cop?.sparesConsumablesCost ?? 0)),
-    wearParts: sum(days.map((day) => day.cop?.wearPartsCost ?? 0)),
-    loaderDiesel: sum(days.map((day) => day.cop?.loaderCost ?? day.loader.dieselCost ?? 0)),
-    intercarting: sum(days.map((day) => day.cop?.intercartingExpenses ?? 0)),
-    fixed: sum(days.map((day) => day.cop?.fixedCost ?? day.cop?.fixedCostMonthly ?? 0)),
-  };
+  const totals = buildCopTotals(days);
   return (
     totals.drillingBlasting +
     totals.internalTransport +
@@ -3663,6 +3729,46 @@ function totalCopCost(days: SnapshotDay[]) {
     totals.intercarting +
     totals.fixed
   );
+}
+
+function buildCopTotals(days: SnapshotDay[]): CopTotals {
+  const weeklyManualEntries = latestWeeklyManualCopEntries(days);
+  return {
+    drillingBlasting: sum(days.map((day) => day.cop?.drillingBlastingCost ?? day.cop?.quarryBlastingCost ?? 0)),
+    internalTransport: sum(days.map((day) => day.cop?.internalTransportationCost ?? day.cop?.quarryLtCost ?? 0)),
+    overburden: sum(days.map((day) => day.cop?.overburdenRemovalCost ?? day.cop?.quarryObCost ?? 0)),
+    electricity: sum(days.map((day) => day.cop?.electricalCost ?? 0)),
+    loaderDiesel: sum(days.map((day) => day.cop?.loaderCost ?? day.loader.dieselCost ?? 0)),
+    intercarting: sum(days.map((day) => day.cop?.intercartingExpenses ?? 0)),
+    rawMaterial: sum(weeklyManualEntries.map((day) => day.cop?.rawMaterialCost ?? 0)),
+    rentPlant: sum(weeklyManualEntries.map((day) => day.cop?.rentPlantCost ?? 0)),
+    plantMaintenance: sum(weeklyManualEntries.map((day) => day.cop?.plantMaintenanceCost ?? day.cop?.plantCost ?? 0)),
+    spares: sum(weeklyManualEntries.map((day) => day.cop?.sparesConsumablesCost ?? 0)),
+    wearParts: sum(weeklyManualEntries.map((day) => day.cop?.wearPartsCost ?? 0)),
+    fixed: sum(weeklyManualEntries.map((day) => day.cop?.fixedCost ?? day.cop?.fixedCostMonthly ?? 0)),
+  };
+}
+
+function latestWeeklyManualCopEntries(days: SnapshotDay[]) {
+  const byWeek = new Map<string, SnapshotDay>();
+  [...days].sort((a, b) => a.date.localeCompare(b.date)).forEach((day) => {
+    if (!hasManualCopEntry(day)) return;
+    byWeek.set(weekGroupKey(day.date), day);
+  });
+  return [...byWeek.values()];
+}
+
+function hasManualCopEntry(day: SnapshotDay) {
+  const cop = day.cop;
+  if (!cop) return false;
+  return [
+    cop.rawMaterialCost,
+    cop.rentPlantCost,
+    cop.plantMaintenanceCost ?? cop.plantCost,
+    cop.sparesConsumablesCost,
+    cop.wearPartsCost,
+    cop.fixedCost ?? cop.fixedCostMonthly,
+  ].some((value) => (value ?? 0) > 0);
 }
 
 function buildMtdRows(days: SnapshotDay[]) {
@@ -3689,6 +3795,35 @@ function buildPeriodSummaryRows(days: SnapshotDay[], period: "week" | "month"): 
   return [...groups.entries()].map(([key, groupedDays]) => summarizePeriod(key, groupedDays));
 }
 
+function buildMonthlyCumulativeRows(days: SnapshotDay[]): MonthlyCumulativeRow[] {
+  const groups = new Map<string, SnapshotDay[]>();
+  [...days].sort((a, b) => a.date.localeCompare(b.date)).forEach((day) => {
+    const key = day.date.slice(0, 7);
+    groups.set(key, [...(groups.get(key) ?? []), day]);
+  });
+
+  return [...groups.entries()].map(([month, groupedDays]) => {
+    const production = sum(groupedDays.map((day) => day.production.mt));
+    const jawRunningHours = sum(groupedDays.map((day) => day.machine.jawHours));
+    const vsiRunningHours = sum(groupedDays.map((day) => day.machine.vsiHours));
+    const coneRunningHours = sum(groupedDays.map((day) => day.machine.coneHours));
+    return {
+      dispatch: roundDisplay(sum(groupedDays.map((day) => day.dispatch.totalMt))),
+      dieselLitres: roundDisplay(sum(groupedDays.map((day) => day.loader.dieselLitres))),
+      electricityUnits: roundDisplay(sum(groupedDays.map((day) => day.electrical.productionUnits ?? day.electrical.kvah))),
+      jawRunningHours: roundDisplay(jawRunningHours),
+      jawTph: roundDisplay(jawRunningHours ? production / jawRunningHours : 0),
+      label: formatMonthLabel(month),
+      loaderHours: roundDisplay(sum(groupedDays.map((day) => day.loader.hours))),
+      plantHours: roundDisplay(sum(groupedDays.map((day) => day.plantHours.productionHours))),
+      production: roundDisplay(production),
+      runningHours: roundDisplay(jawRunningHours + coneRunningHours + vsiRunningHours),
+      vsiRunningHours: roundDisplay(vsiRunningHours),
+      vsiTph: roundDisplay(vsiRunningHours ? production / vsiRunningHours : 0),
+    };
+  });
+}
+
 function summarizePeriod(label: string, days: SnapshotDay[]): PeriodSummaryRow {
   const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
   const target = sum(sorted.map((day) => day.targetMt));
@@ -3696,6 +3831,8 @@ function summarizePeriod(label: string, days: SnapshotDay[]): PeriodSummaryRow {
   const dispatch = sum(sorted.map((day) => day.dispatch.totalMt));
   const loaderDispatch = sum(sorted.map((day) => day.loader.dispatchMt));
   const loaderDiesel = sum(sorted.map((day) => day.loader.dieselLitres));
+  const jawHours = sum(sorted.map((day) => day.machine.jawHours));
+  const vsiHours = sum(sorted.map((day) => day.machine.vsiHours));
 
   return {
     label,
@@ -3705,8 +3842,8 @@ function summarizePeriod(label: string, days: SnapshotDay[]): PeriodSummaryRow {
     production: roundDisplay(production),
     dispatch: roundDisplay(dispatch),
     achievementPct: roundDisplay(target ? (production / target) * 100 : 0),
-    jawTph: roundDisplay(average(sorted.map((day) => day.machine.jawTph))),
-    vsiTph: roundDisplay(average(sorted.map((day) => day.machine.vsiTph))),
+    jawTph: roundDisplay(jawHours ? production / jawHours : 0),
+    vsiTph: roundDisplay(vsiHours ? production / vsiHours : 0),
     kvahPerMt: roundDisplay(weightedAverage(sorted.map((day) => [day.electrical.unitsPerMt, day.production.mt]))),
     loaderLitresPerMt: roundDisplay(loaderDispatch ? loaderDiesel / loaderDispatch : 0),
     lossHours: roundDisplay(sum(sorted.map((day) => day.plantHours.lossHours))),
@@ -3724,12 +3861,16 @@ function weekGroupKey(date: string) {
 }
 
 function summarizeBasis(label: BasisRow["label"], days: SnapshotDay[]): BasisRow {
+  const production = sum(days.map((day) => day.production.mt));
+  const jawHours = sum(days.map((day) => day.machine.jawHours));
+  const coneHours = sum(days.map((day) => day.machine.coneHours));
+  const vsiHours = sum(days.map((day) => day.machine.vsiHours));
   return {
     label,
-    production: roundDisplay(sum(days.map((day) => day.production.mt))),
-    jawTph: roundDisplay(average(days.map((day) => day.machine.jawTph))),
-    coneTph: roundDisplay(average(days.map((day) => day.machine.coneTph))),
-    vsiTph: roundDisplay(average(days.map((day) => day.machine.vsiTph))),
+    production: roundDisplay(production),
+    jawTph: roundDisplay(jawHours ? production / jawHours : 0),
+    coneTph: roundDisplay(coneHours ? production / coneHours : 0),
+    vsiTph: roundDisplay(vsiHours ? production / vsiHours : 0),
     unitsPerMt: roundDisplay(weightedAverage(days.map((day) => [day.electrical.unitsPerMt, day.production.mt]))),
   };
 }
@@ -3841,11 +3982,6 @@ function dataset(label: string, data: number[], color: string) {
 
 function sum(values: number[]) {
   return values.reduce((total, value) => total + (Number.isFinite(value) ? value : 0), 0);
-}
-
-function average(values: number[]) {
-  const valid = values.filter((value) => Number.isFinite(value) && value > 0);
-  return valid.length ? sum(valid) / valid.length : 0;
 }
 
 function roundDisplay(value: number, digits = 2) {

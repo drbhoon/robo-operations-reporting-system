@@ -29,6 +29,7 @@ export async function generatePowerPoint(snapshot: ReportSnapshot) {
   addTph(pptx, snapshot, "jawTph", "Jaw TPH");
   addUtilisation(pptx, snapshot);
   addMtdTrends(pptx, snapshot);
+  addMonthlyCumulative(pptx, snapshot);
   addTph(pptx, snapshot, "vsiTph", "VSI TPH");
   addLoaderMonitoring(pptx, snapshot);
   addElectricLoader(pptx, snapshot);
@@ -224,6 +225,28 @@ function addMtdTrends(pptx: PptxGenJS, snapshot: ReportSnapshot) {
       { name: "MTD Dispatch", values: rows.map((row) => row.dispatch), color: "D1495B" },
     ],
     true,
+  );
+}
+
+function addMonthlyCumulative(pptx: PptxGenJS, snapshot: ReportSnapshot) {
+  const slide = contentSlide(pptx, snapshot, "Monthly Cumulative Operating Data");
+  addTable(
+    slide,
+    ["Month", "Prod.", "Dispatch", "Loader Hrs", "Diesel", "Units", "Plant Hrs", "Jaw Hrs", "Jaw TPH", "VSI Hrs", "VSI TPH"],
+    monthlyCumulativeRows(snapshot).map((row) => [
+      row.label,
+      inrNumber(row.production),
+      inrNumber(row.dispatch),
+      formatHours(row.loaderHours),
+      inrNumber(row.dieselLitres),
+      inrNumber(row.electricityUnits),
+      formatHours(row.plantHours),
+      formatHours(row.jawRunningHours),
+      row.jawTph.toFixed(1),
+      formatHours(row.vsiRunningHours),
+      row.vsiTph.toFixed(1),
+    ]),
+    1.05,
   );
 }
 
@@ -735,10 +758,10 @@ function productionDispatchRows(snapshot: ReportSnapshot) {
 
   snapshot.daily.forEach((day) => {
     day.production.products.forEach((product) => {
-      productionTotals.set(product.name, (productionTotals.get(product.name) ?? 0) + product.mt);
+      productionTotals.set(product.name, (productionTotals.get(product.name) ?? 0) + displayProductQuantity(product.name, product.mt));
     });
     day.dispatch.products.forEach((product) => {
-      dispatchTotals.set(product.name, (dispatchTotals.get(product.name) ?? 0) + product.mt);
+      dispatchTotals.set(product.name, (dispatchTotals.get(product.name) ?? 0) + displayProductQuantity(product.name, product.mt));
     });
   });
 
@@ -748,13 +771,15 @@ function productionDispatchRows(snapshot: ReportSnapshot) {
     .map((name) => {
       const productionMt = productionTotals.get(name) ?? 0;
       const dispatchMt = dispatchTotals.get(name) ?? 0;
+      const displayedProductionMt = displayProductQuantity(name, productionMt);
+      const displayedDispatchMt = displayProductQuantity(name, dispatchMt);
       return {
-        dispatchMt,
-        dispatchRatio: dispatchTotal ? (dispatchMt / dispatchTotal) * 100 : 0,
+        dispatchMt: displayedDispatchMt,
+        dispatchRatio: dispatchTotal ? (displayedDispatchMt / dispatchTotal) * 100 : 0,
         name,
-        productionMt,
-        productionRatio: productionTotal ? (productionMt / productionTotal) * 100 : 0,
-        varianceMt: productionMt - dispatchMt,
+        productionMt: displayedProductionMt,
+        productionRatio: productionTotal ? (displayedProductionMt / productionTotal) * 100 : 0,
+        varianceMt: displayedProductionMt - displayedDispatchMt,
       };
     })
     .filter((row) => row.productionMt || row.dispatchMt)
@@ -788,20 +813,7 @@ function productEfficiencyRows(snapshot: ReportSnapshot) {
 function copRows(snapshot: ReportSnapshot) {
   const production = snapshot.totals.productionMt;
   const forecastProduction = latestForecastProduction(snapshot);
-  const totals = {
-    drillingBlasting: sum(snapshot.daily.map((day) => day.cop?.drillingBlastingCost ?? day.cop?.quarryBlastingCost ?? 0)),
-    internalTransport: sum(snapshot.daily.map((day) => day.cop?.internalTransportationCost ?? day.cop?.quarryLtCost ?? 0)),
-    overburden: sum(snapshot.daily.map((day) => day.cop?.overburdenRemovalCost ?? day.cop?.quarryObCost ?? 0)),
-    rawMaterial: sum(snapshot.daily.map((day) => day.cop?.rawMaterialCost ?? 0)),
-    rentPlant: sum(snapshot.daily.map((day) => day.cop?.rentPlantCost ?? 0)),
-    electricity: sum(snapshot.daily.map((day) => day.cop?.electricalCost ?? 0)),
-    plantMaintenance: sum(snapshot.daily.map((day) => day.cop?.plantMaintenanceCost ?? day.cop?.plantCost ?? 0)),
-    spares: sum(snapshot.daily.map((day) => day.cop?.sparesConsumablesCost ?? 0)),
-    wearParts: sum(snapshot.daily.map((day) => day.cop?.wearPartsCost ?? 0)),
-    loaderDiesel: sum(snapshot.daily.map((day) => day.cop?.loaderCost ?? day.loader.dieselCost ?? 0)),
-    intercarting: sum(snapshot.daily.map((day) => day.cop?.intercartingExpenses ?? 0)),
-    fixed: sum(snapshot.daily.map((day) => day.cop?.fixedCost ?? day.cop?.fixedCostMonthly ?? 0)),
-  };
+  const totals = copTotals(snapshot.daily);
   const variableExcavation = totals.drillingBlasting + totals.internalTransport + totals.overburden;
   const rawMaterialSourcing = totals.rawMaterial + totals.rentPlant;
   const crushing = totals.electricity + totals.plantMaintenance + totals.spares + totals.wearParts;
@@ -881,20 +893,61 @@ function copProjectionRows(snapshot: ReportSnapshot) {
 }
 
 function copTotal(days: ReportSnapshot["daily"]) {
-  return sum(days.map((day) => day.cop?.totalCost ?? 0)) || sum(days.map((day) => (
-    (day.cop?.drillingBlastingCost ?? day.cop?.quarryBlastingCost ?? 0) +
-    (day.cop?.internalTransportationCost ?? day.cop?.quarryLtCost ?? 0) +
-    (day.cop?.overburdenRemovalCost ?? day.cop?.quarryObCost ?? 0) +
-    (day.cop?.rawMaterialCost ?? 0) +
-    (day.cop?.rentPlantCost ?? 0) +
-    (day.cop?.electricalCost ?? 0) +
-    (day.cop?.plantMaintenanceCost ?? day.cop?.plantCost ?? 0) +
-    (day.cop?.sparesConsumablesCost ?? 0) +
-    (day.cop?.wearPartsCost ?? 0) +
-    (day.cop?.loaderCost ?? day.loader.dieselCost ?? 0) +
-    (day.cop?.intercartingExpenses ?? 0) +
-    (day.cop?.fixedCost ?? day.cop?.fixedCostMonthly ?? 0)
-  )));
+  const totals = copTotals(days);
+  return (
+    totals.drillingBlasting +
+    totals.internalTransport +
+    totals.overburden +
+    totals.rawMaterial +
+    totals.rentPlant +
+    totals.electricity +
+    totals.plantMaintenance +
+    totals.spares +
+    totals.wearParts +
+    totals.loaderDiesel +
+    totals.intercarting +
+    totals.fixed
+  );
+}
+
+function copTotals(days: ReportSnapshot["daily"]) {
+  const weeklyManualEntries = latestWeeklyManualCopEntries(days);
+  return {
+    drillingBlasting: sum(days.map((day) => day.cop?.drillingBlastingCost ?? day.cop?.quarryBlastingCost ?? 0)),
+    internalTransport: sum(days.map((day) => day.cop?.internalTransportationCost ?? day.cop?.quarryLtCost ?? 0)),
+    overburden: sum(days.map((day) => day.cop?.overburdenRemovalCost ?? day.cop?.quarryObCost ?? 0)),
+    electricity: sum(days.map((day) => day.cop?.electricalCost ?? 0)),
+    loaderDiesel: sum(days.map((day) => day.cop?.loaderCost ?? day.loader.dieselCost ?? 0)),
+    intercarting: sum(days.map((day) => day.cop?.intercartingExpenses ?? 0)),
+    rawMaterial: sum(weeklyManualEntries.map((day) => day.cop?.rawMaterialCost ?? 0)),
+    rentPlant: sum(weeklyManualEntries.map((day) => day.cop?.rentPlantCost ?? 0)),
+    plantMaintenance: sum(weeklyManualEntries.map((day) => day.cop?.plantMaintenanceCost ?? day.cop?.plantCost ?? 0)),
+    spares: sum(weeklyManualEntries.map((day) => day.cop?.sparesConsumablesCost ?? 0)),
+    wearParts: sum(weeklyManualEntries.map((day) => day.cop?.wearPartsCost ?? 0)),
+    fixed: sum(weeklyManualEntries.map((day) => day.cop?.fixedCost ?? day.cop?.fixedCostMonthly ?? 0)),
+  };
+}
+
+function latestWeeklyManualCopEntries(days: ReportSnapshot["daily"]) {
+  const byWeek = new Map<string, ReportSnapshot["daily"][number]>();
+  [...days].sort((a, b) => a.date.localeCompare(b.date)).forEach((day) => {
+    if (!hasManualCopEntry(day)) return;
+    byWeek.set(weekGroupKey(day.date), day);
+  });
+  return [...byWeek.values()];
+}
+
+function hasManualCopEntry(day: ReportSnapshot["daily"][number]) {
+  const cop = day.cop;
+  if (!cop) return false;
+  return [
+    cop.rawMaterialCost,
+    cop.rentPlantCost,
+    cop.plantMaintenanceCost ?? cop.plantCost,
+    cop.sparesConsumablesCost,
+    cop.wearPartsCost,
+    cop.fixedCost ?? cop.fixedCostMonthly,
+  ].some((value) => (value ?? 0) > 0);
 }
 
 function mtdRows(snapshot: ReportSnapshot) {
@@ -911,13 +964,44 @@ function mtdRows(snapshot: ReportSnapshot) {
   });
 }
 
+function monthlyCumulativeRows(snapshot: ReportSnapshot) {
+  const groups = new Map<string, ReportSnapshot["daily"]>();
+  [...snapshot.daily].sort((a, b) => a.date.localeCompare(b.date)).forEach((day) => {
+    const key = day.date.slice(0, 7);
+    groups.set(key, [...(groups.get(key) ?? []), day]);
+  });
+
+  return [...groups.entries()].map(([month, days]) => {
+    const production = sum(days.map((day) => day.production.mt));
+    const jawRunningHours = sum(days.map((day) => day.machine.jawHours));
+    const vsiRunningHours = sum(days.map((day) => day.machine.vsiHours));
+    return {
+      dispatch: sum(days.map((day) => day.dispatch.totalMt)),
+      dieselLitres: sum(days.map((day) => day.loader.dieselLitres)),
+      electricityUnits: sum(days.map((day) => day.electrical.productionUnits ?? day.electrical.kvah)),
+      jawRunningHours,
+      jawTph: jawRunningHours ? production / jawRunningHours : 0,
+      label: formatMonthLabel(month),
+      loaderHours: sum(days.map((day) => day.loader.hours)),
+      plantHours: sum(days.map((day) => day.plantHours.productionHours)),
+      production,
+      vsiRunningHours,
+      vsiTph: vsiRunningHours ? production / vsiRunningHours : 0,
+    };
+  });
+}
+
 function summarizeBasis(labelText: string, days: ReportSnapshot["daily"]) {
+  const production = sum(days.map((day) => day.production.mt));
+  const jawHours = sum(days.map((day) => day.machine.jawHours));
+  const coneHours = sum(days.map((day) => day.machine.coneHours));
+  const vsiHours = sum(days.map((day) => day.machine.vsiHours));
   return {
     label: labelText,
-    production: sum(days.map((day) => day.production.mt)),
-    jawTph: avg(days.map((day) => day.machine.jawTph)),
-    coneTph: avg(days.map((day) => day.machine.coneTph)),
-    vsiTph: avg(days.map((day) => day.machine.vsiTph)),
+    production,
+    jawTph: jawHours ? production / jawHours : 0,
+    coneTph: coneHours ? production / coneHours : 0,
+    vsiTph: vsiHours ? production / vsiHours : 0,
     unitsPerMt: weightedAverage(days.map((day) => [day.electrical.unitsPerMt, day.production.mt])),
   };
 }
@@ -946,6 +1030,19 @@ function monthToDateDays(days: ReportSnapshot["daily"]) {
   if (!latest) return [];
   const month = latest.date.slice(0, 7);
   return sorted.filter((day) => day.date.startsWith(month));
+}
+
+function weekGroupKey(date: string) {
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  const dayOfWeek = parsed.getUTCDay() || 7;
+  const monday = new Date(parsed);
+  monday.setUTCDate(parsed.getUTCDate() - dayOfWeek + 1);
+  return monday.toISOString().slice(0, 10);
+}
+
+function displayProductQuantity(productName: string, value: number) {
+  if (productName === "40 MM" && value < 0) return 0;
+  return value;
 }
 
 function weightedAverage(values: number[][]) {
@@ -986,6 +1083,16 @@ function formatDisplayDate(date: string) {
   if (Number.isNaN(parsed.getTime())) return date;
   return parsed.toLocaleDateString("en-IN", {
     day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function formatMonthLabel(month: string) {
+  const parsed = new Date(`${month}-01T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) return month;
+  return parsed.toLocaleDateString("en-IN", {
     month: "long",
     year: "numeric",
     timeZone: "UTC",
