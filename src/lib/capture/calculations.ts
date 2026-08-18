@@ -49,22 +49,27 @@ type FrozenCostRates = {
 export function calculateDailyRecord(input: CalculationInput): DailyPlantRecord["calculations"] {
   const rates = frozenCostRatesFromPayload(input);
   const electricLoader = input.electricLoader ?? emptyElectricLoader();
-  const productMixTotal = sum(CAPTURE_PRODUCTS.map((product) => input.productMix[product]));
+  const openingStock = normalizeOptionalProductQuantities(input.openingStock);
+  const productMix = normalizeOptionalProductQuantities(input.productMix);
+  const dispatch = normalizeOptionalProductQuantities(input.dispatch);
+  const stockAdjustments = input.stockAdjustments;
+  const productMixTotal = sum(CAPTURE_PRODUCTS.map((product) => productMix[product]));
   const productMixPercentageTotal = sum(CAPTURE_PRODUCTS.map((product) => input.productMixPercentages[product]));
-  const dispatchTotal = sum(CAPTURE_PRODUCTS.map((product) => input.dispatch[product]));
+  const dispatchTotal = sum(CAPTURE_PRODUCTS.map((product) => dispatch[product]));
   const calculatedClosingStock = Object.fromEntries(
     CAPTURE_PRODUCTS.map((product) => [
       product,
-      round(input.openingStock[product] + input.productMix[product] - input.dispatch[product] + input.stockAdjustments[product]),
+      roundOptionalProductQuantity(product, openingStock[product] + productMix[product] - dispatch[product] + stockAdjustments[product]),
     ]),
   ) as DailyPlantRecord["calculations"]["calculatedClosingStock"];
-  const bookOpeningStock = input.date.endsWith("-01") && hasAnyProductValue(input.bookStock.monthlyOpening)
-    ? input.bookStock.monthlyOpening
-    : input.openingStock;
+  const monthlyOpeningBookStock = normalizeOptionalProductQuantities(input.bookStock.monthlyOpening);
+  const bookOpeningStock = input.date.endsWith("-01") && hasAnyProductValue(monthlyOpeningBookStock)
+    ? monthlyOpeningBookStock
+    : openingStock;
   const calculatedBookStock = Object.fromEntries(
     CAPTURE_PRODUCTS.map((product) => [
       product,
-      round(bookOpeningStock[product] + input.productMix[product] - input.dispatch[product] + input.stockAdjustments[product]),
+      roundOptionalProductQuantity(product, bookOpeningStock[product] + productMix[product] - dispatch[product] + stockAdjustments[product]),
     ]),
   ) as DailyPlantRecord["calculations"]["calculatedBookStock"];
   const equipmentRunningHours = Object.fromEntries(
@@ -203,6 +208,7 @@ export function materializeCalculatedFields(payload: CapturePayload): CapturePay
     closingStock: calculations.calculatedClosingStock,
     bookStock: {
       ...payload.bookStock,
+      monthlyOpening: normalizeOptionalProductQuantities(payloadWithFrozenRates.bookStock.monthlyOpening),
       calculatedClosing: calculations.calculatedBookStock,
     },
     machineHours: calculations.equipmentRunningHours,
@@ -422,6 +428,17 @@ function percentagesFromProductMix(productMix: CapturePayload["productMix"], pro
 
 function hasAnyProductValue(values: Partial<Record<(typeof CAPTURE_PRODUCTS)[number], number>> | undefined) {
   return CAPTURE_PRODUCTS.some((product) => (values?.[product] ?? 0) > 0);
+}
+
+function normalizeOptionalProductQuantities<T extends Partial<Record<(typeof CAPTURE_PRODUCTS)[number], number>>>(values: T): T {
+  return Object.fromEntries(
+    CAPTURE_PRODUCTS.map((product) => [product, roundOptionalProductQuantity(product, values[product] ?? 0)]),
+  ) as T;
+}
+
+function roundOptionalProductQuantity(product: (typeof CAPTURE_PRODUCTS)[number], value: number) {
+  const rounded = round(value);
+  return product === "40 MM" && rounded < 0 ? 0 : rounded;
 }
 
 function reasonForLossCategory(category: LossCategory): LossReason {
