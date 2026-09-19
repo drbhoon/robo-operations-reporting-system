@@ -156,6 +156,8 @@ function recordToDailySnapshot(record: DailyPlantRecord): DailySnapshot {
         }
       : undefined,
     cop: {
+      weeklyEntryDate: record.cop.weeklyEntryDate,
+      updatedAt: record.updatedAt,
       costPerMt: record.calculations.copPerMt,
       forecastProductionMt: round(record.cop.forecastProductionMt, 2),
       totalCost: record.calculations.totalCopCost,

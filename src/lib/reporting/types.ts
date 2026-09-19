@@ -135,6 +135,8 @@ export type DailySnapshot = {
     unitsPerMt: number;
   };
   cop?: {
+    weeklyEntryDate?: string;
+    updatedAt?: string;
     costPerMt?: number;
     forecastProductionMt?: number;
     totalCost?: number;

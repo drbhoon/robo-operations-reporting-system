@@ -51,6 +51,7 @@ import {
 } from "@/src/lib/capture/types";
 import { validateCaptureRecord } from "@/src/lib/capture/validation";
 import type { ReportSnapshot } from "@/src/lib/reporting/types";
+import { buildCopTotals } from "@/src/lib/reporting/cop";
 
 function chartCompactNumber(value: number) {
   if (Math.abs(value) >= 100000) return `${Math.round(value / 1000)}k`;
@@ -181,20 +182,6 @@ type MonthlyCumulativeRow = {
   vsiRunningHours: number;
   vsiTph: number;
 };
-type CopTotals = {
-  drillingBlasting: number;
-  electricity: number;
-  fixed: number;
-  internalTransport: number;
-  intercarting: number;
-  loaderDiesel: number;
-  overburden: number;
-  plantMaintenance: number;
-  rawMaterial: number;
-  rentPlant: number;
-  spares: number;
-  wearParts: number;
-};
 type CopProjectionRow = {
   label: string;
   value: number;
@@ -291,6 +278,13 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
   }, [currentPlantConfig?.costRates, form]);
 
   const exceptionRecords = records.filter((record) => record.validation.issues.length > 0 || record.reviewStatus === "REVIEW_REQUIRED");
+  const snapshotStale = Boolean(snapshot && records.some((record) =>
+    record.status === "FINAL" &&
+    record.plantCode === snapshot.plantCode &&
+    record.date >= snapshot.period.start &&
+    record.date <= snapshot.period.end &&
+    record.updatedAt > snapshot.createdAt,
+  ));
 
   const visibleDays = useMemo(() => {
     if (!snapshot) return [];
@@ -360,7 +354,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
       setStatus(
         action === "DRAFT"
           ? "Draft saved with audit trail."
-          : "Final daily record submitted. It can now feed dashboard snapshots.",
+          : "Final daily record submitted. Generate a new snapshot to update the dashboard and COP report.",
       );
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Record save failed");
@@ -521,6 +515,20 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
       setStatus("PowerPoint generated from the selected plant and dates.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Report generation failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function generateCopDownload() {
+    setBusy(true);
+    setStatus("Building a fresh locked snapshot for the COP download...");
+    try {
+      const nextSnapshot = await requestSnapshotFromSelection();
+      downloadCopCsv(nextSnapshot, nextSnapshot.daily);
+      setStatus(`COP CSV downloaded from locked snapshot ${nextSnapshot.version}.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "COP download failed");
     } finally {
       setBusy(false);
     }
@@ -687,6 +695,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
           productMix={productMix}
           setDashboardView={setDashboardView}
           snapshot={snapshot}
+          snapshotStale={snapshotStale}
           totals={totals}
           visibleDays={visibleDays}
         />
@@ -702,6 +711,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
           endDate={endDate}
           fileRef={fileRef}
           generatePpt={generatePpt}
+          generateCopDownload={generateCopDownload}
           importWorkbook={importWorkbook}
           plantCode={reportPlantCode}
           plantOptions={plantOptions}
@@ -711,6 +721,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
           setReportType={setReportType}
           setStartDate={setStartDate}
           snapshot={snapshot}
+          snapshotStale={snapshotStale}
           startDate={startDate}
           status={status}
           onBackfillFileSelected={(fileName) => {
@@ -1127,6 +1138,7 @@ function DashboardWorkspace({
   productMix,
   setDashboardView,
   snapshot,
+  snapshotStale,
   totals,
   visibleDays,
 }: {
@@ -1137,6 +1149,7 @@ function DashboardWorkspace({
   productMix: Array<{ name: string; value: number }>;
   setDashboardView: (view: DashboardView) => void;
   snapshot: ReportSnapshot | null;
+  snapshotStale: boolean;
   totals: {
     production: number;
     target: number;
@@ -1178,6 +1191,7 @@ function DashboardWorkspace({
 
   return (
     <>
+      {snapshotStale ? <p className="status-line">Daily data changed after this snapshot was locked. Generate a new snapshot to see the updated costs.</p> : null}
       <section className="view-tabs">
         {(["daily", "weekly", "monthly", "trends", "exceptions"] as DashboardView[]).map((view) => (
           <button className={dashboardView === view ? "btn primary" : "btn"} key={view} onClick={() => setDashboardView(view)}>
@@ -1387,6 +1401,11 @@ function DashboardWorkspace({
               </>
             ) : null}
             <Panel title="COP structure" meta="Actuals, Rs./MT and forecast">
+              <div className="form-actions">
+                <button className="btn" onClick={() => downloadCopCsv(snapshot, visibleDays)}>
+                  <Download size={16} /> Download COP CSV
+                </button>
+              </div>
               <CopTable rows={copRows} />
             </Panel>
             <Panel title="MTD and extrapolated COP" meta="Projected from MTD production average">
@@ -1847,6 +1866,7 @@ function ReportsWorkspace({
   endDate,
   fileRef,
   generatePpt,
+  generateCopDownload,
   importWorkbook,
   plantCode,
   plantOptions,
@@ -1856,6 +1876,7 @@ function ReportsWorkspace({
   setReportType,
   setStartDate,
   snapshot,
+  snapshotStale,
   startDate,
   status,
   onBackfillFileSelected,
@@ -1870,6 +1891,7 @@ function ReportsWorkspace({
   endDate: string;
   fileRef: React.RefObject<HTMLInputElement | null>;
   generatePpt: () => void;
+  generateCopDownload: () => void;
   importWorkbook: () => void;
   plantCode: string;
   plantOptions: Array<(typeof PLANT_CONFIGS)[number]>;
@@ -1879,6 +1901,7 @@ function ReportsWorkspace({
   setReportType: (value: "DAILY" | "WEEKLY" | "MONTHLY") => void;
   setStartDate: (value: string) => void;
   snapshot: ReportSnapshot | null;
+  snapshotStale: boolean;
   startDate: string;
   status: string | null;
   onBackfillFileSelected: (fileName: string) => void;
@@ -1921,6 +1944,10 @@ function ReportsWorkspace({
           <button className="btn" disabled={busy} onClick={generatePpt}>
             <Presentation size={16} />
             Generate PPT
+          </button>
+          <button className="btn" disabled={busy} onClick={generateCopDownload}>
+            <Download size={16} />
+            Generate & download COP CSV
           </button>
         </div>
       </Panel>
@@ -1978,6 +2005,8 @@ function ReportsWorkspace({
 
       <Panel title="Current locked snapshot" meta={snapshot ? snapshot.status : "None"}>
         {snapshot ? (
+          <>
+          {snapshotStale ? <p className="status-line">Daily data changed after this snapshot was locked. Generate a new snapshot before downloading updated costs.</p> : null}
           <MetricList
             items={[
               ["Plant", snapshot.plantCode],
@@ -1986,6 +2015,12 @@ function ReportsWorkspace({
               ["Validation", snapshot.validation.valid ? "Valid" : `${snapshot.validation.issues.length} issues`],
             ]}
           />
+          <div className="form-actions">
+            <button className="btn" onClick={() => downloadCopCsv(snapshot, snapshot.daily)}>
+              <Download size={16} /> Download COP CSV
+            </button>
+          </div>
+          </>
         ) : (
           <p className="muted">No snapshot generated yet.</p>
         )}
@@ -3280,16 +3315,19 @@ function carryForwardFromPreviousRecord(base: CapturePayload, previous: DailyPla
         closing: electricLoaderOpening.kvah,
       },
     },
-    cop: {
-      ...base.cop,
-      fixedCost: previousPayload.cop.fixedCost,
-      rawMaterialCost: previousPayload.cop.rawMaterialCost,
-      rentPlantCost: previousPayload.cop.rentPlantCost,
-      plantMaintenanceCost: previousPayload.cop.plantMaintenanceCost,
-      sparesConsumablesCost: previousPayload.cop.sparesConsumablesCost,
-      wearPartsCost: previousPayload.cop.wearPartsCost,
-      intercartingExpenses: previousPayload.cop.intercartingExpenses,
-    },
+    cop: previous.date.slice(0, 7) === date.slice(0, 7) && weekGroupKey(previous.date) === weekGroupKey(date)
+      ? {
+          ...base.cop,
+          weeklyEntryDate: previousPayload.cop.weeklyEntryDate ?? previous.date,
+          forecastProductionMt: previousPayload.cop.forecastProductionMt,
+          fixedCost: previousPayload.cop.fixedCost,
+          rawMaterialCost: previousPayload.cop.rawMaterialCost,
+          rentPlantCost: previousPayload.cop.rentPlantCost,
+          plantMaintenanceCost: previousPayload.cop.plantMaintenanceCost,
+          sparesConsumablesCost: previousPayload.cop.sparesConsumablesCost,
+          wearPartsCost: previousPayload.cop.wearPartsCost,
+        }
+      : base.cop,
     submittedBy: previousPayload.submittedBy,
   };
 }
@@ -3334,7 +3372,34 @@ function setNested<
   field: keyof CapturePayload[K],
   value: number,
 ) {
-  setForm((current) => ({ ...current, [section]: { ...current[section], [field]: value } }));
+  setForm((current) => ({
+    ...current,
+    [section]: {
+      ...current[section],
+      [field]: value,
+      ...(section === "cop" ? { weeklyEntryDate: current.date } : {}),
+    },
+  }));
+}
+
+function downloadCopCsv(snapshot: ReportSnapshot, days: SnapshotDay[]) {
+  const rows = buildCopRows(days).map((row) => ({
+    plant: snapshot.plantName,
+    start_date: days[0]?.date ?? snapshot.period.start,
+    end_date: days.at(-1)?.date ?? snapshot.period.end,
+    snapshot_version: snapshot.version,
+    cost_head: row.label,
+    actual_rs: row.actuals,
+    rs_per_mt: row.perMt,
+    forecast_rs: row.forecast,
+  }));
+  const blob = new Blob(["\uFEFF", toCsv(rows)], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${snapshot.plantCode}-${rows[0]?.start_date ?? snapshot.period.start}-${rows[0]?.end_date ?? snapshot.period.end}-COP.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function setProduct(
@@ -3735,46 +3800,6 @@ function totalCopCost(days: SnapshotDay[]) {
     totals.intercarting +
     totals.fixed
   );
-}
-
-function buildCopTotals(days: SnapshotDay[]): CopTotals {
-  const weeklyManualEntries = latestWeeklyManualCopEntries(days);
-  return {
-    drillingBlasting: sum(days.map((day) => day.cop?.drillingBlastingCost ?? day.cop?.quarryBlastingCost ?? 0)),
-    internalTransport: sum(days.map((day) => day.cop?.internalTransportationCost ?? day.cop?.quarryLtCost ?? 0)),
-    overburden: sum(days.map((day) => day.cop?.overburdenRemovalCost ?? day.cop?.quarryObCost ?? 0)),
-    electricity: sum(days.map((day) => day.cop?.electricalCost ?? 0)),
-    loaderDiesel: sum(days.map((day) => day.cop?.loaderCost ?? day.loader.dieselCost ?? 0)),
-    intercarting: sum(days.map((day) => day.cop?.intercartingExpenses ?? 0)),
-    rawMaterial: sum(weeklyManualEntries.map((day) => day.cop?.rawMaterialCost ?? 0)),
-    rentPlant: sum(weeklyManualEntries.map((day) => day.cop?.rentPlantCost ?? 0)),
-    plantMaintenance: sum(weeklyManualEntries.map((day) => day.cop?.plantMaintenanceCost ?? day.cop?.plantCost ?? 0)),
-    spares: sum(weeklyManualEntries.map((day) => day.cop?.sparesConsumablesCost ?? 0)),
-    wearParts: sum(weeklyManualEntries.map((day) => day.cop?.wearPartsCost ?? 0)),
-    fixed: sum(weeklyManualEntries.map((day) => day.cop?.fixedCost ?? day.cop?.fixedCostMonthly ?? 0)),
-  };
-}
-
-function latestWeeklyManualCopEntries(days: SnapshotDay[]) {
-  const byWeek = new Map<string, SnapshotDay>();
-  [...days].sort((a, b) => a.date.localeCompare(b.date)).forEach((day) => {
-    if (!hasManualCopEntry(day)) return;
-    byWeek.set(weekGroupKey(day.date), day);
-  });
-  return [...byWeek.values()];
-}
-
-function hasManualCopEntry(day: SnapshotDay) {
-  const cop = day.cop;
-  if (!cop) return false;
-  return [
-    cop.rawMaterialCost,
-    cop.rentPlantCost,
-    cop.plantMaintenanceCost ?? cop.plantCost,
-    cop.sparesConsumablesCost,
-    cop.wearPartsCost,
-    cop.fixedCost ?? cop.fixedCostMonthly,
-  ].some((value) => (value ?? 0) > 0);
 }
 
 function buildMtdRows(days: SnapshotDay[]) {

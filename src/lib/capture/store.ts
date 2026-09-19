@@ -158,7 +158,10 @@ async function applyMonthlyParameters(payload: CapturePayload): Promise<CaptureP
   const sourceWithDieselRate = monthRecords.find((record) => (record.loader?.dieselRate ?? 0) > 0);
   const weekRange = weekBounds(payload.date);
   const weekRecords = monthRecords.filter((record) => record.date >= weekRange.start && record.date <= weekRange.end);
-  const sourceWithWeeklyCop = weekRecords.find((record) => hasAnyCopValue(record.cop));
+  const sourceWithWeeklyCop = [...weekRecords].reverse().find((record) =>
+    hasAnyCopValue(record.cop) &&
+    (!record.cop.weeklyEntryDate || weekBounds(record.cop.weeklyEntryDate).start === weekRange.start),
+  );
 
   return {
     ...payload,
@@ -176,7 +179,7 @@ async function applyMonthlyParameters(payload: CapturePayload): Promise<CaptureP
     },
     cop: {
       ...payload.cop,
-      ...carryWeeklyCop(payload.cop, sourceWithWeeklyCop?.cop),
+      ...carryWeeklyCop(payload.cop, sourceWithWeeklyCop?.cop, payload.date),
     },
   };
 }
@@ -187,12 +190,12 @@ function hasAnyProductValue(values: Partial<Record<(typeof CAPTURE_PRODUCTS)[num
 
 function hasAnyCopValue(values: CapturePayload["cop"] | undefined) {
   if (!values) return false;
-  return weeklyCopFields().some((field) => (values[field] ?? 0) > 0);
+  return weeklyCopFields().some((field) => Number(values[field] ?? 0) > 0);
 }
 
-function carryWeeklyCop(current: CapturePayload["cop"], source: CapturePayload["cop"] | undefined) {
-  if (!source) return current;
-  return Object.fromEntries(
+function carryWeeklyCop(current: CapturePayload["cop"], source: CapturePayload["cop"] | undefined, date: string) {
+  if (current.weeklyEntryDate === date || !source) return current;
+  const carried = Object.fromEntries(
     Object.entries(current).map(([field, value]) => [
       field,
       weeklyCopFields().includes(field as keyof CapturePayload["cop"]) && !value
@@ -200,6 +203,7 @@ function carryWeeklyCop(current: CapturePayload["cop"], source: CapturePayload["
         : value,
     ]),
   ) as CapturePayload["cop"];
+  return { ...carried, weeklyEntryDate: source.weeklyEntryDate ?? date };
 }
 
 function weeklyCopFields(): Array<keyof CapturePayload["cop"]> {
