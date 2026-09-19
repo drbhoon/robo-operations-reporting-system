@@ -1,6 +1,7 @@
 import PptxGenJS from "pptxgenjs";
 import type { ReportSnapshot } from "./types";
 import { inrNumber } from "./calculations";
+import { buildCopTotals } from "./cop";
 
 export async function generatePowerPoint(snapshot: ReportSnapshot) {
   if (!snapshot.validation.valid) {
@@ -859,7 +860,7 @@ function productEfficiencyRows(snapshot: ReportSnapshot) {
 function copRows(snapshot: ReportSnapshot) {
   const production = snapshot.totals.productionMt;
   const forecastProduction = latestForecastProduction(snapshot);
-  const totals = copTotals(snapshot.daily);
+  const totals = buildCopTotals(snapshot.daily);
   const variableExcavation = totals.drillingBlasting + totals.internalTransport + totals.overburden;
   const rawMaterialSourcing = totals.rawMaterial + totals.rentPlant;
   const crushing = totals.electricity + totals.plantMaintenance + totals.spares + totals.wearParts;
@@ -939,7 +940,7 @@ function copProjectionRows(snapshot: ReportSnapshot) {
 }
 
 function copTotal(days: ReportSnapshot["daily"]) {
-  const totals = copTotals(days);
+  const totals = buildCopTotals(days);
   return (
     totals.drillingBlasting +
     totals.internalTransport +
@@ -954,46 +955,6 @@ function copTotal(days: ReportSnapshot["daily"]) {
     totals.intercarting +
     totals.fixed
   );
-}
-
-function copTotals(days: ReportSnapshot["daily"]) {
-  const weeklyManualEntries = latestWeeklyManualCopEntries(days);
-  return {
-    drillingBlasting: sum(days.map((day) => day.cop?.drillingBlastingCost ?? day.cop?.quarryBlastingCost ?? 0)),
-    internalTransport: sum(days.map((day) => day.cop?.internalTransportationCost ?? day.cop?.quarryLtCost ?? 0)),
-    overburden: sum(days.map((day) => day.cop?.overburdenRemovalCost ?? day.cop?.quarryObCost ?? 0)),
-    electricity: sum(days.map((day) => day.cop?.electricalCost ?? 0)),
-    loaderDiesel: sum(days.map((day) => day.cop?.loaderCost ?? day.loader.dieselCost ?? 0)),
-    intercarting: sum(days.map((day) => day.cop?.intercartingExpenses ?? 0)),
-    rawMaterial: sum(weeklyManualEntries.map((day) => day.cop?.rawMaterialCost ?? 0)),
-    rentPlant: sum(weeklyManualEntries.map((day) => day.cop?.rentPlantCost ?? 0)),
-    plantMaintenance: sum(weeklyManualEntries.map((day) => day.cop?.plantMaintenanceCost ?? day.cop?.plantCost ?? 0)),
-    spares: sum(weeklyManualEntries.map((day) => day.cop?.sparesConsumablesCost ?? 0)),
-    wearParts: sum(weeklyManualEntries.map((day) => day.cop?.wearPartsCost ?? 0)),
-    fixed: sum(weeklyManualEntries.map((day) => day.cop?.fixedCost ?? day.cop?.fixedCostMonthly ?? 0)),
-  };
-}
-
-function latestWeeklyManualCopEntries(days: ReportSnapshot["daily"]) {
-  const byWeek = new Map<string, ReportSnapshot["daily"][number]>();
-  [...days].sort((a, b) => a.date.localeCompare(b.date)).forEach((day) => {
-    if (!hasManualCopEntry(day)) return;
-    byWeek.set(weekGroupKey(day.date), day);
-  });
-  return [...byWeek.values()];
-}
-
-function hasManualCopEntry(day: ReportSnapshot["daily"][number]) {
-  const cop = day.cop;
-  if (!cop) return false;
-  return [
-    cop.rawMaterialCost,
-    cop.rentPlantCost,
-    cop.plantMaintenanceCost ?? cop.plantCost,
-    cop.sparesConsumablesCost,
-    cop.wearPartsCost,
-    cop.fixedCost ?? cop.fixedCostMonthly,
-  ].some((value) => (value ?? 0) > 0);
 }
 
 function mtdRows(snapshot: ReportSnapshot) {
@@ -1076,14 +1037,6 @@ function monthToDateDays(days: ReportSnapshot["daily"]) {
   if (!latest) return [];
   const month = latest.date.slice(0, 7);
   return sorted.filter((day) => day.date.startsWith(month));
-}
-
-function weekGroupKey(date: string) {
-  const parsed = new Date(`${date}T00:00:00.000Z`);
-  const dayOfWeek = parsed.getUTCDay() || 7;
-  const monday = new Date(parsed);
-  monday.setUTCDate(parsed.getUTCDate() - dayOfWeek + 1);
-  return monday.toISOString().slice(0, 10);
 }
 
 function displayProductQuantity(productName: string, value: number) {

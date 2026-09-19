@@ -190,6 +190,7 @@ export type DailyPlantRecord = {
     tph: number;
   };
   cop: {
+    weeklyEntryDate?: string;
     forecastProductionMt: number;
     fixedCostMonthly: number;
     fixedCostDaily: number;

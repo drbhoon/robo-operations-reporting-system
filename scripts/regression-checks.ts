@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { calculateDailyRecord, materializeCalculatedFields } from "../src/lib/capture/calculations";
 import { validateCaptureRecord } from "../src/lib/capture/validation";
 import { buildTotals } from "../src/lib/reporting/calculations";
+import { buildCopTotals } from "../src/lib/reporting/cop";
 import type { CapturePayload, DailyPlantRecord, LossCategory } from "../src/lib/capture/types";
 import { CAPTURE_PRODUCTS, LOSS_CATEGORIES } from "../src/lib/capture/types";
 import type { DailySnapshot } from "../src/lib/reporting/types";
@@ -216,5 +217,56 @@ const totals = buildTotals([
 ] as DailySnapshot[]);
 assert.equal(totals.avgJawTph, 40, "Jaw average TPH should be cumulative production / cumulative jaw hours.");
 assert.equal(totals.avgVsiTph, 80, "VSI average TPH should be cumulative production / cumulative VSI hours.");
+
+const copDay = (date: string, cost: number, updatedAt: string, weeklyEntryDate?: string) => ({
+  date,
+  loader: { dieselCost: 0 },
+  cop: {
+    plantMaintenanceCost: cost,
+    sparesConsumablesCost: 411942,
+    wearPartsCost: 812961,
+    updatedAt,
+    weeklyEntryDate,
+  },
+}) as DailySnapshot;
+
+const legacyCop = buildCopTotals([
+  copDay("2026-09-05", 22128, "2026-09-05T18:00:00.000Z"),
+  copDay("2026-09-07", 22128, "2026-09-07T18:00:00.000Z"),
+]);
+assert.equal(legacyCop.plantMaintenance, 22128, "Legacy weekly carry-forward must not double a cost in the next week.");
+assert.equal(legacyCop.spares, 411942);
+assert.equal(legacyCop.wearParts, 812961);
+
+const revisedCop = buildCopTotals([
+  copDay("2026-09-07", 30000, "2026-09-07T18:00:00.000Z", "2026-09-07"),
+  copDay("2026-09-08", 30000, "2026-09-08T18:00:00.000Z", "2026-09-07"),
+  copDay("2026-09-07", 22128, "2026-09-10T18:00:00.000Z", "2026-09-07"),
+]);
+assert.equal(revisedCop.plantMaintenance, 22128, "Latest saved weekly revision must win even when made on an earlier date.");
+
+const repeatedExplicitCop = buildCopTotals([
+  copDay("2026-09-07", 22128, "2026-09-07T18:00:00.000Z", "2026-09-07"),
+  copDay("2026-09-14", 22128, "2026-09-14T18:00:00.000Z", "2026-09-14"),
+]);
+assert.equal(repeatedExplicitCop.plantMaintenance, 44256, "Two separately entered weeks may have the same cost.");
+
+const legacyAndReenteredCop = buildCopTotals([
+  copDay("2026-09-05", 22128, "2026-09-05T18:00:00.000Z"),
+  copDay("2026-09-07", 22128, "2026-09-07T18:00:00.000Z", "2026-09-07"),
+]);
+assert.equal(legacyAndReenteredCop.plantMaintenance, 22128, "Marking a copied legacy cost must not create a second charge.");
+
+const separateMonthsCop = buildCopTotals([
+  copDay("2026-08-29", 22128, "2026-08-29T18:00:00.000Z"),
+  copDay("2026-09-07", 22128, "2026-09-07T18:00:00.000Z"),
+]);
+assert.equal(separateMonthsCop.plantMaintenance, 44256, "The same cost in a new month must be counted separately.");
+
+const clearedCop = buildCopTotals([
+  copDay("2026-09-07", 22128, "2026-09-07T18:00:00.000Z", "2026-09-07"),
+  copDay("2026-09-08", 0, "2026-09-08T18:00:00.000Z", "2026-09-08"),
+]);
+assert.equal(clearedCop.plantMaintenance, 0, "An explicit zero update must clear an earlier weekly cost.");
 
 console.log("Regression checks passed.");
