@@ -52,6 +52,7 @@ import {
 import { validateCaptureRecord } from "@/src/lib/capture/validation";
 import type { ReportSnapshot } from "@/src/lib/reporting/types";
 import { buildCopTotals } from "@/src/lib/reporting/cop";
+import { buildDailyOperationsCumulative, dailyElectricityUnits } from "@/src/lib/reporting/daily-operations";
 
 function chartCompactNumber(value: number) {
   if (Math.abs(value) >= 100000) return `${Math.round(value / 1000)}k`;
@@ -220,6 +221,7 @@ type BackfillRejectedRow = {
 
 const fmt = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 });
 const fmt0 = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+const fmt3 = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 const pct = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1, style: "percent" });
 
 const VARIATION_WARNING_CODES: Record<VariationReasonKey, string[]> = {
@@ -1055,7 +1057,7 @@ function CaptureWorkspace({
               ["Dispatch", `${fmt.format(previewRecord.calculations.dispatchTotal)} MT`],
               ["Achievement", `${fmt.format(previewRecord.calculations.achievementPct)}%`],
               ["Unit/MT", fmt.format(previewRecord.calculations.unitsPerMt)],
-              ["Loader L/MT", fmt.format(previewRecord.calculations.loaderLitresPerMt)],
+              ["Loader L/MT", fmt3.format(previewRecord.calculations.loaderLitresPerMt)],
               ["COP/MT", fmt.format(previewRecord.calculations.copPerMt)],
             ]}
           />
@@ -1207,7 +1209,7 @@ function DashboardWorkspace({
         <Kpi title="Jaw Avg TPH" value={fmt.format(totals.jawTph)} detail="Selected period" />
         <Kpi title="VSI Avg TPH" value={fmt.format(totals.vsiTph)} detail="Selected period" />
         <Kpi title="Unit / MT" value={fmt.format(totals.unitsMt)} detail="Auto-calculated" />
-        <Kpi title="Loader L / MT" value={fmt.format(totals.loaderLitresPerMt)} detail={`${fmt.format(totals.diesel)} L diesel`} />
+        <Kpi title="Loader L / MT" value={fmt3.format(totals.loaderLitresPerMt)} detail={`${fmt.format(totals.diesel)} L diesel`} />
       </section>
 
       {dashboardView === "weekly" ? <PeriodDashboard electricLoaderRows={electricLoaderRows} period="Weekly" rows={weeklyRows} /> : null}
@@ -1436,7 +1438,12 @@ function DashboardWorkspace({
       <section className="panel table-panel">
         <div className="panel-header">
           <h2>Daily operations log</h2>
-          <span>{visibleDays.length} rows</span>
+          <div className="form-actions">
+            <span>{visibleDays.length} rows</span>
+            <button className="btn" onClick={() => downloadFullReportCsv(snapshot, visibleDays)}>
+              <Download size={16} /> Download full report CSV
+            </button>
+          </div>
         </div>
         <DailyTable days={visibleDays} />
       </section>
@@ -2529,6 +2536,7 @@ function IssueList({ issues }: { issues: DailyPlantRecord["validation"]["issues"
 }
 
 function DailyTable({ days }: { days: ReportSnapshot["daily"] }) {
+  const cumulative = buildDailyOperationsCumulative(days);
   return (
     <div className="table-shell">
       <table>
@@ -2542,6 +2550,7 @@ function DailyTable({ days }: { days: ReportSnapshot["daily"] }) {
             <th>VSI TPH</th>
             <th>Run Hrs</th>
             <th>Loss Hrs</th>
+            <th>Electricity Units</th>
             <th>Unit/MT</th>
             <th>Loader L/MT</th>
           </tr>
@@ -2557,10 +2566,26 @@ function DailyTable({ days }: { days: ReportSnapshot["daily"] }) {
               <td>{fmt.format(day.machine.vsiTph)}</td>
               <td>{formatHours(day.plantHours.productionHours)}</td>
               <td>{formatHours(day.plantHours.lossHours)}</td>
+              <td>{fmt.format(dailyElectricityUnits(day))}</td>
               <td>{fmt.format(day.electrical.unitsPerMt)}</td>
-              <td>{fmt.format(day.loader.litresPerMt)}</td>
+              <td>{fmt3.format(day.loader.litresPerMt)}</td>
             </tr>
           ))}
+          {days.length ? (
+            <tr className="summary-row">
+              <td>Cumulative</td>
+              <td>{fmt.format(cumulative.targetMt)}</td>
+              <td>{fmt.format(cumulative.productionMt)}</td>
+              <td>{fmt.format(cumulative.dispatchMt)}</td>
+              <td>{fmt.format(cumulative.jawTph)}</td>
+              <td>{fmt.format(cumulative.vsiTph)}</td>
+              <td>{formatHours(cumulative.runHours)}</td>
+              <td>{formatHours(cumulative.lossHours)}</td>
+              <td>{fmt.format(cumulative.electricityUnits)}</td>
+              <td>{fmt.format(cumulative.unitsPerMt)}</td>
+              <td>{fmt3.format(cumulative.loaderLitresPerMt)}</td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </div>
@@ -2598,7 +2623,7 @@ function PeriodSummaryTable({ rows }: { rows: PeriodSummaryRow[] }) {
               <td>{fmt.format(row.jawTph)}</td>
               <td>{fmt.format(row.vsiTph)}</td>
               <td>{fmt.format(row.kvahPerMt)}</td>
-              <td>{fmt.format(row.loaderLitresPerMt)}</td>
+              <td>{fmt3.format(row.loaderLitresPerMt)}</td>
               <td>{formatHours(row.lossHours)}</td>
             </tr>
           ))}
@@ -2766,7 +2791,7 @@ function LoaderTable({ rows }: { rows: LoaderBasisRow[] }) {
             <tr key={row.label}>
               <td>{row.label}</td>
               <td>{formatHours(row.runningHours)}</td>
-              <td>{fmt.format(row.litresPerMt)}</td>
+              <td>{fmt3.format(row.litresPerMt)}</td>
               <td>{fmt.format(row.tph)}</td>
               <td>{fmt.format(row.dispatchMt)}</td>
             </tr>
@@ -3398,6 +3423,47 @@ function downloadCopCsv(snapshot: ReportSnapshot, days: SnapshotDay[]) {
   const link = document.createElement("a");
   link.href = url;
   link.download = `${snapshot.plantCode}-${rows[0]?.start_date ?? snapshot.period.start}-${rows[0]?.end_date ?? snapshot.period.end}-COP.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadFullReportCsv(snapshot: ReportSnapshot, days: SnapshotDay[]) {
+  const cumulative = buildDailyOperationsCumulative(days);
+  const rows: Array<Record<string, string | number>> = days.map((day) => ({
+    plant: snapshot.plantName,
+    date: day.date,
+    target_mt: roundDisplay(day.targetMt),
+    production_mt: roundDisplay(day.production.mt),
+    dispatch_mt: roundDisplay(day.dispatch.totalMt),
+    jaw_tph: roundDisplay(day.machine.jawTph),
+    vsi_tph: roundDisplay(day.machine.vsiTph),
+    production_hours: formatHours(day.plantHours.productionHours),
+    loss_hours: formatHours(day.plantHours.lossHours),
+    electricity_units: roundDisplay(dailyElectricityUnits(day)),
+    unit_per_mt: roundDisplay(day.electrical.unitsPerMt, 3),
+    loader_litre_per_mt: roundDisplay(day.loader.litresPerMt, 3),
+  }));
+
+  rows.push({
+    plant: snapshot.plantName,
+    date: "Cumulative",
+    target_mt: roundDisplay(cumulative.targetMt),
+    production_mt: roundDisplay(cumulative.productionMt),
+    dispatch_mt: roundDisplay(cumulative.dispatchMt),
+    jaw_tph: roundDisplay(cumulative.jawTph),
+    vsi_tph: roundDisplay(cumulative.vsiTph),
+    production_hours: formatHours(cumulative.runHours),
+    loss_hours: formatHours(cumulative.lossHours),
+    electricity_units: roundDisplay(cumulative.electricityUnits),
+    unit_per_mt: roundDisplay(cumulative.unitsPerMt, 3),
+    loader_litre_per_mt: roundDisplay(cumulative.loaderLitresPerMt, 3),
+  });
+
+  const blob = new Blob(["\uFEFF", toCsv(rows)], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${snapshot.plantCode}-${days[0]?.date ?? snapshot.period.start}-${days.at(-1)?.date ?? snapshot.period.end}-full-report.csv`;
   link.click();
   URL.revokeObjectURL(url);
 }
