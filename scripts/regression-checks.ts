@@ -3,6 +3,7 @@ import { calculateDailyRecord, materializeCalculatedFields } from "../src/lib/ca
 import { validateCaptureRecord } from "../src/lib/capture/validation";
 import { buildTotals } from "../src/lib/reporting/calculations";
 import { buildCopTotals } from "../src/lib/reporting/cop";
+import { buildDailyOperationsCumulative } from "../src/lib/reporting/daily-operations";
 import type { CapturePayload, DailyPlantRecord, LossCategory } from "../src/lib/capture/types";
 import { CAPTURE_PRODUCTS, LOSS_CATEGORIES } from "../src/lib/capture/types";
 import type { DailySnapshot } from "../src/lib/reporting/types";
@@ -217,6 +218,37 @@ const totals = buildTotals([
 ] as DailySnapshot[]);
 assert.equal(totals.avgJawTph, 40, "Jaw average TPH should be cumulative production / cumulative jaw hours.");
 assert.equal(totals.avgVsiTph, 80, "VSI average TPH should be cumulative production / cumulative VSI hours.");
+
+const dailyCumulative = buildDailyOperationsCumulative([
+  {
+    targetMt: 150,
+    production: { mt: 100 },
+    dispatch: { totalMt: 80 },
+    machine: { jawHours: 5, vsiHours: 2 },
+    plantHours: { productionHours: 5, lossHours: 3 },
+    electrical: { productionUnits: 20, kvah: 25 },
+    loader: { dieselLitres: 8, dispatchMt: 80 },
+  },
+  {
+    targetMt: 350,
+    production: { mt: 300 },
+    dispatch: { totalMt: 250 },
+    machine: { jawHours: 5, vsiHours: 3 },
+    plantHours: { productionHours: 6, lossHours: 2 },
+    electrical: { productionUnits: 90, kvah: 100 },
+    loader: { dieselLitres: 25, dispatchMt: 250 },
+  },
+] as DailySnapshot[]);
+assert.equal(dailyCumulative.targetMt, 500);
+assert.equal(dailyCumulative.productionMt, 400);
+assert.equal(dailyCumulative.dispatchMt, 330);
+assert.equal(dailyCumulative.jawTph, 40);
+assert.equal(dailyCumulative.vsiTph, 80);
+assert.equal(dailyCumulative.runHours, 11);
+assert.equal(dailyCumulative.lossHours, 5);
+assert.equal(dailyCumulative.electricityUnits, 110);
+assert.equal(dailyCumulative.unitsPerMt, 0.275);
+assert.equal(dailyCumulative.loaderLitresPerMt, 0.1);
 
 const copDay = (date: string, cost: number, updatedAt: string, weeklyEntryDate?: string) => ({
   date,
