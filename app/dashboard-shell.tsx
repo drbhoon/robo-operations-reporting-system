@@ -53,6 +53,7 @@ import { validateCaptureRecord } from "@/src/lib/capture/validation";
 import type { ReportSnapshot } from "@/src/lib/reporting/types";
 import { buildCopTotals } from "@/src/lib/reporting/cop";
 import { buildDailyOperationsCumulative, dailyElectricityUnits } from "@/src/lib/reporting/daily-operations";
+import { BOOK_STOCK_PRODUCTS, buildBookStockReportRows, type BookStockReportRow } from "@/src/lib/reporting/book-stock";
 
 function chartCompactNumber(value: number) {
   if (Math.abs(value) >= 100000) return `${Math.round(value / 1000)}k`;
@@ -536,6 +537,20 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
     }
   }
 
+  async function generateBookStockDownload() {
+    setBusy(true);
+    setStatus("Building a fresh locked snapshot for the book stock report...");
+    try {
+      const nextSnapshot = await requestSnapshotFromSelection();
+      downloadBookStockCsv(nextSnapshot);
+      setStatus(`Book stock report downloaded for ${nextSnapshot.plantName}.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Book stock report download failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function assignPlantAccess(input: { email: string; name: string; plantCode: string }) {
     setBusy(true);
     setTemporaryPassword(null);
@@ -714,6 +729,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
           fileRef={fileRef}
           generatePpt={generatePpt}
           generateCopDownload={generateCopDownload}
+          generateBookStockDownload={generateBookStockDownload}
           importWorkbook={importWorkbook}
           plantCode={reportPlantCode}
           plantOptions={plantOptions}
@@ -1874,6 +1890,7 @@ function ReportsWorkspace({
   fileRef,
   generatePpt,
   generateCopDownload,
+  generateBookStockDownload,
   importWorkbook,
   plantCode,
   plantOptions,
@@ -1899,6 +1916,7 @@ function ReportsWorkspace({
   fileRef: React.RefObject<HTMLInputElement | null>;
   generatePpt: () => void;
   generateCopDownload: () => void;
+  generateBookStockDownload: () => void;
   importWorkbook: () => void;
   plantCode: string;
   plantOptions: Array<(typeof PLANT_CONFIGS)[number]>;
@@ -1955,6 +1973,10 @@ function ReportsWorkspace({
           <button className="btn" disabled={busy} onClick={generateCopDownload}>
             <Download size={16} />
             Generate & download COP CSV
+          </button>
+          <button className="btn" disabled={busy} onClick={generateBookStockDownload}>
+            <Download size={16} />
+            Generate & download book stock CSV
           </button>
         </div>
       </Panel>
@@ -2032,6 +2054,17 @@ function ReportsWorkspace({
           <p className="muted">No snapshot generated yet.</p>
         )}
       </Panel>
+
+      {snapshot ? (
+        <Panel title={`${snapshot.plantName} book stock report`} meta={`${formatDisplayDate(snapshot.period.start)} to ${formatDisplayDate(snapshot.period.end)}`}>
+          <div className="form-actions">
+            <button className="btn" onClick={() => downloadBookStockCsv(snapshot)}>
+              <Download size={16} /> Download book stock CSV
+            </button>
+          </div>
+          <BookStockTable rows={buildBookStockReportRows(snapshot.daily)} />
+        </Panel>
+      ) : null}
     </section>
   );
 }
@@ -2584,6 +2617,55 @@ function DailyTable({ days }: { days: ReportSnapshot["daily"] }) {
               <td>{fmt.format(cumulative.electricityUnits)}</td>
               <td>{fmt.format(cumulative.unitsPerMt)}</td>
               <td>{fmt3.format(cumulative.loaderLitresPerMt)}</td>
+            </tr>
+          ) : null}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function BookStockTable({ rows }: { rows: BookStockReportRow[] }) {
+  return (
+    <div className="table-shell book-stock-table">
+      <table>
+        <thead>
+          <tr>
+            <th rowSpan={2}>Date</th>
+            <th colSpan={BOOK_STOCK_PRODUCTS.length}>Opening Stocks (MT)</th>
+            <th rowSpan={2}>Raw Material after Fines (MT)</th>
+            <th colSpan={BOOK_STOCK_PRODUCTS.length}>Average Product Ratios of the Day (%)</th>
+            <th colSpan={BOOK_STOCK_PRODUCTS.length}>Production (MT)</th>
+            <th colSpan={BOOK_STOCK_PRODUCTS.length + 2}>Dispatch (MT)</th>
+            <th colSpan={BOOK_STOCK_PRODUCTS.length}>Closing Stocks (MT)</th>
+          </tr>
+          <tr>
+            {BOOK_STOCK_PRODUCTS.map((product) => <th key={`opening-${product}`}>{product}</th>)}
+            {BOOK_STOCK_PRODUCTS.map((product) => <th key={`ratio-${product}`}>{product}</th>)}
+            {BOOK_STOCK_PRODUCTS.map((product) => <th key={`production-${product}`}>{product}</th>)}
+            {BOOK_STOCK_PRODUCTS.map((product) => <th key={`dispatch-${product}`}>{product}</th>)}
+            <th>Total</th>
+            <th>NF</th>
+            {BOOK_STOCK_PRODUCTS.map((product) => <th key={`closing-${product}`}>{product}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.date}>
+              <td>{formatDisplayDate(row.date)}</td>
+              {BOOK_STOCK_PRODUCTS.map((product) => <td key={`opening-${row.date}-${product}`}>{fmt.format(row.opening[product])}</td>)}
+              <td>{fmt.format(row.rawMaterialAfterFinesMt)}</td>
+              {BOOK_STOCK_PRODUCTS.map((product) => <td key={`ratio-${row.date}-${product}`}>{fmt.format(row.ratios[product])}</td>)}
+              {BOOK_STOCK_PRODUCTS.map((product) => <td key={`production-${row.date}-${product}`}>{fmt.format(row.production[product])}</td>)}
+              {BOOK_STOCK_PRODUCTS.map((product) => <td key={`dispatch-${row.date}-${product}`}>{fmt.format(row.dispatch[product])}</td>)}
+              <td>{fmt.format(row.dispatchTotalMt)}</td>
+              <td>{fmt.format(row.naturalFinesMt)}</td>
+              {BOOK_STOCK_PRODUCTS.map((product) => <td key={`closing-${row.date}-${product}`}>{fmt.format(row.closing[product])}</td>)}
+            </tr>
+          ))}
+          {!rows.length ? (
+            <tr>
+              <td colSpan={(BOOK_STOCK_PRODUCTS.length * 5) + 4}>No book stock data available for this period.</td>
             </tr>
           ) : null}
         </tbody>
@@ -3466,6 +3548,36 @@ function downloadFullReportCsv(snapshot: ReportSnapshot, days: SnapshotDay[]) {
   link.download = `${snapshot.plantCode}-${days[0]?.date ?? snapshot.period.start}-${days.at(-1)?.date ?? snapshot.period.end}-full-report.csv`;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function downloadBookStockCsv(snapshot: ReportSnapshot) {
+  const rows = buildBookStockReportRows(snapshot.daily).map((row) => {
+    const output: Record<string, string | number> = {
+      location: snapshot.plantName,
+      date: row.date,
+    };
+    for (const product of BOOK_STOCK_PRODUCTS) output[`opening_${csvProductKey(product)}_mt`] = roundDisplay(row.opening[product], 2);
+    output.raw_material_after_fines_mt = roundDisplay(row.rawMaterialAfterFinesMt, 2);
+    for (const product of BOOK_STOCK_PRODUCTS) output[`ratio_${csvProductKey(product)}_pct`] = roundDisplay(row.ratios[product], 2);
+    for (const product of BOOK_STOCK_PRODUCTS) output[`production_${csvProductKey(product)}_mt`] = roundDisplay(row.production[product], 2);
+    for (const product of BOOK_STOCK_PRODUCTS) output[`dispatch_${csvProductKey(product)}_mt`] = roundDisplay(row.dispatch[product], 2);
+    output.dispatch_total_mt = roundDisplay(row.dispatchTotalMt, 2);
+    output.dispatch_natural_fines_mt = roundDisplay(row.naturalFinesMt, 2);
+    for (const product of BOOK_STOCK_PRODUCTS) output[`closing_${csvProductKey(product)}_mt`] = roundDisplay(row.closing[product], 2);
+    return output;
+  });
+
+  const blob = new Blob(["\uFEFF", toCsv(rows)], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${snapshot.plantCode}-${snapshot.period.start}-${snapshot.period.end}-book-stock-report.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function csvProductKey(product: string) {
+  return product.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 }
 
 function setProduct(

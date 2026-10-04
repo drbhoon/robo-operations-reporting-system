@@ -4,6 +4,7 @@ import { validateCaptureRecord } from "../src/lib/capture/validation";
 import { buildTotals } from "../src/lib/reporting/calculations";
 import { buildCopTotals } from "../src/lib/reporting/cop";
 import { buildDailyOperationsCumulative } from "../src/lib/reporting/daily-operations";
+import { buildBookStockReportRows } from "../src/lib/reporting/book-stock";
 import type { CapturePayload, DailyPlantRecord, LossCategory } from "../src/lib/capture/types";
 import { CAPTURE_PRODUCTS, LOSS_CATEGORIES } from "../src/lib/capture/types";
 import type { DailySnapshot } from "../src/lib/reporting/types";
@@ -249,6 +250,54 @@ assert.equal(dailyCumulative.lossHours, 5);
 assert.equal(dailyCumulative.electricityUnits, 110);
 assert.equal(dailyCumulative.unitsPerMt, 0.275);
 assert.equal(dailyCumulative.loaderLitresPerMt, 0.1);
+
+const bookStockRows = buildBookStockReportRows([{
+  date: "2026-09-01",
+  production: {
+    mt: 1287.23,
+    rawMaterialMt: 1287.23,
+    products: [
+      { name: "R Sand", mt: 656, ratio: 51 },
+      { name: "20 MM", mt: 373, ratio: 29 },
+      { name: "10 MM", mt: 180, ratio: 14 },
+      { name: "P Sand", mt: 77, ratio: 6 },
+    ],
+  },
+  dispatch: {
+    totalMt: 869,
+    products: [
+      { name: "R Sand", mt: 491.51 },
+      { name: "20 MM", mt: 118.73 },
+      { name: "10 MM", mt: 219.14 },
+      { name: "P Sand", mt: 39.28 },
+    ],
+  },
+  stock: {
+    opening: [],
+    closing: [],
+    bookOpening: [
+      { name: "R Sand", mt: 1978 },
+      { name: "20 MM", mt: 434 },
+      { name: "10 MM", mt: 1078 },
+      { name: "P Sand", mt: 111 },
+      { name: "WMM", mt: 503.75 },
+    ],
+    bookClosing: [
+      { name: "R Sand", mt: 2143 },
+      { name: "20 MM", mt: 689 },
+      { name: "10 MM", mt: 1039 },
+      { name: "P Sand", mt: 149 },
+      { name: "WMM", mt: 504 },
+    ],
+  },
+} as DailySnapshot]);
+assert.equal(bookStockRows[0].rawMaterialAfterFinesMt, 1287.23);
+assert.equal(bookStockRows[0].opening["R Sand"], 1978);
+assert.equal(bookStockRows[0].ratios["20 MM"], 29);
+assert.equal(bookStockRows[0].production["10 MM"], 180);
+assert.equal(bookStockRows[0].dispatchTotalMt, 869);
+assert.equal(bookStockRows[0].naturalFinesMt, 0);
+assert.equal(bookStockRows[0].closing.WMM, 504);
 
 const copDay = (date: string, cost: number, updatedAt: string, weeklyEntryDate?: string) => ({
   date,

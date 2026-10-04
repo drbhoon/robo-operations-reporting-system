@@ -935,6 +935,15 @@ h1 {
   overflow-x: auto;
 }
 
+.book-stock-table table {
+  min-width: 4200px;
+}
+
+.book-stock-table th,
+.book-stock-table td {
+  white-space: nowrap;
+}
+
 .table-panel {
   margin-top: 14px;
 }
