@@ -52,6 +52,7 @@ export type DailySnapshot = {
   stock: {
     opening: Array<{ name: ProductName; mt: number }>;
     closing: Array<{ name: ProductName; mt: number }>;
+    bookOpening?: Array<{ name: ProductName; mt: number }>;
     bookClosing?: Array<{ name: ProductName; mt: number }>;
     adjustmentComment?: string;
   };

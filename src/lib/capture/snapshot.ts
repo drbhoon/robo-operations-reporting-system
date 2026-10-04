@@ -84,6 +84,7 @@ function recordToDailySnapshot(record: DailyPlantRecord): DailySnapshot {
     stock: {
       opening: CAPTURE_PRODUCTS.map((name) => ({ name, mt: round(record.openingStock[name]) })),
       closing: CAPTURE_PRODUCTS.map((name) => ({ name, mt: round(record.calculations.calculatedClosingStock[name]) })),
+      bookOpening: CAPTURE_PRODUCTS.map((name) => ({ name, mt: round(record.bookStock.monthlyOpening[name]) })),
       bookClosing: CAPTURE_PRODUCTS.map((name) => ({ name, mt: round(record.calculations.calculatedBookStock[name]) })),
       adjustmentComment: record.stockAdjustmentComment,
     },
