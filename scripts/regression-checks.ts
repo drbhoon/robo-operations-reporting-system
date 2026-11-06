@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { canAccessPlant, isRdcReportEmail, reportUserLimit, type AppSession } from "../src/lib/auth/admin";
 import { calculateDailyRecord, materializeCalculatedFields } from "../src/lib/capture/calculations";
 import { validateCaptureRecord } from "../src/lib/capture/validation";
 import { buildTotals } from "../src/lib/reporting/calculations";
@@ -349,5 +350,21 @@ const clearedCop = buildCopTotals([
   copDay("2026-09-08", 0, "2026-09-08T18:00:00.000Z", "2026-09-08"),
 ]);
 assert.equal(clearedCop.plantMaintenance, 0, "An explicit zero update must clear an earlier weekly cost.");
+
+assert.equal(reportUserLimit(), 5, "Report access must remain capped at five active users.");
+assert.equal(isRdcReportEmail("manager@rdc.in"), true);
+assert.equal(isRdcReportEmail(" MANAGER@RDC.IN "), true);
+assert.equal(isRdcReportEmail("manager@sub.rdc.in"), false);
+assert.equal(isRdcReportEmail("manager@rdc.in.example.com"), false);
+assert.equal(isRdcReportEmail("manager@example.com"), false);
+const reportSession: AppSession = {
+  email: "manager@rdc.in",
+  name: "Report Manager",
+  role: "REPORT_USER",
+  userId: "report-user",
+  username: "manager@rdc.in",
+};
+assert.equal(canAccessPlant(reportSession, "KEESARA"), true, "Report users need all-plant report access.");
+assert.equal(canAccessPlant(reportSession, "GIRMAPUR-1"), true, "Report users need all-plant report access.");
 
 console.log("Regression checks passed.");

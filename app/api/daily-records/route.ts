@@ -7,6 +7,9 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const session = await requireAdminSession();
+  if (session.role === "REPORT_USER") {
+    return NextResponse.json({ error: "Report users cannot access daily data capture." }, { status: 403 });
+  }
   const url = new URL(request.url);
   const requestedPlant = url.searchParams.get("plantCode") || undefined;
   const plantCode = session.role === "PLANT_USER" ? session.plantCode : requestedPlant;
@@ -22,6 +25,9 @@ export async function GET(request: Request) {
 
 export async function DELETE(request: Request) {
   const session = await requireAdminSession();
+  if (session.role === "REPORT_USER") {
+    return NextResponse.json({ error: "Report users cannot access daily data capture." }, { status: 403 });
+  }
   const body = (await request.json()) as { id?: string };
   if (!body.id) {
     return NextResponse.json({ error: "Daily record id is required." }, { status: 400 });
@@ -55,6 +61,9 @@ export async function DELETE(request: Request) {
 
 export async function POST(request: Request) {
   const session = await requireAdminSession();
+  if (session.role === "REPORT_USER") {
+    return NextResponse.json({ error: "Report users cannot access daily data capture." }, { status: 403 });
+  }
   const body = (await request.json()) as {
     action?: "DRAFT" | "SUBMIT";
     record?: CapturePayload;

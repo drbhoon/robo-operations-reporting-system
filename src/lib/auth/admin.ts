@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getPrisma } from "../reporting/prisma";
 
-export type UserRole = "SUPER_ADMIN" | "PLANT_USER";
+export type UserRole = "SUPER_ADMIN" | "PLANT_USER" | "REPORT_USER";
 
 export type AppSession = {
   email?: string;
@@ -25,11 +25,22 @@ export type PlantUserSummary = {
   userId?: string;
 };
 
+export type ReportUserSummary = {
+  assignedAt: string;
+  email: string;
+  isActive: boolean;
+  name: string;
+  role: "REPORT_USER";
+  userId: string;
+};
+
 const ADMIN_USERNAME = process.env.ROBOOPS_ADMIN_USERNAME || "ROBOOPS";
 const ADMIN_PASSWORD_ENV = "ROBOOPS_ADMIN_PASSWORD";
 const ADMIN_EMAIL = process.env.ROBOOPS_ADMIN_EMAIL || "roboops@robo.local";
 const COOKIE_NAME = "roboops_session";
 const SESSION_TTL_SECONDS = 12 * 60 * 60;
+const REPORT_USER_LIMIT = 5;
+const REPORT_USER_DOMAIN = "rdc.in";
 
 type SessionPayload = {
   exp: number;
@@ -91,6 +102,18 @@ export async function authenticateCredentials(identifier: string, password: stri
       username: user.email,
     };
   }
+
+  if (user.role === "REPORT_USER") {
+    return {
+      email: user.email,
+      name: user.name,
+      role: "REPORT_USER",
+      userId: user.id,
+      username: user.email,
+    };
+  }
+
+  if (user.role !== "SUPER_ADMIN") return null;
 
   return {
     email: user.email,
@@ -161,6 +184,16 @@ export async function getAdminSession(): Promise<AppSession | null> {
         username: user.email,
       };
     }
+    if (user.role === "REPORT_USER") {
+      return {
+        email: user.email,
+        name: user.name,
+        role: "REPORT_USER",
+        userId: user.id,
+        username: user.email,
+      };
+    }
+    if (user.role !== "SUPER_ADMIN") return null;
     return {
       email: user.email,
       name: user.name,
@@ -190,7 +223,7 @@ export async function requireSuperAdminSession(): Promise<AppSession> {
 }
 
 export function canAccessPlant(session: AppSession, plantCode: string) {
-  return session.role === "SUPER_ADMIN" || session.plantCode === plantCode;
+  return session.role === "SUPER_ADMIN" || session.role === "REPORT_USER" || session.plantCode === plantCode;
 }
 
 export function enforcePlantAccess(session: AppSession, plantCode: string) {
@@ -222,6 +255,140 @@ export async function listPlantUsers(): Promise<PlantUserSummary[]> {
     role: access.user.role as UserRole,
     userId: access.userId,
   }));
+}
+
+export async function listReportUsers(): Promise<ReportUserSummary[]> {
+  const prisma = getPrisma();
+  if (!prisma) return [];
+
+  const users = await prisma.appUser.findMany({
+    where: { isActive: true, role: "REPORT_USER" },
+    orderBy: { updatedAt: "asc" },
+  });
+
+  return users.map((user) => ({
+    assignedAt: user.updatedAt.toISOString(),
+    email: user.email,
+    isActive: user.isActive,
+    name: user.name,
+    role: "REPORT_USER" as const,
+    userId: user.id,
+  }));
+}
+
+export function reportUserLimit() {
+  return REPORT_USER_LIMIT;
+}
+
+export function isRdcReportEmail(value: string) {
+  const email = value.trim().toLowerCase();
+  const parts = email.split("@");
+  return parts.length === 2 && Boolean(parts[0]) && parts[1] === REPORT_USER_DOMAIN;
+}
+
+export async function assignReportUser(input: {
+  actor: AppSession;
+  email: string;
+  name: string;
+}) {
+  const prisma = getPrisma();
+  if (!prisma) throw new Error("Database is required for report user management.");
+  if (input.actor.role !== "SUPER_ADMIN") throw new Error("Super admin access is required.");
+
+  const email = input.email.trim().toLowerCase();
+  const name = input.name.trim();
+  if (!name || !email) throw new Error("Name and email are required.");
+  if (!isRdcReportEmail(email)) throw new Error("Report user email must use the @rdc.in domain.");
+
+  const temporaryPassword = generateTemporaryPassword();
+  const passwordHash = hashPassword(temporaryPassword);
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.appUser.findUnique({
+      where: { email },
+      include: { plantAccesses: { where: { isActive: true }, take: 1 } },
+    });
+    if (existing?.role === "SUPER_ADMIN") throw new Error("The ROBOOPS administrator cannot be assigned as a report user.");
+    if (existing?.plantAccesses.length) throw new Error("This email has active plant access. Revoke that assignment before granting report access.");
+
+    const activeCount = await tx.appUser.count({
+      where: { isActive: true, role: "REPORT_USER" },
+    });
+    const isExistingActiveReportUser = existing?.isActive && existing.role === "REPORT_USER";
+    if (!isExistingActiveReportUser && activeCount >= REPORT_USER_LIMIT) {
+      throw new Error(`A maximum of ${REPORT_USER_LIMIT} active report users is allowed.`);
+    }
+
+    const user = await tx.appUser.upsert({
+      where: { email },
+      update: {
+        isActive: true,
+        name,
+        passwordHash,
+        role: "REPORT_USER",
+        username: null,
+      },
+      create: {
+        email,
+        isActive: true,
+        name,
+        passwordHash,
+        role: "REPORT_USER",
+      },
+    });
+
+    await tx.accessAuditLog.create({
+      data: {
+        action: isExistingActiveReportUser ? "REPORT_ACCESS_RESET" : "REPORT_ACCESS_ASSIGNED",
+        actorUserId: input.actor.userId,
+        summary: `${input.actor.username} ${isExistingActiveReportUser ? "reset" : "assigned"} report access for ${email}.`,
+        targetUserId: user.id,
+      },
+    });
+
+    return {
+      temporaryPassword,
+      user: {
+        assignedAt: user.updatedAt.toISOString(),
+        email: user.email,
+        isActive: true,
+        name: user.name,
+        role: "REPORT_USER" as const,
+        userId: user.id,
+      },
+    };
+  }, { isolationLevel: "Serializable" });
+}
+
+export async function revokeReportUser(input: {
+  actor: AppSession;
+  userId: string;
+}) {
+  const prisma = getPrisma();
+  if (!prisma) throw new Error("Database is required for report user management.");
+  if (input.actor.role !== "SUPER_ADMIN") throw new Error("Super admin access is required.");
+
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.appUser.findUnique({ where: { id: input.userId } });
+    if (!user || user.role !== "REPORT_USER" || !user.isActive) {
+      throw new Error("Active report user was not found.");
+    }
+
+    await tx.appUser.update({
+      where: { id: user.id },
+      data: { isActive: false },
+    });
+    await tx.accessAuditLog.create({
+      data: {
+        action: "REPORT_ACCESS_REVOKED",
+        actorUserId: input.actor.userId,
+        summary: `${input.actor.username} revoked report access for ${user.email}.`,
+        targetUserId: user.id,
+      },
+    });
+
+    return { userId: user.id };
+  });
 }
 
 export async function assignPlantUser(input: {
@@ -450,7 +617,7 @@ function verifyToken(token: string): SessionPayload | null {
 
   try {
     const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as SessionPayload;
-    if (payload.role !== "SUPER_ADMIN" && payload.role !== "PLANT_USER") return null;
+    if (payload.role !== "SUPER_ADMIN" && payload.role !== "PLANT_USER" && payload.role !== "REPORT_USER") return null;
     if (payload.exp < Math.floor(Date.now() / 1000)) return null;
     return payload;
   } catch {
