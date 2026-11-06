@@ -33,7 +33,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import type { AppSession, PlantUserSummary, UserRole } from "@/src/lib/auth/admin";
+import type { AppSession, PlantUserSummary, ReportUserSummary, UserRole } from "@/src/lib/auth/admin";
 import { defaultCostRatesFor, electricLoaderEnabledFor, type PlantCostRates, type PlantOperationalConfig } from "@/src/lib/capture/plant-config-client";
 import { calculateDailyRecord, domesticMeterMfFor, materializeCalculatedFields, mirroredLoaderDispatchPlant, payloadWithCostRates } from "@/src/lib/capture/calculations";
 import {
@@ -101,6 +101,7 @@ type Props = {
   allowedPlantCodes?: string[];
   initialPlantConfigs: PlantOperationalConfig[];
   initialPlantUsers: PlantUserSummary[];
+  initialReportUsers: ReportUserSummary[];
   initialSnapshot: ReportSnapshot | null;
   initialRecords: DailyPlantRecord[];
   session: AppSession;
@@ -232,8 +233,8 @@ const VARIATION_WARNING_CODES: Record<VariationReasonKey, string[]> = {
   diesel: ["HIGH_LOADER_DIESEL", "LOW_LOADER_DIESEL"],
 };
 
-export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initialPlantUsers, initialSnapshot, initialRecords, session }: Props) {
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>("capture");
+export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initialPlantUsers, initialReportUsers, initialSnapshot, initialRecords, session }: Props) {
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>(session.role === "REPORT_USER" ? "reports" : "capture");
   const [dashboardView, setDashboardView] = useState<DashboardView>("daily");
   const [records, setRecords] = useState(initialRecords);
   const [snapshot, setSnapshot] = useState(initialSnapshot);
@@ -246,7 +247,9 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
   const [status, setStatus] = useState<string | null>(null);
   const [plantConfigs, setPlantConfigs] = useState(initialPlantConfigs);
   const [plantUsers, setPlantUsers] = useState(initialPlantUsers);
+  const [reportUsers, setReportUsers] = useState(initialReportUsers);
   const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
+  const [reportTemporaryPassword, setReportTemporaryPassword] = useState<string | null>(null);
   const [backfillFileName, setBackfillFileName] = useState("");
   const [backfillResult, setBackfillResult] = useState<BackfillUploadResult | null>(null);
   const [startDate, setStartDate] = useState(initialSnapshot?.period.start ?? todayIso());
@@ -598,6 +601,53 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
     }
   }
 
+  async function assignReportAccess(input: { email: string; name: string }) {
+    setBusy(true);
+    setReportTemporaryPassword(null);
+    setStatus("Assigning report access...");
+    try {
+      const response = await fetch("/api/admin/report-users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const body = (await response.json()) as {
+        error?: string;
+        reportUsers?: ReportUserSummary[];
+        temporaryPassword?: string;
+      };
+      if (!response.ok) throw new Error(body.error ?? "Report user assignment failed");
+      if (body.reportUsers) setReportUsers(body.reportUsers);
+      setReportTemporaryPassword(body.temporaryPassword ?? null);
+      setStatus(`Report access assigned to ${input.email}. Share the temporary password once.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Report user assignment failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function revokeReportAccess(userId: string) {
+    setBusy(true);
+    setReportTemporaryPassword(null);
+    setStatus("Revoking report access...");
+    try {
+      const response = await fetch("/api/admin/report-users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const body = (await response.json()) as { error?: string; reportUsers?: ReportUserSummary[] };
+      if (!response.ok) throw new Error(body.error ?? "Report user revocation failed");
+      if (body.reportUsers) setReportUsers(body.reportUsers);
+      setStatus("Report access revoked. Existing sessions for that user are invalidated.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Report user revocation failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function changePassword(input: { currentPassword: string; newPassword: string }) {
     setBusy(true);
     setStatus("Changing password...");
@@ -659,15 +709,21 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
           </div>
         </div>
         <div className="toolbar">
-          <span className="admin-chip">{session.role === "SUPER_ADMIN" ? session.username : `${session.name} | ${session.plantCode}`}</span>
-          <button className={tabClass(activeTab, "capture")} onClick={() => setActiveTab("capture")}>
-            <ClipboardCheck size={16} />
-            Capture
-          </button>
-          <button className={tabClass(activeTab, "dashboard")} onClick={() => setActiveTab("dashboard")}>
-            <Database size={16} />
-            Dashboard
-          </button>
+          <span className="admin-chip">
+            {session.role === "SUPER_ADMIN" ? session.username : session.role === "REPORT_USER" ? `${session.name} | Reports` : `${session.name} | ${session.plantCode}`}
+          </span>
+          {session.role !== "REPORT_USER" ? (
+            <>
+              <button className={tabClass(activeTab, "capture")} onClick={() => setActiveTab("capture")}>
+                <ClipboardCheck size={16} />
+                Capture
+              </button>
+              <button className={tabClass(activeTab, "dashboard")} onClick={() => setActiveTab("dashboard")}>
+                <Database size={16} />
+                Dashboard
+              </button>
+            </>
+          ) : null}
           <button className={tabClass(activeTab, "reports")} onClick={() => setActiveTab("reports")}>
             <Presentation size={16} />
             Reports
@@ -686,7 +742,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
 
       <PasswordPanel busy={busy} onChangePassword={changePassword} />
 
-      {activeTab === "capture" ? (
+      {activeTab === "capture" && session.role !== "REPORT_USER" ? (
         <CaptureWorkspace
           busy={busy}
           deleteRecord={deleteRecord}
@@ -703,7 +759,7 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
         />
       ) : null}
 
-      {activeTab === "dashboard" ? (
+      {activeTab === "dashboard" && session.role !== "REPORT_USER" ? (
         <DashboardWorkspace
           dashboardView={dashboardView}
           exceptionRecords={exceptionRecords}
@@ -748,6 +804,10 @@ export function DashboardShell({ allowedPlantCodes, initialPlantConfigs, initial
             setStatus(fileName ? `Selected ${fileName}. Press Upload final data to import.` : null);
           }}
           uploadBackfill={uploadBackfill}
+          onAssignReportUser={assignReportAccess}
+          onRevokeReportUser={revokeReportAccess}
+          reportTemporaryPassword={reportTemporaryPassword}
+          reportUsers={reportUsers}
           userRole={session.role}
         />
       ) : null}
@@ -1904,6 +1964,10 @@ function ReportsWorkspace({
   startDate,
   status,
   onBackfillFileSelected,
+  onAssignReportUser,
+  onRevokeReportUser,
+  reportTemporaryPassword,
+  reportUsers,
   uploadBackfill,
   userRole,
 }: {
@@ -1930,11 +1994,80 @@ function ReportsWorkspace({
   startDate: string;
   status: string | null;
   onBackfillFileSelected: (fileName: string) => void;
+  onAssignReportUser: (input: { email: string; name: string }) => void;
+  onRevokeReportUser: (userId: string) => void;
+  reportTemporaryPassword: string | null;
+  reportUsers: ReportUserSummary[];
   uploadBackfill: () => void;
   userRole: UserRole;
 }) {
+  const [reportUserName, setReportUserName] = useState("");
+  const [reportUserEmail, setReportUserEmail] = useState("");
+  const normalizedReportEmail = reportUserEmail.trim().toLowerCase();
+  const reportEmailParts = normalizedReportEmail.split("@");
+  const validReportEmail = reportEmailParts.length === 2 && Boolean(reportEmailParts[0]) && reportEmailParts[1] === "rdc.in";
+
   return (
     <section className="reports-grid">
+      {userRole === "SUPER_ADMIN" ? (
+        <Panel title="Report user access" meta={`${reportUsers.length} of 5 active`}>
+          <div className="commentary">
+            <p>ROBOOPS can grant reporting-only access to a maximum of five users. Only email addresses ending exactly in @rdc.in are accepted.</p>
+          </div>
+          <div className="form-grid two report-controls">
+            <TextField label="Name" value={reportUserName} onChange={setReportUserName} />
+            <TextField label="RDC email" type="email" value={reportUserEmail} onChange={setReportUserEmail} />
+          </div>
+          <div className="form-actions">
+            <button
+              className="btn primary"
+              disabled={busy || reportUsers.length >= 5 || !reportUserName.trim() || !validReportEmail}
+              onClick={() => onAssignReportUser({ email: normalizedReportEmail, name: reportUserName.trim() })}
+            >
+              <UserPlus size={16} />
+              Add report user
+            </button>
+          </div>
+          {reportUserEmail && !validReportEmail ? <p className="status-line">Enter a valid @rdc.in email address.</p> : null}
+          {reportTemporaryPassword ? (
+            <div className="status-line">
+              Temporary password: <strong>{reportTemporaryPassword}</strong>
+            </div>
+          ) : null}
+          <div className="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Email</th>
+                  <th>Assigned</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reportUsers.length ? reportUsers.map((user) => (
+                  <tr key={user.userId}>
+                    <td>{user.name}</td>
+                    <td>{user.email}</td>
+                    <td>{formatDisplayDate(user.assignedAt.slice(0, 10))}</td>
+                    <td>
+                      <button className="btn danger" disabled={busy} onClick={() => onRevokeReportUser(user.userId)}>
+                        <Trash2 size={16} />
+                        Revoke
+                      </button>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={4} className="muted">No additional report users assigned.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      ) : null}
+
       <Panel title="Generate locked dashboard snapshot" meta="Database to report">
         <div className="form-grid two report-controls">
           <SelectField

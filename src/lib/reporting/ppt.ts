@@ -34,6 +34,8 @@ export async function generatePowerPoint(snapshot: ReportSnapshot) {
   addTph(pptx, snapshot, "vsiTph", "VSI TPH");
   addLoaderMonitoring(pptx, snapshot);
   addElectricLoader(pptx, snapshot);
+  addLoaderAnalysis(pptx, snapshot);
+  addProductEfficiencyAnalysis(pptx, snapshot);
   addCopStructure(pptx, snapshot);
   addCopProjection(pptx, snapshot);
   addCommentary(pptx, snapshot);
@@ -319,6 +321,50 @@ function addElectricLoader(pptx: PptxGenJS, snapshot: ReportSnapshot) {
     true,
     3.35,
     3.15,
+  );
+}
+
+function addLoaderAnalysis(pptx: PptxGenJS, snapshot: ReportSnapshot) {
+  const slide = contentSlide(pptx, snapshot, "Dispatch Vs Loader Diesel Vs TPH");
+  addSimpleBars(
+    slide,
+    snapshot.daily.map((d) => d.label),
+    [
+      { name: "Dispatch MT", values: snapshot.daily.map((d) => d.loader.dispatchMt), color: "087F8C" },
+      { name: "Diesel L", values: snapshot.daily.map((d) => d.loader.dieselLitres), color: "D1495B" },
+      { name: "Loader TPH", values: snapshot.daily.map((d) => d.loader.tph), color: "183153" },
+    ],
+    true,
+  );
+}
+
+function addProductEfficiencyAnalysis(pptx: PptxGenJS, snapshot: ReportSnapshot) {
+  const slide = contentSlide(pptx, snapshot, "Product Ratio Vs Unit/MT Vs VSI TPH");
+  const rows = productEfficiencyRows(snapshot);
+  addTable(
+    slide,
+    ["Date", "Top product", "Ratio", "Unit/MT", "VSI TPH"],
+    rows.map((row) => [
+      row.label,
+      row.productName,
+      `${row.productRatio.toFixed(1)}%`,
+      row.unitsPerMt.toFixed(2),
+      row.vsiTph.toFixed(1),
+    ]),
+    0.9,
+    5.7,
+  );
+  addSimpleBars(
+    slide,
+    rows.map((row) => row.label),
+    [
+      { name: "Top product ratio %", values: rows.map((row) => row.productRatio), color: "087F8C" },
+      { name: "Unit/MT", values: rows.map((row) => row.unitsPerMt), color: "F3A712" },
+      { name: "VSI TPH", values: rows.map((row) => row.vsiTph), color: "183153" },
+    ],
+    true,
+    3.15,
+    3.35,
   );
 }
 
